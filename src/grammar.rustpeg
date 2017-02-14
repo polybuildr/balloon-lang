@@ -1,0 +1,56 @@
+use ast::*;
+
+pub program -> Vec<Statement>
+    = __ s:statements { s }
+
+pub statements -> Vec<Statement>
+    = terminators? sx:statement terminators? s:statements { let mut sc = s.to_vec(); sc.push(sx); sc }
+    / terminators? sx:statement terminators? { let mut v = vec![sx]; v }
+
+pub statement -> Statement
+    = i:identifier a:type_annotation? equals e:expr {
+        match a {
+            Some(t) => Statement::Assignment(LhsExpr::IdentifierWithAnnotation(i, t), e),
+            None => Statement::Assignment(LhsExpr::Identifier(i), e),
+        }
+    }
+
+pub expr -> Expr
+    = e:binary_expr { e }
+    / n:number { Expr::Number(n) }
+    / i:identifier t:type_annotation { Expr::IdentifierWithType(i, t) }
+    / i:identifier { Expr::Identifier(i) }
+
+binary_expr -> Expr = #infix<simple_expr> {
+    #L x "+" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Add, Box::new(y)) }
+       x "-" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Sub, Box::new(y)) }
+    #L x "*" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Mul, Box::new(y)) }
+       x "/" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Div, Box::new(y)) }
+}
+
+simple_expr -> Expr
+    = __ n:number __ { Expr::Number(n) }
+    / __ i:identifier __ { Expr::Identifier(i) }
+
+number -> i64
+    = n:$([0-9]+) __ { n.parse().unwrap() }
+
+comma = "," __
+
+identifier -> String
+    = i:$([a-zA-Z][a-zA-Z0-9]*[!?]?) __ { i.to_string() }
+
+type_annotation -> String
+    = ":" __ i:$([a-zA-Z][a-zA-Z0-9]*[!?]?) __ { i.to_string() }
+
+__ = whitespace*
+
+whitespace = [ \t]
+
+equals = "=" __
+
+terminators = terminator+
+
+terminator -> ()
+    = "\n" __
+    / ";" __

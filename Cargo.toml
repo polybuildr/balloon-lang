@@ -1,6 +1,10 @@
 [package]
-name = "balloon-lang"
+name = "balloon"
 version = "0.1.0"
 authors = ["Vivek Ghaisas <v.a.ghaisas@gmail.com>"]
+build = "build.rs"
+
+[build-dependencies]
+peg = { version = "0.5" }
 
 [dependencies]
