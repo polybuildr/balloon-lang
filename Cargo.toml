@@ -1,0 +1,6 @@
+[package]
+name = "balloon-lang"
+version = "0.1.0"
+authors = ["Vivek Ghaisas <v.a.ghaisas@gmail.com>"]
+
+[dependencies]
