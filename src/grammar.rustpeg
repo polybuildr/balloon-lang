@@ -22,15 +22,15 @@ pub expr -> Expr
     / i:identifier { Expr::Identifier(i) }
 
 binary_expr -> Expr = #infix<simple_expr> {
-    #L x "+" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Add, Box::new(y)) }
-       x "-" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Sub, Box::new(y)) }
-    #L x "*" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Mul, Box::new(y)) }
-       x "/" y { Expr::BinaryExpression(Box::new(x), BinaryOp::Div, Box::new(y)) }
+    #L x op_plus y { Expr::BinaryExpression(Box::new(x), BinaryOp::Add, Box::new(y)) }
+       x op_minus y { Expr::BinaryExpression(Box::new(x), BinaryOp::Sub, Box::new(y)) }
+    #L x op_asterisk y { Expr::BinaryExpression(Box::new(x), BinaryOp::Mul, Box::new(y)) }
+       x op_slash y { Expr::BinaryExpression(Box::new(x), BinaryOp::Div, Box::new(y)) }
 }
 
 simple_expr -> Expr
-    = __ n:number __ { Expr::Number(n) }
-    / __ i:identifier __ { Expr::Identifier(i) }
+    = n:number { Expr::Number(n) }
+    / i:identifier { Expr::Identifier(i) }
 
 number -> i64
     = n:$([0-9]+) __ { n.parse().unwrap() }
@@ -54,3 +54,8 @@ terminators = terminator+
 terminator -> ()
     = "\n" __
     / ";" __
+
+op_plus = "+" __
+op_minus = "-" __
+op_asterisk = "*" __
+op_slash = "/" __
