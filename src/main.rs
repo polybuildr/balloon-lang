@@ -39,9 +39,8 @@ fn main() {
         Ok(r) => {
             println!("Statements {{");
             for statement in r.iter() {
-                match *statement {
-                    ast::Statement::Assignment (ref s, ref e) => println!("  Assignment {{ {:?} = {:?} }}", s, e)
-                }
+                print!("  ");
+                println!("{:?}", statement);
             }
             println!("}}");
         },

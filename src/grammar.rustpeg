@@ -8,12 +8,29 @@ pub statements -> Vec<Statement>
     / terminators? sx:statement terminators? { let mut v = vec![sx]; v }
 
 pub statement -> Statement
-    = i:identifier a:type_annotation? equals e:expr {
-        match a {
-            Some(t) => Statement::Assignment(LhsExpr::IdentifierWithAnnotation(i, t), e),
-            None => Statement::Assignment(LhsExpr::Identifier(i), e),
-        }
+    = a:assignment_statement { a }
+    / v:variable_declaration { v }
+
+assignment_statement -> Statement
+    = i:identifier equals e:expr {
+        Statement::Assignment(LhsExpr::Identifier(i), e)
     }
+
+variable_declaration -> Statement
+    = b:binding i:identifier a:type_annotation? equals e:expr {
+        match a {
+            Some(t) => Statement::VariableDeclaration(
+                Variable::IdentifierWithType(b, i, t), e
+            ),
+            None => Statement::VariableDeclaration(
+                Variable::Identifier(b, i), e
+            )
+        }
+     }
+
+binding -> Binding
+    = var { Binding::Mutable }
+    / val { Binding::Immutable }
 
 pub expr -> Expr
     = e:binary_expr { e }
@@ -59,3 +76,8 @@ op_plus = "+" __
 op_minus = "-" __
 op_asterisk = "*" __
 op_slash = "/" __
+
+keyword<E> = E __
+
+var = keyword<"var">
+val = keyword<"val">

@@ -11,7 +11,18 @@ pub enum BinaryOp {
 #[derive(Debug, Clone)]
 pub enum LhsExpr {
     Identifier(String),
-    IdentifierWithAnnotation(String, String),
+}
+
+#[derive(Debug, Clone)]
+pub enum Variable {
+    Identifier(Binding, String),
+    IdentifierWithType(Binding, String, String)
+}
+
+#[derive(Debug, Clone)]
+pub enum Binding {
+    Mutable,
+    Immutable
 }
 
 #[derive(Debug, Clone)]
@@ -24,13 +35,15 @@ pub enum Expr {
 
 #[derive(Clone)]
 pub enum Statement {
-    Assignment(LhsExpr, Expr)
+    Assignment(LhsExpr, Expr),
+    VariableDeclaration(Variable, Expr)
 }
 
 impl fmt::Debug for Statement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Statement::Assignment (ref s, ref e) => write!(f, "Assignment {{ {:?} = {:?} }}", s, e)
+            Statement::Assignment (ref s, ref e) => write!(f, "Assignment {{ {:?} = {:?} }}", s, e),
+            Statement::VariableDeclaration (ref v, ref e) => write!(f, "VariableDeclaration {{ {:?} = {:?} }}", v, e)
         }
     }
 }
