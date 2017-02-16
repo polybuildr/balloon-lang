@@ -1,11 +1,11 @@
 use ast::*;
 
 pub program -> Vec<Statement>
-    = __ s:statements { s }
+    = __ terminators? s:statements { s }
 
 pub statements -> Vec<Statement>
-    = terminators? sx:statement terminators? s:statements { let mut sc = s.to_vec(); sc.insert(0, sx); sc }
-    / terminators? sx:statement terminators? { let mut v = vec![sx]; v }
+    = sx:statement terminators s:statements { let mut sc = s.to_vec(); sc.insert(0, sx); sc }
+    / sx:statement terminators { let mut v = vec![sx]; v }
 
 statement -> Statement
     = a:assignment_statement { a }

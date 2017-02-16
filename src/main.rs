@@ -45,6 +45,9 @@ fn parse_file(name: String) -> Result<Vec<ast::Statement>, Error> {
     let mut input_file = File::open(name)?;
     let mut input = String::new();
     input_file.read_to_string(&mut input)?;
+    if (!input.ends_with("\n")) {
+        input.push('\n');
+    }
     let x: Result<Vec<ast::Statement>, parser::ParseError> = parser::program(&input);
     Ok(x?)
 }
