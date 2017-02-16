@@ -36,16 +36,9 @@ fn main() {
     }
     let ast = parse_file(args[1].clone());
     match ast {
-        Ok(r) => {
-            println!("Statements {{");
-            for statement in r.iter() {
-                print!("  ");
-                println!("{:?}", statement);
-            }
-            println!("}}");
-        },
-        Err(e) => { println!("{:?}", e); },
-    }
+        Ok(r) => { println!("{:#?}", r); },
+        Err(e) => { println!("{:#?}", e); },
+    };
 }
 
 fn parse_file(name: String) -> Result<Vec<ast::Statement>, Error> {

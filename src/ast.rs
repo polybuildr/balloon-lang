@@ -33,19 +33,9 @@ pub enum Expr {
     BinaryExpression(Box<Expr>, BinaryOp, Box<Expr>),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Assignment(LhsExpr, Expr),
     VariableDeclaration(Variable, Expr),
     Expression(Expr),
-}
-
-impl fmt::Debug for Statement {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Statement::Assignment (ref s, ref e) => write!(f, "Assignment {{ {:?} = {:?} }}", s, e),
-            Statement::VariableDeclaration (ref v, ref e) => write!(f, "VariableDeclaration {{ {:?} = {:?} }}", v, e),
-            Statement::Expression (ref e) => write!(f, "Expression {{ {:?} }}", e),
-        }
-    }
 }
