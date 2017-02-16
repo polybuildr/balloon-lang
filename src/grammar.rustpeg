@@ -11,6 +11,7 @@ statement -> Statement
     = a:assignment_statement { a }
     / v:variable_declaration { v }
     / e:expr { Statement::Expression(e) }
+    / b:block { b }
 
 assignment_statement -> Statement
     = i:identifier equals e:expr {
@@ -32,6 +33,9 @@ variable_declaration -> Statement
 binding -> Binding
     = VAR { Binding::Mutable }
     / VAL { Binding::Immutable }
+
+block -> Statement
+    = OPENING_BRACE s:statements CLOSING_BRACE { Statement::Block(s) }
 
 expr -> Expr
     = e:binary_expr { e }
@@ -87,6 +91,9 @@ OP_MINUS = "-" __
 OP_ASTERISK = "*" __
 OP_SLASH = "/" __
 OP_COLON = ":" __
+
+OPENING_BRACE = "{" __
+CLOSING_BRACE = "}" __
 
 keyword<E> = E __
 

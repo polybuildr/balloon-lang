@@ -38,4 +38,5 @@ pub enum Statement {
     Assignment(LhsExpr, Expr),
     VariableDeclaration(Variable, Expr),
     Expression(Expr),
+    Block(Vec<Statement>),
 }
