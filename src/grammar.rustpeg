@@ -10,6 +10,7 @@ pub statements -> Vec<Statement>
 statement -> Statement
     = a:assignment_statement { a }
     / v:variable_declaration { v }
+    / e:expr { Statement::Expression(e) }
 
 assignment_statement -> Statement
     = i:identifier equals e:expr {
