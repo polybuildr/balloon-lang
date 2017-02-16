@@ -7,7 +7,7 @@ pub statements -> Vec<Statement>
     = terminators? sx:statement terminators? s:statements { let mut sc = s.to_vec(); sc.insert(0, sx); sc }
     / terminators? sx:statement terminators? { let mut v = vec![sx]; v }
 
-pub statement -> Statement
+statement -> Statement
     = a:assignment_statement { a }
     / v:variable_declaration { v }
 
@@ -32,7 +32,7 @@ binding -> Binding
     = VAR { Binding::Mutable }
     / VAL { Binding::Immutable }
 
-pub expr -> Expr
+expr -> Expr
     = e:binary_expr { e }
     / n:number { Expr::Number(n) }
     / i:identifier t:type_annotation { Expr::IdentifierWithType(i, t) }
