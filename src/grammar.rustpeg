@@ -39,7 +39,7 @@ block -> Statement
 
 expr -> Expr
     = e:binary_expr { e }
-    / n:integer { Expr::Integer(n) }
+    / s:simple_expr { s }
     / i:identifier t:type_annotation { Expr::IdentifierWithType(i, t) }
     / i:identifier { Expr::Identifier(i) }
 
@@ -51,14 +51,21 @@ binary_expr -> Expr = #infix<simple_expr> {
 }
 
 simple_expr -> Expr
-    = n:integer { Expr::Integer(n) }
+    = i:integer { Expr::Value(Value::Integer(i)) }
+    / f:float { Expr::Value(Value::Float(f)) }
     / i:identifier { Expr::Identifier(i) }
 
 integer -> i64
     = #quiet<_integer> / #expected("integer")
 
 _integer -> i64
-    = n:$([0-9]+) __ { n.parse().unwrap() }
+    = n:$([+-]?[0-9]+) __ { n.parse().unwrap() }
+
+float -> f64
+    = #quiet<_float> / #expected("integer")
+
+_float -> f64
+    = f:$([+-]?[0-9]+"."[0-9]+) __ { f.parse().unwrap() }
 
 comma = "," __
 

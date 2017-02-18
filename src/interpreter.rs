@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use ast::*;
 
 struct Environment {
-    symbol_tables: Vec<HashMap<String, i64>>
+    symbol_tables: Vec<HashMap<String, Value>>
 }
 
 impl Environment {
@@ -20,17 +20,17 @@ impl Environment {
         self.symbol_tables.pop();
     }
 
-    fn declare(&mut self, variable: &Variable, value: i64) {
+    fn declare(&mut self, variable: &Variable, value: &Value) {
         match *variable {
             Variable::Identifier(ref binding, ref id)
             | Variable::IdentifierWithType(ref binding, ref id, _) => {
                 // TODO: binding
-                self.symbol_tables.last_mut().unwrap().insert(id.clone(), value);
+                self.symbol_tables.last_mut().unwrap().insert(id.clone(), *value);
             }
         };
     }
 
-    fn set(&mut self, identifier: &String, value: i64) {
+    fn set(&mut self, identifier: &String, value: Value) {
         for table in self.symbol_tables.iter_mut().rev() {
             // TODO: Entry API
             if table.contains_key(identifier) {
@@ -41,7 +41,7 @@ impl Environment {
         panic!(format!("reference error: '{}' was not declared", identifier));
     }
 
-    fn get_value(&mut self, identifier: &String) -> i64 {
+    fn get_value(&mut self, identifier: &String) -> Value {
         for table in self.symbol_tables.iter().rev() {
             // TODO: Entry API
             if let Some(val) = table.get(identifier) {
@@ -65,7 +65,7 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
     match *s {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let val = interpret_expr(expr, env);
-            env.declare(variable, val);
+            env.declare(variable, &val);
             println!("{:?} => {}", variable, val);
         },
         Statement::Assignment(ref lhs_expr, ref expr) => {
@@ -87,9 +87,9 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
     }
 }
 
-fn interpret_expr(e: &Expr, env: &mut Environment) -> i64 {
+fn interpret_expr(e: &Expr, env: &mut Environment) -> Value {
     match *e {
-        Expr::Integer(x) => x,
+        Expr::Value(x) => x,
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let val1 = interpret_expr(expr1, env);
             let val2 = interpret_expr(expr2, env);
@@ -102,6 +102,6 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> i64 {
         },
         Expr::Identifier(ref id) => env.get_value(&id),
         // TODO: other exprs
-        _ => 0
+        _ => Value::Integer(0),
     }
 }
