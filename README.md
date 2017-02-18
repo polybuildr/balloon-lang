@@ -5,5 +5,6 @@
 If you want to run the binary:
 
 ```sh
-$ cargo run random-test-files/test-1.bl
+$ cargo run parse tests/001-single-simple-assignment.bl
+$ cargo run run tests/001-single-simple-assignment.bl
 ```

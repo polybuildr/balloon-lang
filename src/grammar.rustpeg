@@ -35,7 +35,7 @@ binding -> Binding
     / VAL { Binding::Immutable }
 
 block -> Statement
-    = OPENING_BRACE s:statements CLOSING_BRACE { Statement::Block(s) }
+    = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
 
 expr -> Expr
     = e:binary_expr { e }
