@@ -81,8 +81,9 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
             }
             env.end_scope();
         },
-        // TODO: other statements
-        _ => {}
+        Statement::Expression(ref expr) => {
+            interpret_expr(expr, env);
+        }
     }
 }
 
