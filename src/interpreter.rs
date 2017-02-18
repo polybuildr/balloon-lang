@@ -89,7 +89,7 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
 
 fn interpret_expr(e: &Expr, env: &mut Environment) -> i64 {
     match *e {
-        Expr::Number(x) => x,
+        Expr::Integer(x) => x,
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let val1 = interpret_expr(expr1, env);
             let val2 = interpret_expr(expr2, env);

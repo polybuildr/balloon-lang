@@ -25,7 +25,7 @@ pub enum Binding {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Number(i64),
+    Integer(i64),
     Identifier(String),
     IdentifierWithType(String, String),
     BinaryExpression(Box<Expr>, BinaryOp, Box<Expr>),
