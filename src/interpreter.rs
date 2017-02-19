@@ -22,9 +22,7 @@ impl Environment {
 
     fn declare(&mut self, variable: &Variable, value: &Value) {
         match *variable {
-            Variable::Identifier(ref binding, ref id)
-            | Variable::IdentifierWithType(ref binding, ref id, _) => {
-                // TODO: binding
+            Variable::Identifier(_, ref id) => {
                 self.symbol_tables.last_mut().unwrap().insert(id.clone(), *value);
             }
         };
@@ -43,7 +41,6 @@ impl Environment {
 
     fn get_value(&mut self, identifier: &String) -> Value {
         for table in self.symbol_tables.iter().rev() {
-            // TODO: Entry API
             if let Some(val) = table.get(identifier) {
                 return *val
             }
@@ -101,7 +98,5 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Value {
             }
         },
         Expr::Identifier(ref id) => env.get_value(&id),
-        // TODO: other exprs
-        _ => Value::Integer(0),
     }
 }

@@ -93,21 +93,18 @@ pub enum LhsExpr {
 
 #[derive(Debug, Clone)]
 pub enum Variable {
-    Identifier(Binding, String),
-    IdentifierWithType(Binding, String, String)
+    Identifier(BindingType, String),
 }
 
 #[derive(Debug, Clone)]
-pub enum Binding {
+pub enum BindingType {
     Mutable,
-    Immutable
 }
 
 #[derive(Debug, Clone)]
 pub enum Expr {
     Value(Value),
     Identifier(String),
-    IdentifierWithType(String, String),
     BinaryExpression(Box<Expr>, BinaryOp, Box<Expr>),
 }
 

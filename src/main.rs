@@ -12,20 +12,20 @@ mod ast;
 mod interpreter;
 
 #[derive(Debug)]
-enum Error {
+enum ProcessingError {
     ParseError(parser::ParseError),
     IoError(io::Error)
 }
 
-impl From<io::Error> for Error {
+impl From<io::Error> for ProcessingError {
     fn from(from: io::Error) -> Self {
-        Error::IoError(from)
+        ProcessingError::IoError(from)
     }
 }
 
-impl From<parser::ParseError> for Error {
+impl From<parser::ParseError> for ProcessingError {
     fn from(from: parser::ParseError) -> Self {
-        Error::ParseError(from)
+        ProcessingError::ParseError(from)
     }
 }
 
@@ -50,13 +50,13 @@ fn main() {
     }
 }
 
-fn parse_file(name: &String) -> Result<Vec<ast::Statement>, Error> {
+fn parse_file(name: &String) -> Result<Vec<ast::Statement>, ProcessingError> {
     let mut input_file = File::open(name)?;
     let mut input = String::new();
     input_file.read_to_string(&mut input)?;
     if !input.ends_with("\n") {
         input.push('\n');
     }
-    let x: Result<Vec<ast::Statement>, parser::ParseError> = parser::program(&input);
+    let x = parser::program(&input);
     Ok(x?)
 }
