@@ -47,6 +47,7 @@ simple_expr -> Expr
     = i:integer { Expr::Value(Value::Integer(i)) }
     / f:float { Expr::Value(Value::Float(f)) }
     / i:identifier { Expr::Identifier(i) }
+    / OPEN_PAREN e:expr CLOSE_PAREN { e }
 
 integer -> i64
     = #quiet<_integer> / #expected("integer")
@@ -86,6 +87,8 @@ OP_COLON = ":" __
 
 OPENING_BRACE = "{" __
 CLOSING_BRACE = "}" __
+OPEN_PAREN = "(" __
+CLOSE_PAREN = ")" __
 
 keyword<E> = E __
 
