@@ -114,4 +114,5 @@ pub enum Statement {
     VariableDeclaration(Variable, Expr),
     Expression(Expr),
     Block(Vec<Statement>),
+    Empty,
 }

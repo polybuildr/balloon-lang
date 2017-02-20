@@ -12,6 +12,7 @@ statement -> Statement
     / v:variable_declaration { v }
     / e:expr { Statement::Expression(e) }
     / b:block { b }
+    / t:TERMINATOR { Statement::Empty }
 
 assignment_statement -> Statement
     = i:identifier EQUALS e:expr {
@@ -69,15 +70,14 @@ _identifier -> String
 
 __ = whitespace*
 
-whitespace = #quiet<[ \t]>
+whitespace = #quiet<[ \t\n]>
 
 EQUALS = #quiet<"=" __> / #expected("equals")
 
 terminators = TERMINATOR+
 
 TERMINATOR -> ()
-    = "\n" __
-    / ";" __
+    = ";" __
 
 OP_PLUS = "+" __
 OP_MINUS = "-" __

@@ -80,7 +80,8 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
         },
         Statement::Expression(ref expr) => {
             interpret_expr(expr, env);
-        }
+        },
+        Statement::Empty => {},
     }
 }
 
