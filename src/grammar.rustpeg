@@ -33,9 +33,9 @@ block -> Statement
     = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
 
 expr -> Expr
-    = l:literal { Expr::Literal(l) }
-    / e:binary_expr { e }
+    = e:binary_expr { e }
     / s:simple_expr { s }
+    / l:literal { Expr::Literal(l) }
     / i:identifier { Expr::Identifier(i) }
 
 binary_expr -> Expr = #infix<simple_expr> {
