@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+
 use ast::*;
+use value::*;
 
 struct Environment {
     symbol_tables: Vec<HashMap<String, Value>>
@@ -87,7 +89,7 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
 
 fn interpret_expr(e: &Expr, env: &mut Environment) -> Value {
     match *e {
-        Expr::Value(x) => x,
+        Expr::Literal(ref x) => Value::from(x.clone()),
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let val1 = interpret_expr(expr1, env);
             let val2 = interpret_expr(expr2, env);

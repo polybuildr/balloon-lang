@@ -33,7 +33,8 @@ block -> Statement
     = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
 
 expr -> Expr
-    = e:binary_expr { e }
+    = l:literal { Expr::Literal(l) }
+    / e:binary_expr { e }
     / s:simple_expr { s }
     / i:identifier { Expr::Identifier(i) }
 
@@ -45,10 +46,13 @@ binary_expr -> Expr = #infix<simple_expr> {
 }
 
 simple_expr -> Expr
-    = i:integer { Expr::Value(Value::Integer(i)) }
-    / f:float { Expr::Value(Value::Float(f)) }
-    / i:identifier { Expr::Identifier(i) }
+    = i:identifier { Expr::Identifier(i) }
+    / l:literal { Expr::Literal(l) }
     / OPEN_PAREN e:expr CLOSE_PAREN { e }
+
+literal -> Literal
+    = i:integer { Literal::Integer(i) }
+    / f:float { Literal::Float(f) }
 
 integer -> i64
     = #quiet<_integer> / #expected("integer")
