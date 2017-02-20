@@ -10,6 +10,7 @@ pub enum BinaryOp {
 pub enum Literal {
     Integer(i64),
     Float(f64),
+    Bool(bool),
 }
 
 #[derive(Debug, Clone)]
