@@ -3,7 +3,11 @@ pub enum BinaryOp {
     Add,
     Sub,
     Mul,
-    Div
+    Div,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
 }
 
 #[derive(Debug, Clone)]

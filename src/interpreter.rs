@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use ast::*;
 use value::*;
+use operations;
 
 struct Environment {
     symbol_tables: Vec<HashMap<String, Value>>
@@ -95,10 +96,14 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Value {
             let val1 = interpret_expr(expr1, env);
             let val2 = interpret_expr(expr2, env);
             match *op {
-                BinaryOp::Add => val1 + val2,
-                BinaryOp::Sub => val1 - val2,
-                BinaryOp::Mul => val1 * val2,
-                BinaryOp::Div => val1 / val2,
+                BinaryOp::Add => operations::add(val1, val2),
+                BinaryOp::Sub => operations::subtract(val1, val2),
+                BinaryOp::Mul => operations::multiply(val1, val2),
+                BinaryOp::Div => operations::divide(val1, val2),
+                BinaryOp::LessThan => operations::less_than(val1, val2),
+                BinaryOp::LessThanOrEqual => operations::less_than_or_equal(val1, val2),
+                BinaryOp::GreaterThan => operations::greater_than(val1, val2),
+                BinaryOp::GreaterThanOrEqual => operations::greater_than_or_equal(val1, val2),
             }
         },
         Expr::Identifier(ref id) => env.get_value(&id),

@@ -1,4 +1,3 @@
-use std::ops::*;
 use std::fmt;
 
 use ast;
@@ -11,7 +10,7 @@ pub enum Value {
 }
 
 impl Value {
-    fn get_type_string(&self) -> String {
+    pub fn get_type_string(&self) -> String {
         match *self {
             Value::Integer(_) => "Integer".to_string(),
             Value::Float(_) => "Float".to_string(),
@@ -26,84 +25,6 @@ impl fmt::Display for Value {
             Value::Float(x) => write!(f, "Value::Float({})", x),
             Value::Integer(x) => write!(f, "Value::Integer({})", x),
             Value::Bool(x) => write!(f, "Value::Bool({})", x),
-        }
-    }
-}
-
-impl Add for Value {
-    type Output = Value;
-
-    fn add(self, other: Value) -> Value {
-        match (self, other) {
-            (Value::Integer(x), Value::Integer(y)) => Value::Integer(x + y),
-            (Value::Integer(x), Value::Float(y)) => Value::Float(x as f64 + y),
-            (Value::Float(x), Value::Integer(y)) => Value::Float(x + y as f64),
-            (Value::Float(x), Value::Float(y)) => Value::Float(x + y),
-            (a, b) => panic!(
-                "error: operation + is not defined for types {} and {}",
-                a.get_type_string(),
-                b.get_type_string()
-            ),
-        }
-    }
-}
-
-impl Sub for Value {
-    type Output = Value;
-
-    fn sub(self, other: Value) -> Value {
-        match (self, other) {
-            (Value::Integer(x), Value::Integer(y)) => Value::Integer(x - y),
-            (Value::Integer(x), Value::Float(y)) => Value::Float(x as f64 - y),
-            (Value::Float(x), Value::Integer(y)) => Value::Float(x - y as f64),
-            (Value::Float(x), Value::Float(y)) => Value::Float(x - y),
-            (a, b) => panic!(
-                "error: operation - is not defined for types {} and {}",
-                a.get_type_string(),
-                b.get_type_string()
-            ),
-        }
-    }
-}
-
-impl Mul for Value {
-    type Output = Value;
-
-    fn mul(self, other: Value) -> Value {
-        match (self, other) {
-            (Value::Integer(x), Value::Integer(y)) => Value::Integer(x * y),
-            (Value::Integer(x), Value::Float(y)) => Value::Float(x as f64 * y),
-            (Value::Float(x), Value::Integer(y)) => Value::Float(x * y as f64),
-            (Value::Float(x), Value::Float(y)) => Value::Float(x * y),
-            (a, b) => panic!(
-                "error: operation * is not defined for types {} and {}",
-                a.get_type_string(),
-                b.get_type_string()
-            ),
-        }
-    }
-}
-
-impl Div for Value {
-    type Output = Value;
-
-    fn div(self, other: Value) -> Value {
-        match (self, other) {
-            (Value::Integer(x), Value::Integer(y)) => {
-                if x % y == 0 {
-                    Value::Integer(x / y)
-                } else {
-                    Value::Float(x as f64 / y as f64)
-                }
-            },
-            (Value::Integer(x), Value::Float(y)) => Value::Float(x as f64 / y),
-            (Value::Float(x), Value::Integer(y)) => Value::Float(x / y as f64),
-            (Value::Float(x), Value::Float(y)) => Value::Float(x / y),
-            (a, b) => panic!(
-                "error: operation / is not defined for types {} and {}",
-                a.get_type_string(),
-                b.get_type_string()
-            ),
         }
     }
 }

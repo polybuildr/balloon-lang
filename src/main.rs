@@ -11,6 +11,7 @@ mod parser {
 mod ast;
 mod interpreter;
 mod value;
+mod operations;
 
 #[derive(Debug)]
 enum ProcessingError {
