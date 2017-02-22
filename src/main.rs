@@ -59,7 +59,7 @@ fn main() {
                 println!("{}: parse error: line {}, column {}: expected one of {:?}",
                     file_name, line, column, parse_error.expected);
                 println!("{}", line_content);
-                let mut pointer_string = String::from_utf8(vec![b' '; column]).unwrap();
+                let mut pointer_string = String::from_utf8(vec![b' '; column - 1]).unwrap();
                 pointer_string.push('^');
                 println!("{}", pointer_string);
             },
