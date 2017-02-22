@@ -37,7 +37,8 @@ fn main() {
         println!("usage: balloon run|parse FILE");
         return;
     }
-    let result = parse_file(&args[2]).and_then(|ast| {
+    let file_name = &args[2];
+    let result = parse_file(file_name).and_then(|ast| {
         if args[1] == "parse" {
             println!("{:#?}", ast);
             Ok(())
@@ -47,8 +48,28 @@ fn main() {
         }
     });
     if let Err(err) = result {
-        print!("Error: ");
-        println!("{:?}", err);
+        match err {
+            ProcessingError::ParseError(parse_error) => {
+                let (line, column) = (parse_error.line, parse_error.column);
+                // TODO: find cleaner, but still expressive way
+                let line_content = io::BufReader::new(File::open(file_name).unwrap())
+                    .lines().nth(line - 1)
+                    .unwrap().unwrap();
+
+                println!("{}: parse error: line {}, column {}: expected one of {:?}",
+                    file_name, line, column, parse_error.expected);
+                println!("{}", line_content);
+                let mut pointer_string = String::from_utf8(vec![b' '; column]).unwrap();
+                pointer_string.push('^');
+                println!("{}", pointer_string);
+            },
+            ProcessingError::IoError(io_error) => {
+                match io_error.kind() {
+                    io::ErrorKind::NotFound => println!("{}", io_error),
+                    e => println!("An error occurred.\n{:?}", e),
+                };
+            },
+        };
     }
 }
 
