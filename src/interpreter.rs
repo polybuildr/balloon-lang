@@ -81,7 +81,8 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
             env.end_scope();
         },
         Statement::Expression(ref expr) => {
-            interpret_expr(expr, env);
+            let val = interpret_expr(expr, env);
+            println!("Expression => {}", val);
         },
         Statement::Empty => {},
     }
