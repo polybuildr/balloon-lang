@@ -17,6 +17,14 @@ impl Value {
             Value::Bool(_) => "Bool".to_string(),
         }
     }
+
+    pub fn is_truthy(&self) -> bool {
+        match *self {
+            Value::Integer(i) => i != 0,
+            Value::Float(f) => f != 0.0,
+            Value::Bool(b) => b,
+        }
+    }
 }
 
 impl fmt::Display for Value {

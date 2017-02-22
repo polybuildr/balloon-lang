@@ -8,7 +8,8 @@ pub statements -> Vec<Statement>
     / sx:statement terminators { let mut v = vec![sx]; v }
 
 statement -> Statement
-    = a:assignment_statement { a }
+    = s:if_statement { s }
+    / a:assignment_statement { a }
     / v:variable_declaration { v }
     / e:expr { Statement::Expression(e) }
     / b:block { b }
@@ -28,6 +29,10 @@ variable_declaration -> Statement
 
 binding_type -> BindingType
     = VAR { BindingType::Mutable }
+
+if_statement -> Statement
+    = IF OPEN_PAREN e:expr CLOSE_PAREN b1:block ELSE b2:block { Statement::IfThenElse(e, Box::new(b1), Box::new(b2)) }
+    / IF OPEN_PAREN e:expr CLOSE_PAREN b:block { Statement::IfThen(e, Box::new(b)) }
 
 block -> Statement
     = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
@@ -112,3 +117,5 @@ CLOSE_PAREN = ")" __
 keyword<E> = E __
 
 VAR = keyword<"var">
+IF = keyword<"if">
+ELSE = keyword<"else">

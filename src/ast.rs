@@ -45,5 +45,7 @@ pub enum Statement {
     VariableDeclaration(Variable, Expr),
     Expression(Expr),
     Block(Vec<Statement>),
+    IfThen(Expr, Box<Statement>),
+    IfThenElse(Expr, Box<Statement>, Box<Statement>),
     Empty,
 }

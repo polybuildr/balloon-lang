@@ -85,6 +85,20 @@ fn interpret_statement(s: &Statement, env: &mut Environment) {
             let val = interpret_expr(expr, env);
             println!("Expression => {}", val);
         },
+        Statement::IfThen(ref if_expr, ref then_block) => {
+            let val = interpret_expr(if_expr, env);
+            if val.is_truthy() {
+                interpret_statement(then_block, env);
+            }
+        },
+        Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
+            let val = interpret_expr(if_expr, env);
+            if val.is_truthy() {
+                interpret_statement(then_block, env);
+            } else {
+                interpret_statement(else_block, env);
+            }
+        },
         Statement::Empty => {},
     }
 }
