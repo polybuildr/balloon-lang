@@ -3,6 +3,10 @@ use std::io::prelude::*;
 use std::io;
 use std::fs::File;
 
+extern crate ansi_term;
+use ansi_term::Style;
+use ansi_term::Colour::Red;
+
 // include output of rust-peg given grammar.rustpeg
 mod parser {
     include!(concat!(env!("OUT_DIR"), "/grammar.rs"));
@@ -56,12 +60,17 @@ fn main() {
                     .lines().nth(line - 1)
                     .unwrap().unwrap();
 
-                println!("{}: parse error: line {}, column {}: expected one of {:?}",
-                    file_name, line, column, parse_error.expected);
+                println!("{}: {}: line {}, column {}: expected one of {:?}",
+                    Style::new().bold().paint(file_name.clone()),
+                    Red.bold().paint("parse error"),
+                    line,
+                    column,
+                    parse_error.expected
+                );
                 println!("{}", line_content);
                 let mut pointer_string = String::from_utf8(vec![b' '; column - 1]).unwrap();
                 pointer_string.push('^');
-                println!("{}", pointer_string);
+                println!("{}", Style::new().bold().paint(pointer_string));
             },
             ProcessingError::IoError(io_error) => {
                 match io_error.kind() {
