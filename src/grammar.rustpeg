@@ -4,24 +4,23 @@ pub program -> Vec<Statement>
     = __ terminators? s:statements { s }
 
 pub statements -> Vec<Statement>
-    = sx:statement terminators s:statements { let mut sc = s.to_vec(); sc.insert(0, sx); sc }
-    / sx:statement terminators { let mut v = vec![sx]; v }
+    = statement*
 
 statement -> Statement
     = s:if_statement { s }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
-    / e:expr { Statement::Expression(e) }
+    / e:expr TERMINATOR { Statement::Expression(e) }
     / b:block { b }
     / t:TERMINATOR { Statement::Empty }
 
 assignment_statement -> Statement
-    = i:identifier EQUALS e:expr {
+    = i:identifier EQUALS e:expr TERMINATOR {
         Statement::Assignment(LhsExpr::Identifier(i), e)
     }
 
 variable_declaration -> Statement
-    = b:binding_type i:identifier EQUALS e:expr {
+    = b:binding_type i:identifier EQUALS e:expr TERMINATOR {
         Statement::VariableDeclaration(
             Variable::Identifier(b, i), e
         )
