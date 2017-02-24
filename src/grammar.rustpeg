@@ -34,6 +34,9 @@ if_statement -> Statement
     / IF OPEN_PAREN e:expr CLOSE_PAREN b:block { Statement::IfThen(e, Box::new(b)) }
 
 block -> Statement
+    = #quiet<_block> / #expected("block")
+
+_block -> Statement
     = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
 
 expr -> Expr
