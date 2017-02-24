@@ -54,21 +54,35 @@ fn main() {
     if let Err(err) = result {
         match err {
             ProcessingError::ParseError(parse_error) => {
-                let (line, column) = (parse_error.line, parse_error.column);
-                // TODO: find cleaner, but still expressive way
-                let line_content = io::BufReader::new(File::open(file_name).unwrap())
-                    .lines().nth(line - 1)
-                    .unwrap().unwrap();
+                println!("{:?}", parse_error);
+                let (mut line_number, mut column_number) = (parse_error.line, parse_error.column);
 
-                println!("{}: {}: line {}, column {}: expected one of {:?}",
+                let mut buf_reader = io::BufReader::new(File::open(file_name).unwrap());
+                let mut line = buf_reader.by_ref().lines().nth(line_number - 1);
+
+                let line_content;
+
+                // error was in last line which was empty
+                if let None = line {
+                    line_number -= 1;
+                    buf_reader.seek(io::SeekFrom::Start(0)).unwrap();
+                    // more helpful to point to end of previous line
+                    line = buf_reader.lines().nth(line_number - 1);
+                    line_content = line.unwrap().unwrap();
+                    column_number = line_content.len() + 1;
+                } else {
+                    line_content = line.unwrap().unwrap();
+                }
+
+                println!("{}: {}: line {}, column_number {}: expected one of {:?}",
                     Style::new().bold().paint(file_name.clone()),
                     Red.bold().paint("parse error"),
-                    line,
-                    column,
+                    line_number,
+                    column_number,
                     parse_error.expected
                 );
                 println!("{}", line_content);
-                let mut pointer_string = String::from_utf8(vec![b' '; column - 1]).unwrap();
+                let mut pointer_string = String::from_utf8(vec![b' '; column_number - 1]).unwrap();
                 pointer_string.push('^');
                 println!("{}", Style::new().bold().paint(pointer_string));
             },
