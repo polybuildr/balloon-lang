@@ -114,6 +114,7 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Value {
                 BinaryOp::Sub => operations::subtract(val1, val2),
                 BinaryOp::Mul => operations::multiply(val1, val2),
                 BinaryOp::Div => operations::divide(val1, val2),
+                BinaryOp::FloorDiv => operations::floor_divide(val1, val2),
                 BinaryOp::LessThan => operations::less_than(val1, val2),
                 BinaryOp::LessThanOrEqual => operations::less_than_or_equal(val1, val2),
                 BinaryOp::GreaterThan => operations::greater_than(val1, val2),

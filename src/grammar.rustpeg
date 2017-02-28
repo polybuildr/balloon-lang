@@ -53,6 +53,7 @@ binary_expr -> Expr = #infix<simple_expr> {
        x OP_MINUS y { Expr::BinaryExpression(Box::new(x), BinaryOp::Sub, Box::new(y)) }
     #L x OP_ASTERISK y { Expr::BinaryExpression(Box::new(x), BinaryOp::Mul, Box::new(y)) }
        x OP_SLASH y { Expr::BinaryExpression(Box::new(x), BinaryOp::Div, Box::new(y)) }
+       x OP_SLASH_SLASH y { Expr::BinaryExpression(Box::new(x), BinaryOp::FloorDiv, Box::new(y)) }
 }
 
 simple_expr -> Expr
@@ -61,18 +62,18 @@ simple_expr -> Expr
     / OPEN_PAREN e:expr CLOSE_PAREN { e }
 
 literal -> Literal
-    = i:integer { Literal::Integer(i) }
-    / f:float { Literal::Float(f) }
+    = f:float { Literal::Float(f) }
+    / i:integer { Literal::Integer(i) }
     / b:boolean { Literal::Bool(b) }
 
 integer -> i64
-    = #quiet<_integer> / #expected("integer")
+    = #quiet<_integer> / #expected("number")
 
 _integer -> i64
     = n:$([+-]?[0-9]+) __ { n.parse().unwrap() }
 
 float -> f64
-    = #quiet<_float> / #expected("float")
+    = #quiet<_float> / #expected("number")
 
 _float -> f64
     = f:$([+-]?[0-9]+"."[0-9]+) __ { f.parse().unwrap() }
@@ -105,6 +106,7 @@ OP_PLUS = "+" __
 OP_MINUS = "-" __
 OP_ASTERISK = "*" __
 OP_SLASH = "/" __
+OP_SLASH_SLASH = "//" __
 OP_COLON = ":" __
 OP_LESS_THAN = "<" __
 OP_GREATER_THAN = ">" __
