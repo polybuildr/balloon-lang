@@ -98,3 +98,11 @@ pub fn greater_than_or_equal(a: Value, b: Value) -> Value {
     }
 }
 
+pub fn strict_equals(a: Value, b: Value) -> Value {
+    match (a, b) {
+        (Value::Number(a), Value::Number(b)) => Value::Bool(a == b),
+        (Value::Bool(a), Value::Bool(b)) => Value::Bool(a == b),
+        (_, _) => Value::Bool(false),
+    }
+}
+

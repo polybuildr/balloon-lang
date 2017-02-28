@@ -9,6 +9,7 @@ pub enum BinaryOp {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+    StrictEquals,
 }
 
 #[derive(Debug, Clone)]

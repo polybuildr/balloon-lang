@@ -119,6 +119,7 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Value {
                 BinaryOp::LessThanOrEqual => operations::less_than_or_equal(val1, val2),
                 BinaryOp::GreaterThan => operations::greater_than(val1, val2),
                 BinaryOp::GreaterThanOrEqual => operations::greater_than_or_equal(val1, val2),
+                BinaryOp::StrictEquals => operations::strict_equals(val1, val2),
             }
         },
         Expr::Identifier(ref id) => env.get_value(&id),

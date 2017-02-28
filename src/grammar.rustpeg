@@ -45,6 +45,7 @@ expr -> Expr
     / i:identifier { Expr::Identifier(i) }
 
 binary_expr -> Expr = #infix<simple_expr> {
+    #L x OP_STRICT_EQUALS y { Expr::BinaryExpression(Box::new(x), BinaryOp::StrictEquals, Box::new(y)) }
     #L x OP_LESS_THAN y { Expr::BinaryExpression(Box::new(x), BinaryOp::LessThan, Box::new(y)) }
        x OP_LESS_THAN_OR_EQUAL y { Expr::BinaryExpression(Box::new(x), BinaryOp::LessThanOrEqual, Box::new(y))}
        x OP_GREATER_THAN y { Expr::BinaryExpression(Box::new(x), BinaryOp::GreaterThan, Box::new(y)) }
@@ -112,6 +113,8 @@ OP_LESS_THAN = "<" __
 OP_GREATER_THAN = ">" __
 OP_LESS_THAN_OR_EQUAL = "<=" __
 OP_GREATER_THAN_OR_EQUAL = ">=" __
+
+OP_STRICT_EQUALS = "==" __
 
 OPENING_BRACE = "{" __
 CLOSING_BRACE = "}" __
