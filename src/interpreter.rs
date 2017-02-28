@@ -61,6 +61,30 @@ pub fn interpret_program(ast: &Vec<Statement>) {
     env.end_scope();
 }
 
+pub struct Repl {
+    env: Environment
+}
+
+impl Repl {
+    pub fn new() -> Repl {
+        Repl { env: Environment::new() }
+    }
+
+    pub fn start(&mut self) {
+        self.env.start_scope();
+    }
+
+    pub fn execute(&mut self, ast: &Vec<Statement>) {
+        for statement in ast.iter() {
+            interpret_statement(statement, &mut self.env);
+        }
+    }
+
+    pub fn end(&mut self) {
+        self.env.end_scope();
+    }
+}
+
 fn interpret_statement(s: &Statement, env: &mut Environment) {
     match *s {
         Statement::VariableDeclaration(ref variable, ref expr) => {

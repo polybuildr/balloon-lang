@@ -7,6 +7,10 @@ extern crate ansi_term;
 use ansi_term::Style;
 use ansi_term::Colour::Red;
 
+extern crate rustyline;
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
+
 // include output of rust-peg given grammar.rustpeg
 mod parser {
     include!(concat!(env!("OUT_DIR"), "/grammar.rs"));
@@ -37,6 +41,12 @@ impl From<parser::ParseError> for ProcessingError {
 
 fn main() {
     let args: Vec<_> = env::args().collect();
+    
+    if args.len() == 1 {
+        repl();
+        return;
+    }
+
     if args.len() < 3 || (args[1] != "run" && args[1] != "parse") {
         println!("usage: balloon run|parse FILE");
         return;
@@ -105,4 +115,55 @@ fn parse_file(name: &String) -> Result<Vec<ast::Statement>, ProcessingError> {
     }
     let x = parser::program(&input);
     Ok(x?)
+}
+
+fn repl() {
+    println!("Balloon REPL");
+    let mut rl = Editor::<()>::new();
+    let mut repl = interpreter::Repl::new();
+    repl.start();
+    loop {
+        let readline = rl.readline("> ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(&line);
+                let mut input = String::from(line.trim());
+                if !input.ends_with(";") {
+                    input.push(';');
+                }
+                match parser::program(&input) {
+                    Err(parse_error) => {
+                        let (line_number, column_number) = (parse_error.line, parse_error.column);
+                        println!("{}: {}: line {}, column_number {}: expected one of {:?}",
+                            Style::new().bold().paint("repl"),
+                            Red.bold().paint("parse error"),
+                            line_number,
+                            column_number,
+                            parse_error.expected
+                        );
+                        println!("{}", input);
+                        let mut pointer_string = String::from_utf8(vec![b' '; column_number - 1]).unwrap();
+                        pointer_string.push('^');
+                        println!("{}", Style::new().bold().paint(pointer_string));
+                    },
+                    Ok(ast) => repl.execute(&ast),
+                }
+            },
+            Err(ReadlineError::Interrupted) => {
+                repl.end();
+                println!("CTRL-C");
+                break
+            },
+            Err(ReadlineError::Eof) => {
+                repl.end();
+                println!("CTRL-D");
+                break
+            },
+            Err(err) => {
+                repl.end();
+                println!("Error: {:?}", err);
+                break
+            }
+        }
+    }
 }
