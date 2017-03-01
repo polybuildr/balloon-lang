@@ -64,37 +64,25 @@ fn main() {
     if let Err(err) = result {
         match err {
             ProcessingError::ParseError(parse_error) => {
-                println!("{:?}", parse_error);
-                let (mut line_number, mut column_number) = (parse_error.line, parse_error.column);
+                let mut parse_error = parse_error;
 
                 let mut buf_reader = io::BufReader::new(File::open(file_name).unwrap());
-                let mut line = buf_reader.by_ref().lines().nth(line_number - 1);
+                let mut line = buf_reader.by_ref().lines().nth(parse_error.line - 1);
 
                 let line_content;
 
                 // error was in last line which was empty
                 if let None = line {
-                    line_number -= 1;
+                    parse_error.line -= 1;
                     buf_reader.seek(io::SeekFrom::Start(0)).unwrap();
                     // more helpful to point to end of previous line
-                    line = buf_reader.lines().nth(line_number - 1);
+                    line = buf_reader.lines().nth(parse_error.line - 1);
                     line_content = line.unwrap().unwrap();
-                    column_number = line_content.len() + 1;
+                    parse_error.column = line_content.len() + 1;
                 } else {
                     line_content = line.unwrap().unwrap();
                 }
-
-                println!("{}: {}: line {}, col {}: expected one of {:?}",
-                    Style::new().bold().paint(file_name.clone()),
-                    Red.bold().paint("parse error"),
-                    line_number,
-                    column_number,
-                    parse_error.expected
-                );
-                println!("{}", line_content);
-                let mut pointer_string = String::from_utf8(vec![b' '; column_number - 1]).unwrap();
-                pointer_string.push('^');
-                println!("{}", Style::new().bold().paint(pointer_string));
+                print_parse_error(file_name.to_string(), line_content, parse_error);
             },
             ProcessingError::IoError(io_error) => {
                 match io_error.kind() {
@@ -117,6 +105,20 @@ fn parse_file(name: &String) -> Result<Vec<ast::Statement>, ProcessingError> {
     Ok(x?)
 }
 
+fn print_parse_error(file_name: String, line_content: String, parse_error: parser::ParseError) {
+    println!("{}: {}: line {}, col {}: expected one of {:?}",
+        Style::new().bold().paint(file_name.clone()),
+        Red.bold().paint("parse error"),
+        parse_error.line,
+        parse_error.column,
+        parse_error.expected
+    );
+    println!("{}", line_content);
+    let mut pointer_string = String::from_utf8(vec![b' '; parse_error.column - 1]).unwrap();
+    pointer_string.push('^');
+    println!("{}", Style::new().bold().paint(pointer_string));
+}
+
 fn repl() {
     println!("Balloon REPL");
     let mut rl = Editor::<()>::new();
@@ -134,18 +136,7 @@ fn repl() {
                 }
                 match parser::program(&input) {
                     Err(parse_error) => {
-                        let (line_number, column_number) = (parse_error.line, parse_error.column);
-                        println!("{}: {}: line {}, col {}: expected one of {:?}",
-                            Style::new().bold().paint("repl"),
-                            Red.bold().paint("parse error"),
-                            line_number,
-                            column_number,
-                            parse_error.expected
-                        );
-                        println!("{}", orig_input);
-                        let mut pointer_string = String::from_utf8(vec![b' '; column_number - 1]).unwrap();
-                        pointer_string.push('^');
-                        println!("{}", Style::new().bold().paint(pointer_string));
+                        print_parse_error("repl".to_string(), orig_input, parse_error);
                     },
                     Ok(ast) => repl.execute(&ast),
                 }
