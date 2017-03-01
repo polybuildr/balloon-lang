@@ -22,30 +22,30 @@ pub fn interpret_statement(s: &Statement, env: &mut Environment) {
             let val = interpret_expr(expr, env);
             env.declare(variable, &val);
             println!("{:?} => {}", variable, val);
-        },
+        }
         Statement::Assignment(ref lhs_expr, ref expr) => {
             let val = interpret_expr(expr, env);
             match *lhs_expr {
-                LhsExpr::Identifier(ref id) => env.set(id, val)
+                LhsExpr::Identifier(ref id) => env.set(id, val),
             };
-        },
+        }
         Statement::Block(ref statements) => {
             env.start_scope();
             for statement in statements.iter() {
                 interpret_statement(statement, env);
             }
             env.end_scope();
-        },
+        }
         Statement::Expression(ref expr) => {
             let val = interpret_expr(expr, env);
             println!("Expression => {}", val);
-        },
+        }
         Statement::IfThen(ref if_expr, ref then_block) => {
             let val = interpret_expr(if_expr, env);
             if val.is_truthy() {
                 interpret_statement(then_block, env);
             }
-        },
+        }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let val = interpret_expr(if_expr, env);
             if val.is_truthy() {
@@ -53,8 +53,8 @@ pub fn interpret_statement(s: &Statement, env: &mut Environment) {
             } else {
                 interpret_statement(else_block, env);
             }
-        },
-        Statement::Empty => {},
+        }
+        Statement::Empty => {}
     }
 }
 
@@ -76,7 +76,7 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Value {
                 BinaryOp::GreaterThanOrEqual => operations::greater_than_or_equal(val1, val2),
                 BinaryOp::StrictEquals => operations::strict_equals(val1, val2),
             }
-        },
+        }
         Expr::Identifier(ref id) => env.get_value(&id),
     }
 }

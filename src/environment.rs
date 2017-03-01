@@ -4,14 +4,12 @@ use value::*;
 use ast::*;
 
 pub struct Environment {
-    symbol_tables: Vec<HashMap<String, Value>>
+    symbol_tables: Vec<HashMap<String, Value>>,
 }
 
 impl Environment {
     pub fn new() -> Environment {
-        Environment {
-            symbol_tables: Vec::new()
-        }
+        Environment { symbol_tables: Vec::new() }
     }
 
     pub fn start_scope(&mut self) {
@@ -44,7 +42,7 @@ impl Environment {
     pub fn get_value(&mut self, identifier: &String) -> Value {
         for table in self.symbol_tables.iter().rev() {
             if let Some(val) = table.get(identifier) {
-                return *val
+                return *val;
             }
         }
         panic!(format!("reference error: '{}' was not declared", identifier));

@@ -10,7 +10,7 @@ use parser;
 #[derive(Debug)]
 pub enum ProcessingError {
     ParseError(parser::ParseError),
-    IoError(io::Error)
+    IoError(io::Error),
 }
 
 impl From<io::Error> for ProcessingError {
@@ -25,7 +25,9 @@ impl From<parser::ParseError> for ProcessingError {
     }
 }
 
-pub fn get_error_and_line_for_file(parse_error: &parser::ParseError, file_name: &str) -> (parser::ParseError, String) {
+pub fn get_error_and_line_for_file(parse_error: &parser::ParseError,
+                                   file_name: &str)
+                                   -> (parser::ParseError, String) {
     let mut parse_error = parse_error.clone();
     let mut buf_reader = io::BufReader::new(File::open(file_name).unwrap());
     let mut line = buf_reader.by_ref().lines().nth(parse_error.line - 1);
@@ -46,14 +48,15 @@ pub fn get_error_and_line_for_file(parse_error: &parser::ParseError, file_name: 
     (parse_error, line_content)
 }
 
-pub fn print_parse_error(file_name: String, line_content: String, parse_error: parser::ParseError) {
+pub fn print_parse_error(file_name: String,
+                         line_content: String,
+                         parse_error: parser::ParseError) {
     println!("{}: {}: line {}, col {}: expected one of {:?}",
-        Style::new().bold().paint(file_name.clone()),
-        Red.bold().paint("parse error"),
-        parse_error.line,
-        parse_error.column,
-        parse_error.expected
-    );
+             Style::new().bold().paint(file_name.clone()),
+             Red.bold().paint("parse error"),
+             parse_error.line,
+             parse_error.column,
+             parse_error.expected);
     println!("{}", line_content);
     let mut pointer_string = String::from_utf8(vec![b' '; parse_error.column - 1]).unwrap();
     pointer_string.push('^');

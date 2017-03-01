@@ -23,23 +23,23 @@ pub fn run_repl() {
                 match parser::program(&input) {
                     Err(parse_error) => {
                         print_parse_error("repl".to_string(), orig_input, parse_error);
-                    },
+                    }
                     Ok(ast) => {
                         interpret_statements(&ast, &mut env);
                     }
                 }
-            },
+            }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
-                break
-            },
+                break;
+            }
             Err(ReadlineError::Eof) => {
                 println!("CTRL-D");
-                break
-            },
+                break;
+            }
             Err(err) => {
                 println!("Error: {:?}", err);
-                break
+                break;
             }
         }
     }
