@@ -129,7 +129,6 @@ fn repl() {
         let readline = rl.readline("> ");
         match readline {
             Ok(line) => {
-                rl.add_history_entry(&line);
                 let orig_input = String::from(line.trim());
                 let mut input = orig_input.clone();
                 if !input.ends_with(";") {
