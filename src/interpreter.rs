@@ -1,56 +1,7 @@
-use std::collections::HashMap;
-
 use ast::*;
 use value::*;
 use operations;
-
-struct Environment {
-    symbol_tables: Vec<HashMap<String, Value>>
-}
-
-impl Environment {
-    fn new() -> Environment {
-        Environment {
-            symbol_tables: Vec::new()
-        }
-    }
-
-    fn start_scope(&mut self) {
-        self.symbol_tables.push(HashMap::new());
-    }
-
-    fn end_scope(&mut self) {
-        self.symbol_tables.pop();
-    }
-
-    fn declare(&mut self, variable: &Variable, value: &Value) {
-        match *variable {
-            Variable::Identifier(_, ref id) => {
-                self.symbol_tables.last_mut().unwrap().insert(id.clone(), *value);
-            }
-        };
-    }
-
-    fn set(&mut self, identifier: &String, value: Value) {
-        for table in self.symbol_tables.iter_mut().rev() {
-            // TODO: Entry API
-            if table.contains_key(identifier) {
-                table.insert(identifier.clone(), value);
-                return;
-            }
-        }
-        panic!(format!("reference error: '{}' was not declared", identifier));
-    }
-
-    fn get_value(&mut self, identifier: &String) -> Value {
-        for table in self.symbol_tables.iter().rev() {
-            if let Some(val) = table.get(identifier) {
-                return *val
-            }
-        }
-        panic!(format!("reference error: '{}' was not declared", identifier));
-    }
-}
+use environment::Environment;
 
 pub fn interpret_program(ast: &Vec<Statement>) {
     let mut env = Environment::new();
@@ -61,31 +12,7 @@ pub fn interpret_program(ast: &Vec<Statement>) {
     env.end_scope();
 }
 
-pub struct Repl {
-    env: Environment
-}
-
-impl Repl {
-    pub fn new() -> Repl {
-        Repl { env: Environment::new() }
-    }
-
-    pub fn start(&mut self) {
-        self.env.start_scope();
-    }
-
-    pub fn execute(&mut self, ast: &Vec<Statement>) {
-        for statement in ast.iter() {
-            interpret_statement(statement, &mut self.env);
-        }
-    }
-
-    pub fn end(&mut self) {
-        self.env.end_scope();
-    }
-}
-
-fn interpret_statement(s: &Statement, env: &mut Environment) {
+pub fn interpret_statement(s: &Statement, env: &mut Environment) {
     match *s {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let val = interpret_expr(expr, env);
