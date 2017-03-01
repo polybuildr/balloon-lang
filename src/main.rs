@@ -84,7 +84,7 @@ fn main() {
                     line_content = line.unwrap().unwrap();
                 }
 
-                println!("{}: {}: line {}, column_number {}: expected one of {:?}",
+                println!("{}: {}: line {}, col {}: expected one of {:?}",
                     Style::new().bold().paint(file_name.clone()),
                     Red.bold().paint("parse error"),
                     line_number,
@@ -127,21 +127,22 @@ fn repl() {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(&line);
-                let mut input = String::from(line.trim());
+                let orig_input = String::from(line.trim());
+                let mut input = orig_input.clone();
                 if !input.ends_with(";") {
                     input.push(';');
                 }
                 match parser::program(&input) {
                     Err(parse_error) => {
                         let (line_number, column_number) = (parse_error.line, parse_error.column);
-                        println!("{}: {}: line {}, column_number {}: expected one of {:?}",
+                        println!("{}: {}: line {}, col {}: expected one of {:?}",
                             Style::new().bold().paint("repl"),
                             Red.bold().paint("parse error"),
                             line_number,
                             column_number,
                             parse_error.expected
                         );
-                        println!("{}", input);
+                        println!("{}", orig_input);
                         let mut pointer_string = String::from_utf8(vec![b' '; column_number - 1]).unwrap();
                         pointer_string.push('^');
                         println!("{}", Style::new().bold().paint(pointer_string));
