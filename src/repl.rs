@@ -25,9 +25,7 @@ pub fn run_repl() {
                         print_parse_error("repl".to_string(), orig_input, parse_error);
                     },
                     Ok(ast) => {
-                        for statement in ast.iter() {
-                            interpret_statement(statement, &mut env);
-                        }
+                        interpret_statements(&ast, &mut env);
                     }
                 }
             },

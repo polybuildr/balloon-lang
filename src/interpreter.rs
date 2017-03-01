@@ -3,13 +3,17 @@ use value::*;
 use operations;
 use environment::Environment;
 
-pub fn interpret_program(ast: &Vec<Statement>) {
+pub fn interpret_program(program: &Vec<Statement>) {
     let mut env = Environment::new();
     env.start_scope();
-    for statement in ast.iter() {
-        interpret_statement(statement, &mut env);
-    }
+    interpret_statements(program, &mut env);
     env.end_scope();
+}
+
+pub fn interpret_statements(statements: &Vec<Statement>, env: &mut Environment) {
+    for statement in statements.iter() {
+        interpret_statement(statement, env);
+    }
 }
 
 pub fn interpret_statement(s: &Statement, env: &mut Environment) {
