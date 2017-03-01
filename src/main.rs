@@ -142,20 +142,18 @@ fn repl() {
                 }
             },
             Err(ReadlineError::Interrupted) => {
-                repl.end();
                 println!("CTRL-C");
                 break
             },
             Err(ReadlineError::Eof) => {
-                repl.end();
                 println!("CTRL-D");
                 break
             },
             Err(err) => {
-                repl.end();
                 println!("Error: {:?}", err);
                 break
             }
         }
     }
+    repl.end();
 }
