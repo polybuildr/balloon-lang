@@ -30,8 +30,8 @@ binding_type -> BindingType
     = VAR { BindingType::Mutable }
 
 if_statement -> Statement
-    = IF OPEN_PAREN e:expr CLOSE_PAREN b1:block ELSE b2:block { Statement::IfThenElse(e, Box::new(b1), Box::new(b2)) }
-    / IF OPEN_PAREN e:expr CLOSE_PAREN b:block { Statement::IfThen(e, Box::new(b)) }
+    = IF e:expr b1:block ELSE b2:block { Statement::IfThenElse(e, Box::new(b1), Box::new(b2)) }
+    / IF e:expr b:block { Statement::IfThen(e, Box::new(b)) }
 
 block -> Statement
     = #quiet<_block> / #expected("block")
