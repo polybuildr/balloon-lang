@@ -20,6 +20,8 @@ mod environment;
 mod repl;
 mod error;
 
+use interpreter::InterpreterError;
+
 use error::*;
 
 fn main() {
@@ -39,8 +41,10 @@ fn main() {
         println!("{:#?}", ast);
         Ok(())
     } else {
-        interpreter::interpret_program(&ast);
-        Ok(())
+        match interpreter::interpret_program(&ast) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
     });
     if let Err(err) = result {
         match err {
@@ -54,7 +58,17 @@ fn main() {
                     io::ErrorKind::NotFound => println!("{}", io_error),
                     e => println!("An error occurred.\n{:?}", e),
                 };
-            }
+            },
+            ProcessingError::InterpreterError(e) => {
+                match e {
+                    InterpreterError::ReferenceError(id) => {
+                        println!("reference error: `{}` was not declared", id);
+                    }
+                    InterpreterError::UndeclaredAssignment(id) => {
+                        println!("reference error: cannot assign to undeclared `{}`", id);
+                    }
+                }
+            },
         };
     }
 }

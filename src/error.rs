@@ -6,11 +6,12 @@ use ansi_term::Style;
 use ansi_term::Colour::Red;
 
 use parser;
+use interpreter::InterpreterError;
 
-#[derive(Debug)]
 pub enum ProcessingError {
     ParseError(parser::ParseError),
     IoError(io::Error),
+    InterpreterError(InterpreterError),
 }
 
 impl From<io::Error> for ProcessingError {
@@ -22,6 +23,12 @@ impl From<io::Error> for ProcessingError {
 impl From<parser::ParseError> for ProcessingError {
     fn from(from: parser::ParseError) -> Self {
         ProcessingError::ParseError(from)
+    }
+}
+
+impl From<InterpreterError> for ProcessingError {
+    fn from(from: InterpreterError) -> Self {
+        ProcessingError::InterpreterError(from)
     }
 }
 

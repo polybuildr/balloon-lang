@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use value::*;
 use ast::*;
+use interpreter::InterpreterError;
 
 pub struct Environment {
     symbol_tables: Vec<HashMap<String, Value>>,
@@ -28,23 +29,23 @@ impl Environment {
         };
     }
 
-    pub fn set(&mut self, identifier: &String, value: Value) {
+    pub fn set(&mut self, identifier: &String, value: Value) -> Result<(), InterpreterError> {
         for table in self.symbol_tables.iter_mut().rev() {
             // TODO: Entry API
             if table.contains_key(identifier) {
                 table.insert(identifier.clone(), value);
-                return;
+                return Ok(());
             }
         }
-        panic!(format!("reference error: '{}' was not declared", identifier));
+        Err(InterpreterError::UndeclaredAssignment(identifier.clone()))
     }
 
-    pub fn get_value(&mut self, identifier: &String) -> Value {
+    pub fn get_value(&mut self, identifier: &String) -> Result<Value, InterpreterError> {
         for table in self.symbol_tables.iter().rev() {
             if let Some(val) = table.get(identifier) {
-                return *val;
+                return Ok(*val);
             }
         }
-        panic!(format!("reference error: '{}' was not declared", identifier));
+        Err(InterpreterError::ReferenceError(identifier.clone()))
     }
 }

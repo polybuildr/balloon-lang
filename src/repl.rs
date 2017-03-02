@@ -25,7 +25,16 @@ pub fn run_repl() {
                         print_parse_error("repl".to_string(), orig_input, parse_error);
                     }
                     Ok(ast) => {
-                        interpret_statements(&ast, &mut env);
+                        if let Err(e) = interpret_statements(&ast, &mut env) {
+                            match e {
+                                InterpreterError::ReferenceError(id) => {
+                                    println!("reference error: `{}` was not declared", id);
+                                }
+                                InterpreterError::UndeclaredAssignment(id) => {
+                                    println!("reference error: cannot assign to undeclared `{}` ", id);
+                                }
+                            }
+                        }
                     }
                 }
             }
