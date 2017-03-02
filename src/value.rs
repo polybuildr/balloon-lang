@@ -77,6 +77,17 @@ impl ops::Div for Number {
     }
 }
 
+impl ops::Neg for Number {
+    type Output = Number;
+
+    fn neg(self) -> Number {
+        match self {
+            Number::Integer(x) => Number::Integer(-x),
+            Number::Float(x) => Number::Float(-x),
+        }
+    }
+}
+
 impl PartialEq for Number {
     fn eq(&self, other: &Number) -> bool {
         match (*self, *other) {

@@ -8,8 +8,10 @@ pub enum InterpreterError {
     ReferenceError(String),
     /// When an undeclared identifier is assigned to
     UndeclaredAssignment(String),
-    /// When a binary op cannot be performed on given types
-    TypeError(BinaryOp, Value, Value),
+    /// When a binary op cannot be performed on the given types
+    BinaryTypeError(BinaryOp, Value, Value),
+    /// When a unary op cannot be performed on the given type
+    UnaryTypeError(UnaryOp, Value),
 }
 
 pub fn interpret_program(program: &Vec<Statement>) -> Result<(), InterpreterError> {
@@ -76,6 +78,18 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Result<Value, InterpreterE
     match *e {
         Expr::Literal(ref x) => Ok(Value::from(x.clone())),
         Expr::Identifier(ref id) => env.get_value(&id),
+        Expr::UnaryExpression(ref op, ref expr) => {
+            let val = interpret_expr(expr, env)?;
+            match *op {
+                UnaryOp::Minus => operations::unary_minus(val),
+            }
+        }
+        Expr::UnaryLogicalExpression(ref op, ref expr) => {
+            let val = interpret_expr(expr, env)?;
+            match *op {
+                LogicalUnaryOp::Not => Ok(Value::Bool(!val.is_truthy())),
+            }
+        }
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let val1 = interpret_expr(expr1, env)?;
             let val2 = interpret_expr(expr2, env)?;
@@ -96,7 +110,7 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Result<Value, InterpreterE
             match *op {
                 LogicalBinaryOp::LogicalAnd => {
                     let val1 = interpret_expr(expr1, env)?;
-                    if ! val1.is_truthy() {
+                    if !val1.is_truthy() {
                         return Ok(Value::Bool(false));
                     }
                     let val2 = interpret_expr(expr2, env)?;

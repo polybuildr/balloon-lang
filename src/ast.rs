@@ -20,6 +20,16 @@ pub enum LogicalBinaryOp {
     LogicalOr,
 }
 
+#[derive(Debug, Clone)]
+pub enum UnaryOp {
+    Minus,
+}
+
+#[derive(Debug, Clone)]
+pub enum LogicalUnaryOp {
+    Not,
+}
+
 impl fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -42,6 +52,22 @@ impl fmt::Display for LogicalBinaryOp {
         match *self {
             LogicalBinaryOp::LogicalAnd => write!(f, "and"),
             LogicalBinaryOp::LogicalOr => write!(f, "or"),
+        }
+    }
+}
+
+impl fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            UnaryOp::Minus => write!(f, "-"),
+        }
+    }
+}
+
+impl fmt::Display for LogicalUnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            LogicalUnaryOp::Not => write!(f, "not"),
         }
     }
 }
@@ -74,6 +100,8 @@ pub enum Expr {
     Identifier(String),
     BinaryExpression(Box<Expr>, BinaryOp, Box<Expr>),
     BinaryLogicalExpression(Box<Expr>, LogicalBinaryOp, Box<Expr>),
+    UnaryExpression(UnaryOp, Box<Expr>),
+    UnaryLogicalExpression(LogicalUnaryOp, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]

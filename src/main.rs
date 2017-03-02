@@ -67,11 +67,16 @@ fn main() {
                     InterpreterError::UndeclaredAssignment(id) => {
                         println!("reference error: cannot assign to undeclared `{}`", id);
                     }
-                    InterpreterError::TypeError(binary_op, val1, val2) => {
+                    InterpreterError::BinaryTypeError(binary_op, val1, val2) => {
                         println!("type error: `{}` cannot operate on types {} and {}",
                                  binary_op,
                                  val1.get_type_string(),
                                  val2.get_type_string());
+                    }
+                    InterpreterError::UnaryTypeError(unary_op, val) => {
+                        println!("type error: `{}` cannot operate on type {}",
+                                 unary_op,
+                                 val.get_type_string());
                     }
                 }
             }

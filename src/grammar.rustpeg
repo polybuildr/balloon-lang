@@ -60,9 +60,11 @@ binary_expr -> Expr = #infix<simple_expr> {
 }
 
 simple_expr -> Expr
-    = l:literal { Expr::Literal(l) }
+    = OPEN_PAREN e:expr CLOSE_PAREN { e }
+    / OP_MINUS e:expr { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
+    / NOT e:expr { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
+    / l:literal { Expr::Literal(l) }
     / i:identifier { Expr::Identifier(i) }
-    / OPEN_PAREN e:expr CLOSE_PAREN { e }
 
 literal -> Literal
     = f:float { Literal::Float(f) }
@@ -130,3 +132,4 @@ IF = keyword<"if">
 ELSE = keyword<"else">
 AND = keyword<"and">
 OR = keyword<"or">
+NOT = keyword<"not">
