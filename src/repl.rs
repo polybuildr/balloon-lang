@@ -32,7 +32,14 @@ pub fn run_repl() {
                                     println!("reference error: `{}` was not declared", id);
                                 }
                                 InterpreterError::UndeclaredAssignment(id) => {
-                                    println!("reference error: cannot assign to undeclared `{}` ", id);
+                                    println!("reference error: cannot assign to undeclared `{}` ",
+                                             id);
+                                }
+                                InterpreterError::TypeError(binary_op, val1, val2) => {
+                                    println!("type error: `{}` cannot operate on types {} and {}",
+                                             binary_op,
+                                             val1.get_type_string(),
+                                             val2.get_type_string());
                                 }
                             }
                         }

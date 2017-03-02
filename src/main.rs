@@ -58,7 +58,7 @@ fn main() {
                     io::ErrorKind::NotFound => println!("{}", io_error),
                     e => println!("An error occurred.\n{:?}", e),
                 };
-            },
+            }
             ProcessingError::InterpreterError(e) => {
                 match e {
                     InterpreterError::ReferenceError(id) => {
@@ -67,8 +67,14 @@ fn main() {
                     InterpreterError::UndeclaredAssignment(id) => {
                         println!("reference error: cannot assign to undeclared `{}`", id);
                     }
+                    InterpreterError::TypeError(binary_op, val1, val2) => {
+                        println!("type error: `{}` cannot operate on types {} and {}",
+                                 binary_op,
+                                 val1.get_type_string(),
+                                 val2.get_type_string());
+                    }
                 }
-            },
+            }
         };
     }
 }

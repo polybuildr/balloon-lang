@@ -8,6 +8,8 @@ pub enum InterpreterError {
     ReferenceError(String),
     /// When an undeclared identifier is assigned to
     UndeclaredAssignment(String),
+    /// When a binary op cannot be performed on given types
+    TypeError(BinaryOp, Value, Value),
 }
 
 pub fn interpret_program(program: &Vec<Statement>) -> Result<(), InterpreterError> {
@@ -18,7 +20,9 @@ pub fn interpret_program(program: &Vec<Statement>) -> Result<(), InterpreterErro
     Ok(())
 }
 
-pub fn interpret_statements(statements: &Vec<Statement>, env: &mut Environment) -> Result<(), InterpreterError> {
+pub fn interpret_statements(statements: &Vec<Statement>,
+                            env: &mut Environment)
+                            -> Result<(), InterpreterError> {
     for statement in statements.iter() {
         interpret_statement(statement, env)?;
     }
@@ -75,16 +79,16 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Result<Value, InterpreterE
             let val1 = interpret_expr(expr1, env)?;
             let val2 = interpret_expr(expr2, env)?;
             match *op {
-                BinaryOp::Add => Ok(operations::add(val1, val2)),
-                BinaryOp::Sub => Ok(operations::subtract(val1, val2)),
-                BinaryOp::Mul => Ok(operations::multiply(val1, val2)),
-                BinaryOp::Div => Ok(operations::divide(val1, val2)),
-                BinaryOp::FloorDiv => Ok(operations::floor_divide(val1, val2)),
-                BinaryOp::LessThan => Ok(operations::less_than(val1, val2)),
-                BinaryOp::LessThanOrEqual => Ok(operations::less_than_or_equal(val1, val2)),
-                BinaryOp::GreaterThan => Ok(operations::greater_than(val1, val2)),
-                BinaryOp::GreaterThanOrEqual => Ok(operations::greater_than_or_equal(val1, val2)),
-                BinaryOp::StrictEquals => Ok(operations::strict_equals(val1, val2)),
+                BinaryOp::Add => Ok(operations::add(val1, val2)?),
+                BinaryOp::Sub => Ok(operations::subtract(val1, val2)?),
+                BinaryOp::Mul => Ok(operations::multiply(val1, val2)?),
+                BinaryOp::Div => Ok(operations::divide(val1, val2)?),
+                BinaryOp::FloorDiv => Ok(operations::floor_divide(val1, val2)?),
+                BinaryOp::LessThan => Ok(operations::less_than(val1, val2)?),
+                BinaryOp::LessThanOrEqual => Ok(operations::less_than_or_equal(val1, val2)?),
+                BinaryOp::GreaterThan => Ok(operations::greater_than(val1, val2)?),
+                BinaryOp::GreaterThanOrEqual => Ok(operations::greater_than_or_equal(val1, val2)?),
+                BinaryOp::StrictEquals => Ok(operations::strict_equals(val1, val2)?),
             }
         }
         Expr::Identifier(ref id) => env.get_value(&id),

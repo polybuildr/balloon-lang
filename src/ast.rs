@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, Clone)]
 pub enum BinaryOp {
     Add,
@@ -10,6 +12,23 @@ pub enum BinaryOp {
     GreaterThan,
     GreaterThanOrEqual,
     StrictEquals,
+}
+
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            BinaryOp::Add => write!(f, "+"),
+            BinaryOp::Sub => write!(f, "-"),
+            BinaryOp::Mul => write!(f, "*"),
+            BinaryOp::Div => write!(f, "/"),
+            BinaryOp::FloorDiv => write!(f, "//"),
+            BinaryOp::LessThan => write!(f, "<"),
+            BinaryOp::LessThanOrEqual => write!(f, "<="),
+            BinaryOp::GreaterThan => write!(f, ">"),
+            BinaryOp::GreaterThanOrEqual => write!(f, ">="),
+            BinaryOp::StrictEquals => write!(f, "=="),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
