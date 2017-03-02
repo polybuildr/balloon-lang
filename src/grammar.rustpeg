@@ -45,6 +45,8 @@ expr -> Expr
     / i:identifier { Expr::Identifier(i) }
 
 binary_expr -> Expr = #infix<simple_expr> {
+    #L x AND y { Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalAnd, Box::new(y)) }
+       x OR y { Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalOr, Box::new(y)) }
     #L x OP_STRICT_EQUALS y { Expr::BinaryExpression(Box::new(x), BinaryOp::StrictEquals, Box::new(y)) }
     #L x OP_LESS_THAN y { Expr::BinaryExpression(Box::new(x), BinaryOp::LessThan, Box::new(y)) }
        x OP_LESS_THAN_OR_EQUAL y { Expr::BinaryExpression(Box::new(x), BinaryOp::LessThanOrEqual, Box::new(y))}
@@ -126,3 +128,5 @@ keyword<E> = E __
 VAR = keyword<"var">
 IF = keyword<"if">
 ELSE = keyword<"else">
+AND = keyword<"and">
+OR = keyword<"or">

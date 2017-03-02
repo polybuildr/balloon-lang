@@ -14,6 +14,12 @@ pub enum BinaryOp {
     StrictEquals,
 }
 
+#[derive(Debug, Clone)]
+pub enum LogicalBinaryOp {
+    LogicalAnd,
+    LogicalOr,
+}
+
 impl fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -27,6 +33,15 @@ impl fmt::Display for BinaryOp {
             BinaryOp::GreaterThan => write!(f, ">"),
             BinaryOp::GreaterThanOrEqual => write!(f, ">="),
             BinaryOp::StrictEquals => write!(f, "=="),
+        }
+    }
+}
+
+impl fmt::Display for LogicalBinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            LogicalBinaryOp::LogicalAnd => write!(f, "and"),
+            LogicalBinaryOp::LogicalOr => write!(f, "or"),
         }
     }
 }
@@ -58,6 +73,7 @@ pub enum Expr {
     Literal(Literal),
     Identifier(String),
     BinaryExpression(Box<Expr>, BinaryOp, Box<Expr>),
+    BinaryLogicalExpression(Box<Expr>, LogicalBinaryOp, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]

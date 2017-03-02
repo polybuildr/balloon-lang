@@ -75,6 +75,7 @@ pub fn interpret_statement(s: &Statement, env: &mut Environment) -> Result<(), I
 fn interpret_expr(e: &Expr, env: &mut Environment) -> Result<Value, InterpreterError> {
     match *e {
         Expr::Literal(ref x) => Ok(Value::from(x.clone())),
+        Expr::Identifier(ref id) => env.get_value(&id),
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let val1 = interpret_expr(expr1, env)?;
             let val2 = interpret_expr(expr2, env)?;
@@ -91,6 +92,25 @@ fn interpret_expr(e: &Expr, env: &mut Environment) -> Result<Value, InterpreterE
                 BinaryOp::StrictEquals => Ok(operations::strict_equals(val1, val2)?),
             }
         }
-        Expr::Identifier(ref id) => env.get_value(&id),
+        Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
+            match *op {
+                LogicalBinaryOp::LogicalAnd => {
+                    let val1 = interpret_expr(expr1, env)?;
+                    if ! val1.is_truthy() {
+                        return Ok(Value::Bool(false));
+                    }
+                    let val2 = interpret_expr(expr2, env)?;
+                    Ok(Value::Bool(val2.is_truthy()))
+                }
+                LogicalBinaryOp::LogicalOr => {
+                    let val1 = interpret_expr(expr1, env)?;
+                    if val1.is_truthy() {
+                        return Ok(Value::Bool(true));
+                    }
+                    let val2 = interpret_expr(expr2, env)?;
+                    Ok(Value::Bool(val2.is_truthy()))
+                }
+            }
+        }
     }
 }
