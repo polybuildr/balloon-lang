@@ -94,7 +94,7 @@ identifier -> String
     = #quiet<_identifier> / #expected("identifier")
 
 _identifier -> String
-    = i:$([a-zA-Z][a-zA-Z0-9]*[!?]?) __ { i.to_string() }
+    = !reserved_identifier i:$([a-zA-Z][a-zA-Z0-9]*[!?]?) __ { i.to_string() }
 
 __ = whitespace*
 
@@ -124,6 +124,16 @@ OPENING_BRACE = "{" __
 CLOSING_BRACE = "}" __
 OPEN_PAREN = "(" __
 CLOSE_PAREN = ")" __
+
+
+reserved_identifier = VAR
+                    / IF
+                    / ELSE
+                    / AND
+                    / OR
+                    / NOT
+                    / "true"
+                    / "false"
 
 keyword<E> = E __
 
