@@ -35,16 +35,16 @@ pub fn run_repl() {
                                     println!("reference error: cannot assign to undeclared `{}` ",
                                              id);
                                 }
-                                InterpreterError::BinaryTypeError(binary_op, val1, val2) => {
+                                InterpreterError::BinaryTypeError(binary_op, type1, type2) => {
                                     println!("type error: `{}` cannot operate on types {} and {}",
                                              binary_op,
-                                             val1.get_type_string(),
-                                             val2.get_type_string());
+                                             type1,
+                                             type2);
                                 }
-                                InterpreterError::UnaryTypeError(unary_op, val) => {
+                                InterpreterError::UnaryTypeError(unary_op, typ) => {
                                     println!("type error: `{}` cannot operate on type {}",
                                              unary_op,
-                                             val.get_type_string());
+                                             typ);
                                 }
                             }
                         }

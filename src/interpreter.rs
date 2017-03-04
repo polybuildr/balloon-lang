@@ -2,16 +2,18 @@ use ast::*;
 use value::*;
 use operations;
 use environment::Environment;
+use checker::Type;
 
+#[derive(Debug)]
 pub enum InterpreterError {
     /// When an undeclared identifier is used on the RHS
     ReferenceError(String),
     /// When an undeclared identifier is assigned to
     UndeclaredAssignment(String),
     /// When a binary op cannot be performed on the given types
-    BinaryTypeError(BinaryOp, Value, Value),
+    BinaryTypeError(BinaryOp, Type, Type),
     /// When a unary op cannot be performed on the given type
-    UnaryTypeError(UnaryOp, Value),
+    UnaryTypeError(UnaryOp, Type),
 }
 
 pub fn interpret_program(program: &Vec<Statement>) -> Result<(), InterpreterError> {

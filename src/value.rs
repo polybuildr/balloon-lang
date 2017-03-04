@@ -3,6 +3,7 @@ use std::ops;
 use std::cmp;
 
 use ast;
+use checker::Type;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Value {
@@ -122,10 +123,10 @@ impl Number {
 }
 
 impl Value {
-    pub fn get_type_string(&self) -> String {
+    pub fn get_type(&self) -> Type {
         match *self {
-            Value::Number(_) => "Number".to_string(),
-            Value::Bool(_) => "Bool".to_string(),
+            Value::Number(_) => Type::Number,
+            Value::Bool(_) => Type::Bool,
         }
     }
 

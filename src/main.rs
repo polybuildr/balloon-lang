@@ -19,6 +19,7 @@ mod operations;
 mod environment;
 mod repl;
 mod error;
+mod checker;
 
 use interpreter::InterpreterError;
 
@@ -32,6 +33,7 @@ enum RunMode {
     Parse,
     Run,
     Repl,
+    Check,
     Unknown,
 }
 
@@ -45,6 +47,8 @@ fn main() {
                 RunMode::Run
             } else if args[1] == "parse" {
                 RunMode::Parse
+            } else if args[1] == "check" {
+                RunMode::Check
             } else {
                 RunMode::Unknown
             }
@@ -82,6 +86,7 @@ fn main() {
     match run_mode {
         RunMode::Parse => println!("{:#?}", ast),
         RunMode::Run => interpret_ast(ast),
+        RunMode::Check => check_ast(ast),
         RunMode::Unknown => print_usage(),
         RunMode::Repl => unreachable!(),
     }
@@ -105,17 +110,20 @@ fn interpret_ast(ast: Vec<ast::Statement>) {
             InterpreterError::UndeclaredAssignment(id) => {
                 println!("reference error: cannot assign to undeclared `{}`", id);
             }
-            InterpreterError::BinaryTypeError(binary_op, val1, val2) => {
+            InterpreterError::BinaryTypeError(binary_op, type1, type2) => {
                 println!("type error: `{}` cannot operate on types {} and {}",
                          binary_op,
-                         val1.get_type_string(),
-                         val2.get_type_string());
+                         type1,
+                         type2);
             }
-            InterpreterError::UnaryTypeError(unary_op, val) => {
-                println!("type error: `{}` cannot operate on type {}",
-                         unary_op,
-                         val.get_type_string());
+            InterpreterError::UnaryTypeError(unary_op, typ) => {
+                println!("type error: `{}` cannot operate on type {}", unary_op, typ);
             }
         }
     }
+}
+
+fn check_ast(ast: Vec<ast::Statement>) {
+    let result = checker::check_program(&ast);
+    println!("{:?}", result);
 }
