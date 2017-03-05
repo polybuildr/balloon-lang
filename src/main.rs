@@ -39,9 +39,13 @@ enum RunMode {
 
 fn main() {
     let args: Vec<_> = env::args().collect();
+    let mut file_name_args_idx = 2;
     let run_mode = match args.len() {
         1 => RunMode::Repl,
-        2 => RunMode::Run,
+        2 => {
+            file_name_args_idx = 1;
+            RunMode::Run
+        },
         3 => {
             if args[1] == "run" {
                 RunMode::Run
@@ -61,7 +65,7 @@ fn main() {
         return;
     }
 
-    let file_name = &args[2];
+    let file_name = &args[file_name_args_idx];
     let ast_result = parse_file(file_name);
     if let Err(err) = ast_result {
         match err {
