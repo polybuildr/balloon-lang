@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 
 use ast::*;
 use ast;
 use interpreter::InterpreterError;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Type {
     Number,
     Bool,
@@ -32,8 +33,9 @@ impl fmt::Display for Type {
     }
 }
 
+#[derive(Clone)]
 pub struct TypeEnvironment {
-    symbol_tables: Vec<HashMap<String, Type>>,
+    pub symbol_tables: Vec<HashMap<String, Type>>,
 }
 
 impl TypeEnvironment {
@@ -75,6 +77,16 @@ impl TypeEnvironment {
             }
         }
         Err(InterpreterError::ReferenceError(identifier.clone()))
+    }
+
+    pub fn get_all_keys(&self) -> HashSet<String> {
+        let mut keys = HashSet::new();
+        for table in self.symbol_tables.iter() {
+            for key in table.keys() {
+                keys.insert(key.clone());
+            }
+        }
+        keys
     }
 }
 
@@ -155,14 +167,25 @@ pub fn check_statement(s: &Statement,
             }
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
+            let mut then_env = env.clone();
+            let mut else_env = env.clone();
             if let Err(mut e) = check_expr(if_expr, env) {
                 errors.append(&mut e);
             }
-            if let Err(mut e) = check_statement(then_block, env) {
+            if let Err(mut e) = check_statement(then_block, &mut then_env) {
                 errors.append(&mut e);
             }
-            if let Err(mut e) = check_statement(else_block, env) {
+            if let Err(mut e) = check_statement(else_block, &mut else_env) {
                 errors.append(&mut e);
+            }
+
+            for name in then_env.get_all_keys() {
+                let then_type = then_env.get_type(&name).unwrap();
+                if else_env.get_type(&name).unwrap() != then_type {
+                    env.set(&name, Type::Any).unwrap();
+                } else {
+                    env.set(&name, then_type).unwrap();
+                }
             }
         }
         Statement::Empty => {}
