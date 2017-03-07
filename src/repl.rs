@@ -1,7 +1,6 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-use environment::Environment;
 use interpreter::*;
 use error::*;
 use parser;
@@ -9,8 +8,8 @@ use parser;
 pub fn run_repl() {
     println!("Balloon REPL");
     let mut rl = Editor::<()>::new();
-    let mut env = Environment::new();
-    env.start_scope();
+    let mut machine = Interpreter::new();
+    machine.setup_for_repl();
     loop {
         let readline = rl.readline("> ");
         match readline {
@@ -26,7 +25,7 @@ pub fn run_repl() {
                         print_parse_error("repl".to_string(), orig_input, parse_error);
                     }
                     Ok(ast) => {
-                        if let Err(e) = interpret_statements(&ast, &mut env) {
+                        if let Err(e) = machine.interpret_statements(&ast) {
                             match e {
                                 InterpreterError::ReferenceError(id) => {
                                     println!("reference error: `{}` was not declared", id);
@@ -65,5 +64,5 @@ pub fn run_repl() {
             }
         }
     }
-    env.end_scope();
+    machine.cleanup_for_repl();
 }

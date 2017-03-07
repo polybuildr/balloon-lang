@@ -21,7 +21,7 @@ mod repl;
 mod error;
 mod checker;
 
-use interpreter::InterpreterError;
+use interpreter::*;
 
 use error::*;
 
@@ -45,7 +45,7 @@ fn main() {
         2 => {
             file_name_args_idx = 1;
             RunMode::Run
-        },
+        }
         3 => {
             if args[1] == "run" {
                 RunMode::Run
@@ -105,7 +105,8 @@ fn parse_file(name: &String) -> Result<Vec<ast::Statement>, ProcessingError> {
 }
 
 fn interpret_ast(ast: Vec<ast::Statement>) {
-    let result = interpreter::interpret_program(&ast);
+    let mut machine = Interpreter::new();
+    let result = machine.interpret_program(&ast);
     if let Err(e) = result {
         match e {
             InterpreterError::ReferenceError(id) => {
