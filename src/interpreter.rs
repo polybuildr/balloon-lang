@@ -2,7 +2,7 @@ use ast::*;
 use value::*;
 use operations;
 use environment::Environment;
-use checker::Type;
+use typechecker::Type;
 
 #[derive(Debug)]
 pub enum InterpreterError {
@@ -14,6 +14,11 @@ pub enum InterpreterError {
     BinaryTypeError(BinaryOp, Type, Type),
     /// When a unary op cannot be performed on the given type
     UnaryTypeError(UnaryOp, Type),
+}
+
+pub enum StatementEffect {
+    None,
+    Break,
 }
 
 pub struct Interpreter {
@@ -49,47 +54,77 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret_statement(&mut self, s: &Statement) -> Result<(), InterpreterError> {
+    fn interpret_statement(&mut self, s: &Statement) -> Result<StatementEffect, InterpreterError> {
         match *s {
             Statement::VariableDeclaration(ref variable, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 self.env.declare(variable, &val);
                 println!("{:?} => {}", variable, val);
+                Ok(StatementEffect::None)
             }
             Statement::Assignment(ref lhs_expr, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 match *lhs_expr {
-                    LhsExpr::Identifier(ref id) => self.env.set(id, val)?,
+                    LhsExpr::Identifier(ref id) => {
+                        self.env.set(id, val)?;
+                        println!("Assignment: {} = {}", id, val);
+                    }
                 };
+                Ok(StatementEffect::None)
             }
             Statement::Block(ref statements) => {
                 self.env.start_scope();
                 for statement in statements.iter() {
-                    self.interpret_statement(statement)?;
+                    if let StatementEffect::Break = self.interpret_statement(statement)? {
+                        self.env.end_scope();
+                        return Ok(StatementEffect::Break);
+                    }
                 }
                 self.env.end_scope();
+                return Ok(StatementEffect::None)
             }
             Statement::Expression(ref expr) => {
                 let val = self.interpret_expr(expr)?;
-                println!("Expression => {}", val);
+                println!("Expression: {}", val);
+                Ok(StatementEffect::None)
             }
             Statement::IfThen(ref if_expr, ref then_block) => {
                 let val = self.interpret_expr(if_expr)?;
                 if val.is_truthy() {
-                    self.interpret_statement(then_block)?;
+                    if let StatementEffect::Break = self.interpret_statement(then_block)? {
+                        return Ok(StatementEffect::Break)
+                    }
                 }
+                return Ok(StatementEffect::None)
             }
             Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
                 let val = self.interpret_expr(if_expr)?;
                 if val.is_truthy() {
-                    self.interpret_statement(then_block)?;
+                    if let StatementEffect::Break = self.interpret_statement(then_block)? {
+                        return Ok(StatementEffect::Break)
+                    }
                 } else {
-                    self.interpret_statement(else_block)?;
+                    if let StatementEffect::Break = self.interpret_statement(else_block)? {
+                        return Ok(StatementEffect::Break)
+                    }
                 }
+                Ok(StatementEffect::None)
+            },
+            Statement::Loop(ref block) => {
+                self.env.start_scope();
+                loop {
+                    if let StatementEffect::Break = self.interpret_statement(block)? {
+                        break;
+                    }
+                }
+                self.env.end_scope();
+                Ok(StatementEffect::None)
             }
-            Statement::Empty => {}
-        };
-        Ok(())
+            Statement::Break => {
+                Ok(StatementEffect::Break)
+            }
+            Statement::Empty => Ok(StatementEffect::None),
+        }
     }
     fn interpret_expr(&mut self, e: &Expr) -> Result<Value, InterpreterError> {
         match *e {

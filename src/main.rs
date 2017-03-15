@@ -5,6 +5,8 @@ use std::fs::File;
 
 extern crate ansi_term;
 
+extern crate fnv;
+
 extern crate rustyline;
 
 // include output of rust-peg given grammar.rustpeg
@@ -19,7 +21,7 @@ mod operations;
 mod environment;
 mod repl;
 mod error;
-mod checker;
+mod typechecker;
 
 use interpreter::*;
 
@@ -129,6 +131,6 @@ fn interpret_ast(ast: Vec<ast::Statement>) {
 }
 
 fn check_ast(ast: Vec<ast::Statement>) {
-    let result = checker::check_program(&ast);
+    let result = typechecker::check_program(&ast);
     println!("{:?}", result);
 }

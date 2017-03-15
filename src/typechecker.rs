@@ -188,6 +188,12 @@ pub fn check_statement(s: &Statement,
                 }
             }
         }
+        Statement::Loop(ref block) => {
+            if let Err(mut e) = check_statement(block, env) {
+                errors.append(&mut e);
+            }
+        }
+        Statement::Break => {},
         Statement::Empty => {}
     };
     if errors.len() == 0 {

@@ -112,5 +112,7 @@ pub enum Statement {
     Block(Vec<Statement>),
     IfThen(Expr, Box<Statement>),
     IfThenElse(Expr, Box<Statement>, Box<Statement>),
+    Loop(Box<Statement>),
+    Break,
     Empty,
 }

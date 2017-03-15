@@ -3,7 +3,7 @@ use std::ops;
 use std::cmp;
 
 use ast;
-use checker::Type;
+use typechecker::Type;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Value {
