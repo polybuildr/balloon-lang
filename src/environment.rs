@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 
 use value::*;
 use ast::*;
 use interpreter::InterpreterError;
 
 pub struct Environment {
-    symbol_tables: Vec<HashMap<String, Value>>,
+    symbol_tables: Vec<FnvHashMap<String, Value>>,
 }
 
 impl Environment {
@@ -14,7 +14,7 @@ impl Environment {
     }
 
     pub fn start_scope(&mut self) {
-        self.symbol_tables.push(HashMap::new());
+        self.symbol_tables.push(FnvHashMap::default());
     }
 
     pub fn end_scope(&mut self) {
