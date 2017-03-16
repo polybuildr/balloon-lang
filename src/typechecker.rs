@@ -158,6 +158,11 @@ pub fn check_statement(s: &Statement,
                 errors.append(&mut e);
             }
         }
+        Statement::PrintLn(ref expr) => {
+            if let Err(mut e) = check_expr(expr, env) {
+                errors.append(&mut e);
+            }
+        }
         Statement::IfThen(ref if_expr, ref then_block) => {
             if let Err(mut e) = check_expr(if_expr, env) {
                 errors.append(&mut e);

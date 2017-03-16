@@ -59,7 +59,6 @@ impl Interpreter {
             Statement::VariableDeclaration(ref variable, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 self.env.declare(variable, &val);
-                println!("{:?} => {}", variable, val);
                 Ok(StatementEffect::None)
             }
             Statement::Assignment(ref lhs_expr, ref expr) => {
@@ -67,7 +66,6 @@ impl Interpreter {
                 match *lhs_expr {
                     LhsExpr::Identifier(ref id) => {
                         self.env.set(id, val)?;
-                        println!("Assignment: {} = {}", id, val);
                     }
                 };
                 Ok(StatementEffect::None)
@@ -84,8 +82,7 @@ impl Interpreter {
                 return Ok(StatementEffect::None)
             }
             Statement::Expression(ref expr) => {
-                let val = self.interpret_expr(expr)?;
-                println!("Expression: {}", val);
+                self.interpret_expr(expr)?;
                 Ok(StatementEffect::None)
             }
             Statement::IfThen(ref if_expr, ref then_block) => {
@@ -122,6 +119,11 @@ impl Interpreter {
             }
             Statement::Break => {
                 Ok(StatementEffect::Break)
+            }
+            Statement::PrintLn(ref expr) => {
+                let val = self.interpret_expr(expr)?;
+                println!("{}", val);
+                Ok(StatementEffect::None)
             }
             Statement::Empty => Ok(StatementEffect::None),
         }

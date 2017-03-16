@@ -113,6 +113,7 @@ pub enum Statement {
     IfThen(Expr, Box<Statement>),
     IfThenElse(Expr, Box<Statement>, Box<Statement>),
     Loop(Box<Statement>),
+    PrintLn(Expr),
     Break,
     Empty,
 }

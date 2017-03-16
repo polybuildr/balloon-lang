@@ -17,11 +17,20 @@ pub enum Number {
     Float(f64),
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Value::Bool(b) => write!(f, "{}", b),
+            Value::Number(n) => write!(f, "{}", n),
+        }
+    }
+}
+
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Number::Integer(x) => write!(f, "Integer({})", x),
-            Number::Float(x) => write!(f, "Float({})", x),
+            Number::Integer(x) => write!(f, "{}", x),
+            Number::Float(x) => write!(f, "{}", x),
         }
     }
 }
@@ -139,15 +148,6 @@ impl Value {
                 }
             }
             Value::Bool(b) => b,
-        }
-    }
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Value::Number(n) => write!(f, "Value::Number({})", n),
-            Value::Bool(x) => write!(f, "Value::Bool({})", x),
         }
     }
 }
