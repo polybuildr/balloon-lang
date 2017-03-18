@@ -9,7 +9,6 @@ pub statements -> Vec<Statement>
 statement -> Statement
     = s:if_statement { s }
     / l:loop_statement { l }
-    / p:println_statement { p }
     / BREAK TERMINATOR { Statement::Break }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
@@ -28,14 +27,6 @@ variable_declaration -> Statement
             Variable::Identifier(b, i), e
         )
      }
-
-println_statement -> Statement
-    = #quiet<_println_statement> / #expected("print statement")
-
-_println_statement -> Statement
-    = PRINTLN OPEN_PAREN e:expr CLOSE_PAREN TERMINATOR {
-        Statement::PrintLn(e)
-    }
 
 binding_type -> BindingType
     = VAR { BindingType::Mutable }
@@ -56,7 +47,12 @@ _block -> Statement
 expr -> Expr
     = e:binary_expr { e }
     / s:simple_expr { s }
-    / i:identifier { Expr::Identifier(i) }
+
+function_call -> Expr
+    = id:identifier OPEN_PAREN args:comma_args CLOSE_PAREN { Expr::FunctionCall(id, args) }
+
+comma_args -> Vec<Expr>
+    = expr ** COMMA
 
 binary_expr -> Expr = #infix<simple_expr> {
     #L x AND y { Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalAnd, Box::new(y)) }
@@ -75,6 +71,7 @@ binary_expr -> Expr = #infix<simple_expr> {
 
 simple_expr -> Expr
     = OPEN_PAREN e:expr CLOSE_PAREN { e }
+    / f:function_call { f }
     / OP_MINUS e:expr { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
     / NOT e:expr { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
     / l:literal { Expr::Literal(l) }
@@ -139,6 +136,7 @@ CLOSING_BRACE = "}" __
 OPEN_PAREN = "(" __
 CLOSE_PAREN = ")" __
 
+COMMA = "," __
 
 reserved_identifier = VAR
                     / IF
@@ -159,4 +157,3 @@ OR = keyword<"or">
 NOT = keyword<"not">
 LOOP = keyword<"loop">
 BREAK = keyword<"break">
-PRINTLN = keyword<"println">

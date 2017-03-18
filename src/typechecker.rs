@@ -158,11 +158,6 @@ pub fn check_statement(s: &Statement,
                 errors.append(&mut e);
             }
         }
-        Statement::PrintLn(ref expr) => {
-            if let Err(mut e) = check_expr(expr, env) {
-                errors.append(&mut e);
-            }
-        }
         Statement::IfThen(ref if_expr, ref then_block) => {
             if let Err(mut e) = check_expr(if_expr, env) {
                 errors.append(&mut e);
@@ -306,6 +301,25 @@ fn check_expr(expr: &Expr, env: &mut TypeEnvironment) -> Result<Type, Vec<Interp
                         Err(errors)
                     }
                 }
+            }
+        }
+        Expr::FunctionCall(ref id, ref args) => {
+            match id.as_ref() {
+                "println" => {},
+                _ => {
+                    return Err(vec![InterpreterError::ReferenceError(id.clone())]);
+                }
+            };
+            let mut errors = Vec::new();
+            for arg in args.iter() {
+                if let Err(mut e) = check_expr(arg, env) {
+                    errors.append(&mut e);
+                }
+            }
+            if errors.len() == 0 {
+                Ok(Type::Any)
+            } else {
+                Err(errors)
             }
         }
     }

@@ -45,6 +45,9 @@ pub fn run_repl() {
                                              unary_op,
                                              typ);
                                 }
+                                InterpreterError::NoneError(id) => {
+                                    println!("missing value error: tried to use return value of non-returning function `{}`", id);
+                                }
                             }
                         }
                     }

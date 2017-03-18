@@ -22,6 +22,7 @@ mod environment;
 mod repl;
 mod error;
 mod typechecker;
+mod builtins;
 
 use interpreter::*;
 
@@ -125,6 +126,9 @@ fn interpret_ast(ast: Vec<ast::Statement>) {
             }
             InterpreterError::UnaryTypeError(unary_op, typ) => {
                 println!("type error: `{}` cannot operate on type {}", unary_op, typ);
+            }
+            InterpreterError::NoneError(id) => {
+                println!("missing value error: tried to use return value of non-returning function `{}`", id);
             }
         }
     }

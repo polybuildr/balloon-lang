@@ -102,6 +102,7 @@ pub enum Expr {
     BinaryLogicalExpression(Box<Expr>, LogicalBinaryOp, Box<Expr>),
     UnaryExpression(UnaryOp, Box<Expr>),
     UnaryLogicalExpression(LogicalUnaryOp, Box<Expr>),
+    FunctionCall(String, Vec<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -113,7 +114,6 @@ pub enum Statement {
     IfThen(Expr, Box<Statement>),
     IfThenElse(Expr, Box<Statement>, Box<Statement>),
     Loop(Box<Statement>),
-    PrintLn(Expr),
     Break,
     Empty,
 }
