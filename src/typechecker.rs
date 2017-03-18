@@ -33,6 +33,18 @@ impl fmt::Display for Type {
     }
 }
 
+#[derive(Debug)]
+pub enum TypeCheckerIssue {
+    InterpreterError(InterpreterError),
+    MultipleTypesFromBranchWarning,
+}
+
+impl From<InterpreterError> for TypeCheckerIssue {
+    fn from(from: InterpreterError) -> Self {
+        TypeCheckerIssue::InterpreterError(from)
+    }
+}
+
 #[derive(Clone)]
 pub struct TypeEnvironment {
     pub symbol_tables: Vec<HashMap<String, Type>>,
@@ -59,7 +71,7 @@ impl TypeEnvironment {
         };
     }
 
-    pub fn set(&mut self, identifier: &String, typ: Type) -> Result<(), InterpreterError> {
+    pub fn set(&mut self, identifier: &String, typ: Type) -> Result<(), TypeCheckerIssue> {
         for table in self.symbol_tables.iter_mut().rev() {
             // TODO: Entry API
             if table.contains_key(identifier) {
@@ -67,16 +79,16 @@ impl TypeEnvironment {
                 return Ok(());
             }
         }
-        Err(InterpreterError::UndeclaredAssignment(identifier.clone()))
+        Err(InterpreterError::UndeclaredAssignment(identifier.clone()).into())
     }
 
-    pub fn get_type(&mut self, identifier: &String) -> Result<Type, InterpreterError> {
+    pub fn get_type(&mut self, identifier: &String) -> Result<Type, TypeCheckerIssue> {
         for table in self.symbol_tables.iter().rev() {
             if let Some(typ) = table.get(identifier) {
                 return Ok(*typ);
             }
         }
-        Err(InterpreterError::ReferenceError(identifier.clone()))
+        Err(InterpreterError::ReferenceError(identifier.clone()).into())
     }
 
     pub fn get_all_keys(&self) -> HashSet<String> {
@@ -90,7 +102,7 @@ impl TypeEnvironment {
     }
 }
 
-pub fn check_program(ast: &Vec<Statement>) -> Result<(), Vec<InterpreterError>> {
+pub fn check_program(ast: &Vec<Statement>) -> Result<(), Vec<TypeCheckerIssue>> {
     let mut env = TypeEnvironment::new();
     env.start_scope();
     let result = check_statements(ast, &mut env);
@@ -100,30 +112,30 @@ pub fn check_program(ast: &Vec<Statement>) -> Result<(), Vec<InterpreterError>> 
 
 pub fn check_statements(ast: &Vec<Statement>,
                         env: &mut TypeEnvironment)
-                        -> Result<(), Vec<InterpreterError>> {
-    let mut errors = Vec::new();
+                        -> Result<(), Vec<TypeCheckerIssue>> {
+    let mut issues = Vec::new();
     for statement in ast.iter() {
         if let Err(mut e) = check_statement(statement, env) {
-            errors.append(&mut e);
+            issues.append(&mut e);
         }
     }
-    if errors.len() == 0 {
+    if issues.len() == 0 {
         Ok(())
     } else {
-        Err(errors)
+        Err(issues)
     }
 }
 
 pub fn check_statement(s: &Statement,
                        env: &mut TypeEnvironment)
-                       -> Result<(), Vec<InterpreterError>> {
-    let mut errors = Vec::new();
+                       -> Result<(), Vec<TypeCheckerIssue>> {
+    let mut issues = Vec::new();
     match *s {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let checked_type = match check_expr(expr, env) {
                 Ok(t) => t,
                 Err(mut e) => {
-                    errors.append(&mut e);
+                    issues.append(&mut e);
                     Type::Any
                 }
             };
@@ -134,14 +146,14 @@ pub fn check_statement(s: &Statement,
             let checked_type = match check_expr(expr, env) {
                 Ok(t) => t,
                 Err(mut e) => {
-                    errors.append(&mut e);
+                    issues.append(&mut e);
                     Type::Any
                 }
             };
             match *lhs_expr {
                 LhsExpr::Identifier(ref id) => {
                     if let Err(e) = env.set(id, checked_type) {
-                        errors.push(e);
+                        issues.push(e);
                     }
                 }
             };
@@ -149,39 +161,40 @@ pub fn check_statement(s: &Statement,
         Statement::Block(ref statements) => {
             env.start_scope();
             if let Err(mut e) = check_statements(statements, env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
             env.end_scope();
         }
         Statement::Expression(ref expr) => {
             if let Err(mut e) = check_expr(expr, env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
             if let Err(mut e) = check_expr(if_expr, env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
             if let Err(mut e) = check_statement(then_block, env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let mut then_env = env.clone();
             let mut else_env = env.clone();
             if let Err(mut e) = check_expr(if_expr, env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
             if let Err(mut e) = check_statement(then_block, &mut then_env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
             if let Err(mut e) = check_statement(else_block, &mut else_env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
 
             for name in then_env.get_all_keys() {
                 let then_type = then_env.get_type(&name).unwrap();
                 if else_env.get_type(&name).unwrap() != then_type {
+                    issues.push(TypeCheckerIssue::MultipleTypesFromBranchWarning);
                     env.set(&name, Type::Any).unwrap();
                 } else {
                     env.set(&name, then_type).unwrap();
@@ -190,20 +203,20 @@ pub fn check_statement(s: &Statement,
         }
         Statement::Loop(ref block) => {
             if let Err(mut e) = check_statement(block, env) {
-                errors.append(&mut e);
+                issues.append(&mut e);
             }
         }
         Statement::Break => {},
         Statement::Empty => {}
     };
-    if errors.len() == 0 {
+    if issues.len() == 0 {
         Ok(())
     } else {
-        Err(errors)
+        Err(issues)
     }
 }
 
-fn check_expr(expr: &Expr, env: &mut TypeEnvironment) -> Result<Type, Vec<InterpreterError>> {
+fn check_expr(expr: &Expr, env: &mut TypeEnvironment) -> Result<Type, Vec<TypeCheckerIssue>> {
     match *expr {
         Expr::Literal(ref x) => Ok(Type::from(x.clone())),
         Expr::Identifier(ref id) => {
@@ -238,18 +251,18 @@ fn check_expr(expr: &Expr, env: &mut TypeEnvironment) -> Result<Type, Vec<Interp
             }
         }
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
-            let mut errors = Vec::new();
+            let mut issues = Vec::new();
             let checked_type_1 = match check_expr(expr1, env) {
                 Ok(t) => t,
                 Err(mut e) => {
-                    errors.append(&mut e);
+                    issues.append(&mut e);
                     Type::Any
                 }
             };
             let checked_type_2 = match check_expr(expr2, env) {
                 Ok(t) => t,
                 Err(mut e) => {
-                    errors.append(&mut e);
+                    issues.append(&mut e);
                     Type::Any
                 }
             };
@@ -272,33 +285,33 @@ fn check_expr(expr: &Expr, env: &mut TypeEnvironment) -> Result<Type, Vec<Interp
             };
             match result {
                 Err(e) => {
-                    errors.push(e);
-                    Err(errors)
+                    issues.push(e);
+                    Err(issues)
                 }
                 Ok(t) => {
-                    if errors.len() == 0 {
+                    if issues.len() == 0 {
                         Ok(t)
                     } else {
-                        Err(errors)
+                        Err(issues)
                     }
                 }
             }
         }
         Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
-            let mut errors = Vec::new();
+            let mut issues = Vec::new();
             match *op {
                 LogicalBinaryOp::LogicalAnd |
                 LogicalBinaryOp::LogicalOr => {
                     if let Err(mut e) = check_expr(expr1, env) {
-                        errors.append(&mut e);
+                        issues.append(&mut e);
                     };
                     if let Err(mut e) = check_expr(expr2, env) {
-                        errors.append(&mut e);
+                        issues.append(&mut e);
                     };
-                    if errors.len() == 0 {
+                    if issues.len() == 0 {
                         Ok(Type::Bool)
                     } else {
-                        Err(errors)
+                        Err(issues)
                     }
                 }
             }
@@ -307,52 +320,52 @@ fn check_expr(expr: &Expr, env: &mut TypeEnvironment) -> Result<Type, Vec<Interp
             match id.as_ref() {
                 "println" => {},
                 _ => {
-                    return Err(vec![InterpreterError::ReferenceError(id.clone())]);
+                    return Err(vec![InterpreterError::ReferenceError(id.clone()).into()]);
                 }
             };
-            let mut errors = Vec::new();
+            let mut issues = Vec::new();
             for arg in args.iter() {
                 if let Err(mut e) = check_expr(arg, env) {
-                    errors.append(&mut e);
+                    issues.append(&mut e);
                 }
             }
-            if errors.len() == 0 {
+            if issues.len() == 0 {
                 Ok(Type::Any)
             } else {
-                Err(errors)
+                Err(issues)
             }
         }
     }
 }
 
-fn check_unary_minus_for_type(typ: Type) -> Result<Type, InterpreterError> {
+fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {
     match typ {
         Type::Number => Ok(Type::Number),
         Type::Any => Ok(Type::Any),
-        _ => Err(InterpreterError::UnaryTypeError(UnaryOp::Minus, typ)),
+        _ => Err(InterpreterError::UnaryTypeError(UnaryOp::Minus, typ).into()),
     }
 }
 
 fn check_binary_arithmetic_for_types(op: BinaryOp,
                                      t1: Type,
                                      t2: Type)
-                                     -> Result<Type, InterpreterError> {
+                                     -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (Type::Number, Type::Number) => Ok(Type::Number),
         (Type::Any, _) => Ok(Type::Any),
         (_, Type::Any) => Ok(Type::Any),
-        _ => Err(InterpreterError::BinaryTypeError(op, t1, t2)),
+        _ => Err(InterpreterError::BinaryTypeError(op, t1, t2).into()),
     }
 }
 
 fn check_binary_comparison_for_types(op: BinaryOp,
                                      t1: Type,
                                      t2: Type)
-                                     -> Result<Type, InterpreterError> {
+                                     -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (Type::Number, Type::Number) => Ok(Type::Bool),
         (Type::Any, _) => Ok(Type::Any),
         (_, Type::Any) => Ok(Type::Any),
-        _ => Err(InterpreterError::BinaryTypeError(op, t1, t2)),
+        _ => Err(InterpreterError::BinaryTypeError(op, t1, t2).into()),
     }
 }
