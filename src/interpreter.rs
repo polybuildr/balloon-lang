@@ -42,7 +42,9 @@ impl Interpreter {
         self.env.end_scope();
     }
 
-    pub fn interpret_program(&mut self, program: &Vec<StatementNode>) -> Result<(), InterpreterErrorWithPosition> {
+    pub fn interpret_program(&mut self,
+                             program: &Vec<StatementNode>)
+                             -> Result<(), InterpreterErrorWithPosition> {
         self.env.start_scope();
         self.interpret_statements(program)?;
         self.env.end_scope();
@@ -58,7 +60,9 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret_statement(&mut self, s: &StatementNode) -> Result<StatementEffect, InterpreterErrorWithPosition> {
+    fn interpret_statement(&mut self,
+                           s: &StatementNode)
+                           -> Result<StatementEffect, InterpreterErrorWithPosition> {
         match s.data {
             Statement::VariableDeclaration(ref variable, ref expr) => {
                 let val = self.interpret_expr(expr)?;
@@ -80,7 +84,8 @@ impl Interpreter {
                 match lhs_expr.data {
                     LhsExpr::Identifier(ref id) => {
                         if !self.env.set(id, val.unwrap()) {
-                            return Err((InterpreterError::UndeclaredAssignment(id.clone()), lhs_expr.pos));
+                            return Err((InterpreterError::UndeclaredAssignment(id.clone()),
+                                        lhs_expr.pos));
                         }
                     }
                 };
@@ -95,7 +100,7 @@ impl Interpreter {
                     }
                 }
                 self.env.end_scope();
-                return Ok(StatementEffect::None)
+                return Ok(StatementEffect::None);
             }
             Statement::Expression(ref expr) => {
                 self.interpret_expr(expr)?;
@@ -110,10 +115,10 @@ impl Interpreter {
                 }
                 if val.unwrap().is_truthy() {
                     if let StatementEffect::Break = self.interpret_statement(then_block)? {
-                        return Ok(StatementEffect::Break)
+                        return Ok(StatementEffect::Break);
                     }
                 }
-                return Ok(StatementEffect::None)
+                return Ok(StatementEffect::None);
             }
             Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
                 let val = self.interpret_expr(if_expr)?;
@@ -124,15 +129,15 @@ impl Interpreter {
                 }
                 if val.unwrap().is_truthy() {
                     if let StatementEffect::Break = self.interpret_statement(then_block)? {
-                        return Ok(StatementEffect::Break)
+                        return Ok(StatementEffect::Break);
                     }
                 } else {
                     if let StatementEffect::Break = self.interpret_statement(else_block)? {
-                        return Ok(StatementEffect::Break)
+                        return Ok(StatementEffect::Break);
                     }
                 }
                 Ok(StatementEffect::None)
-            },
+            }
             Statement::Loop(ref block) => {
                 self.env.start_scope();
                 loop {
@@ -143,21 +148,21 @@ impl Interpreter {
                 self.env.end_scope();
                 Ok(StatementEffect::None)
             }
-            Statement::Break => {
-                Ok(StatementEffect::Break)
-            }
+            Statement::Break => Ok(StatementEffect::Break),
             Statement::Empty => Ok(StatementEffect::None),
         }
     }
-    fn interpret_expr(&mut self, e: &ExprNode) -> Result<Option<Value>, InterpreterErrorWithPosition> {
+    fn interpret_expr(&mut self,
+                      e: &ExprNode)
+                      -> Result<Option<Value>, InterpreterErrorWithPosition> {
         match e.data {
             Expr::Literal(ref x) => Ok(Some(Value::from(x.clone()))),
             Expr::Identifier(ref id) => {
                 match self.env.get_value(&id) {
                     Some(v) => Ok(Some(v)),
-                    None => Err((InterpreterError::ReferenceError(id.clone()), e.pos))
+                    None => Err((InterpreterError::ReferenceError(id.clone()), e.pos)),
                 }
-            },
+            }
             Expr::UnaryExpression(ref op, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 if let None = val {
@@ -166,9 +171,11 @@ impl Interpreter {
                     }
                 }
                 match *op {
-                    UnaryOp::Minus => match operations::unary_minus(val.unwrap()) {
-                        Ok(v) => Ok(Some(v)),
-                        Err(err) => Err((err, e.pos)),
+                    UnaryOp::Minus => {
+                        match operations::unary_minus(val.unwrap()) {
+                            Ok(v) => Ok(Some(v)),
+                            Err(err) => Err((err, e.pos)),
+                        }
                     }
                 }
             }
@@ -212,9 +219,7 @@ impl Interpreter {
                 };
                 match retval {
                     Ok(v) => Ok(Some(v)),
-                    Err(err) => {
-                        Err((err, e.pos))
-                    }
+                    Err(err) => Err((err, e.pos)),
                 }
             }
             Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
@@ -265,7 +270,7 @@ impl Interpreter {
                     "println" => builtins::PrintLn {},
                     _ => {
                         return Err((InterpreterError::ReferenceError(id.clone()), e.pos));
-                    },
+                    }
                 };
                 let mut arg_vals = Vec::new();
                 for arg in args.iter() {

@@ -154,7 +154,8 @@ pub fn check_statement(s: &StatementNode,
             match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
                     if !env.set(id, checked_type) {
-                        issues.push((InterpreterError::UndeclaredAssignment(id.clone()).into(), lhs_expr.pos));
+                        issues.push((InterpreterError::UndeclaredAssignment(id.clone()).into(),
+                                     lhs_expr.pos));
                     }
                 }
             };
@@ -195,7 +196,8 @@ pub fn check_statement(s: &StatementNode,
             for name in then_env.get_all_keys() {
                 let then_type = then_env.get_type(&name).unwrap();
                 if else_env.get_type(&name).unwrap() != then_type {
-                    issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(name.clone()), s.pos));
+                    issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(name.clone()),
+                                 s.pos));
                     env.set(&name, Type::Any);
                 } else {
                     env.set(&name, then_type);
@@ -207,7 +209,7 @@ pub fn check_statement(s: &StatementNode,
                 issues.append(&mut e);
             }
         }
-        Statement::Break => {},
+        Statement::Break => {}
         Statement::Empty => {}
     };
     if issues.len() == 0 {
@@ -217,7 +219,9 @@ pub fn check_statement(s: &StatementNode,
     }
 }
 
-fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<TypeCheckerIssueWithPosition>> {
+fn check_expr(expr: &ExprNode,
+              env: &mut TypeEnvironment)
+              -> Result<Type, Vec<TypeCheckerIssueWithPosition>> {
     match expr.data {
         Expr::Literal(ref x) => Ok(Type::from(x.clone())),
         Expr::Identifier(ref id) => {
@@ -319,9 +323,10 @@ fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<Ty
         }
         Expr::FunctionCall(ref id, ref args) => {
             match id.as_ref() {
-                "println" => {},
+                "println" => {}
                 _ => {
-                    return Err(vec![(InterpreterError::ReferenceError(id.clone()).into(), expr.pos)]);
+                    return Err(vec![(InterpreterError::ReferenceError(id.clone()).into(),
+                                     expr.pos)]);
                 }
             };
             let mut issues = Vec::new();

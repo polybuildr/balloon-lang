@@ -137,9 +137,9 @@ fn check_ast(ast: Vec<ast::StatementNode>, file_name: &String) {
                 println!("");
             }
             println!("{} {} detected in {}.",
-                num_issues,
-                if num_issues > 1 { "issues" } else { "issue" },
-                file_name);
+                     num_issues,
+                     if num_issues > 1 { "issues" } else { "issue" },
+                     file_name);
         }
     }
 }
