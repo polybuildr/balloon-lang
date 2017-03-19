@@ -75,7 +75,7 @@ pub struct SourceSpan {
 
 pub fn offset_span_to_source_span(span: OffsetSpan, input: &String) -> SourceSpan {
     let (start_line, start_col) = offset_to_line_and_col(input, span.0);
-    let (end_line, end_col) = offset_to_line_and_col(input, span.1);
+    let (end_line, end_col) = offset_to_line_and_col(input, span.1 - 1);
     SourceSpan {
         start_line: start_line,
         start_col: start_col,
@@ -102,7 +102,8 @@ use interpreter::InterpreterError;
 use typechecker::TypeCheckerIssue;
 
 fn adjust_source_span(span: &mut SourceSpan, file_content: &String) {
-    if span.end_col == 1 {
+    if span.end_col == 1 { span.end_col = 0; }
+    while (span.end_col == 0) && span.end_line >= span.start_line {
         span.end_line -= 1;
         span.end_col = file_content.lines().nth(span.end_line - 1).unwrap().len();
     }
@@ -182,7 +183,7 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                  file_content.lines().nth(span.start_line - 1).unwrap());
         let left_padding = String::from_utf8(vec![b' '; span.start_col - 1 + left_padding_size])
             .unwrap();
-        let pointer_string = String::from_utf8(vec![b'^'; span.end_col - span.start_col]).unwrap();
+        let pointer_string = String::from_utf8(vec![b'^'; span.end_col - span.start_col + 1]).unwrap();
         println!("{}{}", left_padding, Yellow.bold().paint(pointer_string));
     } else {
         let first_line_start_bytes = file_content.lines()
@@ -222,14 +223,14 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                 .nth(span.end_line - 1)
                 .unwrap()
                 .bytes()
-                .take(span.end_col - 1)
+                .take(span.end_col)
                 .collect::<Vec<u8>>();
             let last_line_start_string = str::from_utf8(&last_line_start_bytes).unwrap();
             let last_line_rest_bytes = file_content.lines()
                 .nth(span.end_line - 1)
                 .unwrap()
                 .bytes()
-                .skip(span.end_col - 1)
+                .skip(span.end_col)
                 .collect::<Vec<u8>>();
             let last_line_rest_string = str::from_utf8(&last_line_rest_bytes).unwrap();
             println!("{line_num:width$} | {}{}",
