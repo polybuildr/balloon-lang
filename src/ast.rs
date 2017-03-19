@@ -1,5 +1,7 @@
 use std::fmt;
 
+pub type SpanPos = (usize, usize);
+
 #[derive(Debug, Clone)]
 pub enum BinaryOp {
     Add,
@@ -98,22 +100,34 @@ pub enum BindingType {
 pub enum Expr {
     Literal(Literal),
     Identifier(String),
-    BinaryExpression(Box<Expr>, BinaryOp, Box<Expr>),
-    BinaryLogicalExpression(Box<Expr>, LogicalBinaryOp, Box<Expr>),
-    UnaryExpression(UnaryOp, Box<Expr>),
-    UnaryLogicalExpression(LogicalUnaryOp, Box<Expr>),
-    FunctionCall(String, Vec<Expr>),
+    BinaryExpression(Box<ExprNode>, BinaryOp, Box<ExprNode>),
+    BinaryLogicalExpression(Box<ExprNode>, LogicalBinaryOp, Box<ExprNode>),
+    UnaryExpression(UnaryOp, Box<ExprNode>),
+    UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
+    FunctionCall(String, Vec<ExprNode>),
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprNode {
+    pub pos: SpanPos,
+    pub data: Expr,
 }
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Assignment(LhsExpr, Expr),
-    VariableDeclaration(Variable, Expr),
-    Expression(Expr),
-    Block(Vec<Statement>),
-    IfThen(Expr, Box<Statement>),
-    IfThenElse(Expr, Box<Statement>, Box<Statement>),
-    Loop(Box<Statement>),
+    Assignment(LhsExpr, ExprNode),
+    VariableDeclaration(Variable, ExprNode),
+    Expression(ExprNode),
+    Block(Vec<StatementNode>),
+    IfThen(ExprNode, Box<StatementNode>),
+    IfThenElse(ExprNode, Box<StatementNode>, Box<StatementNode>),
+    Loop(Box<StatementNode>),
     Break,
     Empty,
+}
+
+#[derive(Debug, Clone)]
+pub struct StatementNode {
+    pub pos: SpanPos,
+    pub data: Statement,
 }

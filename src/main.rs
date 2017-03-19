@@ -99,7 +99,7 @@ fn main() {
     }
 }
 
-fn parse_file(name: &String) -> Result<Vec<ast::Statement>, ProcessingError> {
+fn parse_file(name: &String) -> Result<Vec<ast::StatementNode>, ProcessingError> {
     let mut input_file = File::open(name)?;
     let mut input = String::new();
     input_file.read_to_string(&mut input)?;
@@ -107,7 +107,7 @@ fn parse_file(name: &String) -> Result<Vec<ast::Statement>, ProcessingError> {
     Ok(x?)
 }
 
-fn interpret_ast(ast: Vec<ast::Statement>) {
+fn interpret_ast(ast: Vec<ast::StatementNode>) {
     let mut machine = Interpreter::new();
     let result = machine.interpret_program(&ast);
     if let Err(e) = result {
@@ -134,7 +134,7 @@ fn interpret_ast(ast: Vec<ast::Statement>) {
     }
 }
 
-fn check_ast(ast: Vec<ast::Statement>) {
+fn check_ast(ast: Vec<ast::StatementNode>) {
     let result = typechecker::check_program(&ast);
     println!("{:?}", result);
 }

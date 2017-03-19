@@ -40,7 +40,7 @@ impl Interpreter {
         self.env.end_scope();
     }
 
-    pub fn interpret_program(&mut self, program: &Vec<Statement>) -> Result<(), InterpreterError> {
+    pub fn interpret_program(&mut self, program: &Vec<StatementNode>) -> Result<(), InterpreterError> {
         self.env.start_scope();
         self.interpret_statements(program)?;
         self.env.end_scope();
@@ -48,7 +48,7 @@ impl Interpreter {
     }
 
     pub fn interpret_statements(&mut self,
-                                statements: &Vec<Statement>)
+                                statements: &Vec<StatementNode>)
                                 -> Result<(), InterpreterError> {
         for statement in statements.iter() {
             self.interpret_statement(statement)?;
@@ -56,12 +56,12 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret_statement(&mut self, s: &Statement) -> Result<StatementEffect, InterpreterError> {
-        match *s {
+    fn interpret_statement(&mut self, s: &StatementNode) -> Result<StatementEffect, InterpreterError> {
+        match s.data {
             Statement::VariableDeclaration(ref variable, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 if let None = val {
-                    if let Expr::FunctionCall(ref id, _) = *expr {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
@@ -71,7 +71,7 @@ impl Interpreter {
             Statement::Assignment(ref lhs_expr, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 if let None = val {
-                    if let Expr::FunctionCall(ref id, _) = *expr {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
@@ -100,7 +100,7 @@ impl Interpreter {
             Statement::IfThen(ref if_expr, ref then_block) => {
                 let val = self.interpret_expr(if_expr)?;
                 if let None = val {
-                    if let Expr::FunctionCall(ref id, _) = *if_expr {
+                    if let Expr::FunctionCall(ref id, _) = if_expr.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
@@ -114,7 +114,7 @@ impl Interpreter {
             Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
                 let val = self.interpret_expr(if_expr)?;
                 if let None = val {
-                    if let Expr::FunctionCall(ref id, _) = *if_expr {
+                    if let Expr::FunctionCall(ref id, _) = if_expr.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
@@ -145,14 +145,14 @@ impl Interpreter {
             Statement::Empty => Ok(StatementEffect::None),
         }
     }
-    fn interpret_expr(&mut self, e: &Expr) -> Result<Option<Value>, InterpreterError> {
-        match *e {
+    fn interpret_expr(&mut self, e: &ExprNode) -> Result<Option<Value>, InterpreterError> {
+        match e.data {
             Expr::Literal(ref x) => Ok(Some(Value::from(x.clone()))),
             Expr::Identifier(ref id) => Ok(Some(self.env.get_value(&id)?)),
             Expr::UnaryExpression(ref op, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 if let None = val {
-                    if let Expr::FunctionCall(ref id, _) = **expr {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
@@ -163,7 +163,7 @@ impl Interpreter {
             Expr::UnaryLogicalExpression(ref op, ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 if let None = val {
-                    if let Expr::FunctionCall(ref id, _) = **expr {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
@@ -174,13 +174,13 @@ impl Interpreter {
             Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
                 let possible_val_1 = self.interpret_expr(expr1)?;
                 if let None = possible_val_1 {
-                    if let Expr::FunctionCall(ref id, _) = **expr1 {
+                    if let Expr::FunctionCall(ref id, _) = expr1.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
                 let possible_val_2 = self.interpret_expr(expr2)?;
                 if let None = possible_val_2 {
-                    if let Expr::FunctionCall(ref id, _) = **expr2 {
+                    if let Expr::FunctionCall(ref id, _) = expr2.data {
                         return Err(InterpreterError::NoneError(id.clone()));
                     }
                 }
@@ -206,7 +206,7 @@ impl Interpreter {
                     LogicalBinaryOp::LogicalAnd => {
                         let val1 = self.interpret_expr(expr1)?;
                         if let None = val1 {
-                            if let Expr::FunctionCall(ref id, _) = **expr1 {
+                            if let Expr::FunctionCall(ref id, _) = expr1.data {
                                 return Err(InterpreterError::NoneError(id.clone()));
                             }
                         }
@@ -215,7 +215,7 @@ impl Interpreter {
                         }
                         let val2 = self.interpret_expr(expr2)?;
                         if let None = val2 {
-                            if let Expr::FunctionCall(ref id, _) = **expr2 {
+                            if let Expr::FunctionCall(ref id, _) = expr2.data {
                                 return Err(InterpreterError::NoneError(id.clone()));
                             }
                         }
@@ -224,7 +224,7 @@ impl Interpreter {
                     LogicalBinaryOp::LogicalOr => {
                         let val1 = self.interpret_expr(expr1)?;
                         if let None = val1 {
-                            if let Expr::FunctionCall(ref id, _) = **expr1 {
+                            if let Expr::FunctionCall(ref id, _) = expr1.data {
                                 return Err(InterpreterError::NoneError(id.clone()));
                             }
                         }
@@ -233,7 +233,7 @@ impl Interpreter {
                         }
                         let val2 = self.interpret_expr(expr2)?;
                         if let None = val2 {
-                            if let Expr::FunctionCall(ref id, _) = **expr2 {
+                            if let Expr::FunctionCall(ref id, _) = expr2.data {
                                 return Err(InterpreterError::NoneError(id.clone()));
                             }
                         }
@@ -255,7 +255,7 @@ impl Interpreter {
                 for arg in args.iter() {
                     let val = self.interpret_expr(arg)?;
                     if let None = val {
-                        if let Expr::FunctionCall(ref id, _) = *arg {
+                        if let Expr::FunctionCall(ref id, _) = arg.data {
                             return Err(InterpreterError::NoneError(id.clone()));
                         }
                     }

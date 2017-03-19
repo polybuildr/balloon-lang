@@ -102,7 +102,7 @@ impl TypeEnvironment {
     }
 }
 
-pub fn check_program(ast: &Vec<Statement>) -> Result<(), Vec<TypeCheckerIssue>> {
+pub fn check_program(ast: &Vec<StatementNode>) -> Result<(), Vec<TypeCheckerIssue>> {
     let mut env = TypeEnvironment::new();
     env.start_scope();
     let result = check_statements(ast, &mut env);
@@ -110,7 +110,7 @@ pub fn check_program(ast: &Vec<Statement>) -> Result<(), Vec<TypeCheckerIssue>> 
     result
 }
 
-pub fn check_statements(ast: &Vec<Statement>,
+pub fn check_statements(ast: &Vec<StatementNode>,
                         env: &mut TypeEnvironment)
                         -> Result<(), Vec<TypeCheckerIssue>> {
     let mut issues = Vec::new();
@@ -126,11 +126,11 @@ pub fn check_statements(ast: &Vec<Statement>,
     }
 }
 
-pub fn check_statement(s: &Statement,
+pub fn check_statement(s: &StatementNode,
                        env: &mut TypeEnvironment)
                        -> Result<(), Vec<TypeCheckerIssue>> {
     let mut issues = Vec::new();
-    match *s {
+    match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let checked_type = match check_expr(expr, env) {
                 Ok(t) => t,
@@ -216,8 +216,8 @@ pub fn check_statement(s: &Statement,
     }
 }
 
-fn check_expr(expr: &Expr, env: &mut TypeEnvironment) -> Result<Type, Vec<TypeCheckerIssue>> {
-    match *expr {
+fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<TypeCheckerIssue>> {
+    match expr.data {
         Expr::Literal(ref x) => Ok(Type::from(x.clone())),
         Expr::Identifier(ref id) => {
             match env.get_type(&id) {

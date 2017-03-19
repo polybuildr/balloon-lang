@@ -1,10 +1,13 @@
 use ast::*;
 
-pub program -> Vec<Statement>
+pub program -> Vec<StatementNode>
     = __ terminators? s:statements { s }
 
-pub statements -> Vec<Statement>
-    = statement*
+pub statements -> Vec<StatementNode>
+    = statement_node*
+
+statement_node -> StatementNode
+    = lpos:#position s:statement rpos:#position { StatementNode { pos: (lpos, rpos), data: s } }
 
 statement -> Statement
     = s:if_statement { s }
@@ -12,17 +15,17 @@ statement -> Statement
     / BREAK TERMINATOR { Statement::Break }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
-    / e:expr TERMINATOR { Statement::Expression(e) }
+    / e:expr_node TERMINATOR { Statement::Expression(e) }
     / b:block { b }
     / TERMINATOR { Statement::Empty }
 
 assignment_statement -> Statement
-    = i:identifier EQUALS e:expr TERMINATOR {
+    = i:identifier EQUALS e:expr_node TERMINATOR {
         Statement::Assignment(LhsExpr::Identifier(i), e)
     }
 
 variable_declaration -> Statement
-    = b:binding_type i:identifier EQUALS e:expr TERMINATOR {
+    = b:binding_type i:identifier EQUALS e:expr_node TERMINATOR {
         Statement::VariableDeclaration(
             Variable::Identifier(b, i), e
         )
@@ -32,11 +35,17 @@ binding_type -> BindingType
     = VAR { BindingType::Mutable }
 
 loop_statement -> Statement
-    = LOOP b:block { Statement::Loop(Box::new(b)) }
+    = LOOP lpos:#position b:block rpos:#position { Statement::Loop(Box::new(StatementNode { pos: (lpos, rpos), data: b })) }
 
 if_statement -> Statement
-    = IF e:expr b1:block ELSE b2:block { Statement::IfThenElse(e, Box::new(b1), Box::new(b2)) }
-    / IF e:expr b:block { Statement::IfThen(e, Box::new(b)) }
+    = IF e:expr_node lpos1:#position b1:block rpos1:#position ELSE lpos2:#position b2:block rpos2:#position {
+        Statement::IfThenElse(
+            e,
+            Box::new(StatementNode { pos: (lpos1, rpos1), data: b1 }),
+            Box::new( StatementNode{ pos: (lpos2, rpos2), data: b2 }),
+        )
+    }
+    / IF e:expr_node lpos:#position b:block rpos:#position { Statement::IfThen(e, Box::new(StatementNode { pos: (lpos, rpos), data: b })) }
 
 block -> Statement
     = #quiet<_block> / #expected("block")
@@ -44,36 +53,42 @@ block -> Statement
 _block -> Statement
     = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
 
-expr -> Expr
-    = e:binary_expr { e }
-    / s:simple_expr { s }
+expr_node -> ExprNode
+    = e:binary_expr_node { e }
+    / s:simple_expr_node { s }
 
 function_call -> Expr
-    = id:identifier OPEN_PAREN args:comma_args CLOSE_PAREN { Expr::FunctionCall(id, args) }
+    = id:identifier OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN { Expr::FunctionCall(id, args) }
 
-comma_args -> Vec<Expr>
-    = expr ** COMMA
+comma_args -> Vec<ExprNode>
+    = expr_node ** COMMA
 
-binary_expr -> Expr = #infix<simple_expr> {
-    #L x AND y { Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalAnd, Box::new(y)) }
-       x OR y { Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalOr, Box::new(y)) }
-    #L x OP_STRICT_EQUALS y { Expr::BinaryExpression(Box::new(x), BinaryOp::StrictEquals, Box::new(y)) }
-    #L x OP_LESS_THAN y { Expr::BinaryExpression(Box::new(x), BinaryOp::LessThan, Box::new(y)) }
-       x OP_LESS_THAN_OR_EQUAL y { Expr::BinaryExpression(Box::new(x), BinaryOp::LessThanOrEqual, Box::new(y))}
-       x OP_GREATER_THAN y { Expr::BinaryExpression(Box::new(x), BinaryOp::GreaterThan, Box::new(y)) }
-       x OP_GREATER_THAN_OR_EQUAL y { Expr::BinaryExpression(Box::new(x), BinaryOp::GreaterThanOrEqual, Box::new(y)) }
-    #L x OP_PLUS y { Expr::BinaryExpression(Box::new(x), BinaryOp::Add, Box::new(y)) }
-       x OP_MINUS y { Expr::BinaryExpression(Box::new(x), BinaryOp::Sub, Box::new(y)) }
-    #L x OP_ASTERISK y { Expr::BinaryExpression(Box::new(x), BinaryOp::Mul, Box::new(y)) }
-       x OP_SLASH y { Expr::BinaryExpression(Box::new(x), BinaryOp::Div, Box::new(y)) }
-       x OP_SLASH_SLASH y { Expr::BinaryExpression(Box::new(x), BinaryOp::FloorDiv, Box::new(y)) }
+binary_expr_node -> ExprNode
+    = lpos:#position e:binary_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e.data } }
+
+binary_expr -> ExprNode = #infix<simple_expr_node> {
+    #L x AND y { ExprNode { pos: (0, 0), data: Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalAnd, Box::new(y)) } }
+       x OR y { ExprNode { pos: (0, 0), data: Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalOr, Box::new(y)) } }
+    #L x OP_STRICT_EQUALS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::StrictEquals, Box::new(y)) } }
+    #L x OP_LESS_THAN y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::LessThan, Box::new(y)) } }
+       x OP_LESS_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::LessThanOrEqual, Box::new(y)) } }
+       x OP_GREATER_THAN y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::GreaterThan, Box::new(y)) } }
+       x OP_GREATER_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::GreaterThanOrEqual, Box::new(y)) } }
+    #L x OP_PLUS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Add, Box::new(y)) } }
+       x OP_MINUS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Sub, Box::new(y)) } }
+    #L x OP_ASTERISK y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Mul, Box::new(y)) } }
+       x OP_SLASH y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Div, Box::new(y)) } }
+       x OP_SLASH_SLASH y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::FloorDiv, Box::new(y)) } }
 }
 
+simple_expr_node -> ExprNode
+    = lpos:#position e:simple_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e } }
+    / OPEN_PAREN e:expr_node CLOSE_PAREN { e }
+
 simple_expr -> Expr
-    = OPEN_PAREN e:expr CLOSE_PAREN { e }
-    / f:function_call { f }
-    / OP_MINUS e:expr { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
-    / NOT e:expr { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
+    = f:function_call { f }
+    / OP_MINUS e:expr_node { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
+    / NOT e:expr_node { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
     / l:literal { Expr::Literal(l) }
     / i:identifier { Expr::Identifier(i) }
 
