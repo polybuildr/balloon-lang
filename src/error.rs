@@ -102,8 +102,8 @@ use interpreter::InterpreterError;
 use typechecker::TypeCheckerIssue;
 
 fn adjust_source_span(span: &mut SourceSpan, file_content: &String) {
-    if span.end_col == 1 { span.end_col = 0; }
-    while (span.end_col == 0) && span.end_line >= span.start_line {
+    if (span.start_line != span.end_line) && span.end_col == 1 { span.end_col = 0; }
+    while (span.end_col == 0) && span.end_line > span.start_line {
         span.end_line -= 1;
         span.end_col = file_content.lines().nth(span.end_line - 1).unwrap().len();
     }
@@ -181,9 +181,9 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
         println!("{} | {}",
                  span.start_line,
                  file_content.lines().nth(span.start_line - 1).unwrap());
-        let left_padding = String::from_utf8(vec![b' '; span.start_col - 1 + left_padding_size])
+        let left_padding = String::from_utf8(vec![b' '; span.start_col + left_padding_size - 1])
             .unwrap();
-        let pointer_string = String::from_utf8(vec![b'^'; span.end_col - span.start_col + 1]).unwrap();
+        let pointer_string = String::from_utf8(vec![b'^'; span.end_col + 1 - span.start_col]).unwrap();
         println!("{}{}", left_padding, Yellow.bold().paint(pointer_string));
     } else {
         let first_line_start_bytes = file_content.lines()
