@@ -150,7 +150,7 @@ pub fn check_statement(s: &StatementNode,
                     Type::Any
                 }
             };
-            match *lhs_expr {
+            match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
                     if let Err(e) = env.set(id, checked_type) {
                         issues.push(e);

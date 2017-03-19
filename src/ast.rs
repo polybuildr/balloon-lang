@@ -1,6 +1,6 @@
 use std::fmt;
 
-pub type SpanPos = (usize, usize);
+pub type OffsetSpan = (usize, usize);
 
 #[derive(Debug, Clone)]
 pub enum BinaryOp {
@@ -87,6 +87,12 @@ pub enum LhsExpr {
 }
 
 #[derive(Debug, Clone)]
+pub struct LhsExprNode {
+    pub pos: OffsetSpan,
+    pub data: LhsExpr,
+}
+
+#[derive(Debug, Clone)]
 pub enum Variable {
     Identifier(BindingType, String),
 }
@@ -109,13 +115,13 @@ pub enum Expr {
 
 #[derive(Debug, Clone)]
 pub struct ExprNode {
-    pub pos: SpanPos,
+    pub pos: OffsetSpan,
     pub data: Expr,
 }
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Assignment(LhsExpr, ExprNode),
+    Assignment(LhsExprNode, ExprNode),
     VariableDeclaration(Variable, ExprNode),
     Expression(ExprNode),
     Block(Vec<StatementNode>),
@@ -128,6 +134,6 @@ pub enum Statement {
 
 #[derive(Debug, Clone)]
 pub struct StatementNode {
-    pub pos: SpanPos,
+    pub pos: OffsetSpan,
     pub data: Statement,
 }

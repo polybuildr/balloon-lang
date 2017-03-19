@@ -10,6 +10,7 @@ pub fn run_repl() {
     let mut rl = Editor::<()>::new();
     let mut machine = Interpreter::new();
     machine.setup_for_repl();
+    let file_name = "repl".to_string();
     loop {
         let readline = rl.readline("> ");
         match readline {
@@ -22,33 +23,12 @@ pub fn run_repl() {
                 }
                 match parser::program(&input) {
                     Err(parse_error) => {
-                        print_parse_error("repl".to_string(), orig_input, parse_error);
+                        print_parse_error(&file_name, orig_input, parse_error);
                     }
                     Ok(ast) => {
                         if let Err(e) = machine.interpret_statements(&ast) {
-                            match e {
-                                InterpreterError::ReferenceError(id) => {
-                                    println!("reference error: `{}` was not declared", id);
-                                }
-                                InterpreterError::UndeclaredAssignment(id) => {
-                                    println!("reference error: cannot assign to undeclared `{}` ",
-                                             id);
-                                }
-                                InterpreterError::BinaryTypeError(binary_op, type1, type2) => {
-                                    println!("type error: `{}` cannot operate on types {} and {}",
-                                             binary_op,
-                                             type1,
-                                             type2);
-                                }
-                                InterpreterError::UnaryTypeError(unary_op, typ) => {
-                                    println!("type error: `{}` cannot operate on type {}",
-                                             unary_op,
-                                             typ);
-                                }
-                                InterpreterError::NoneError(id) => {
-                                    println!("missing value error: tried to use return value of non-returning function `{}`", id);
-                                }
-                            }
+                            let span = offset_span_to_source_span(e.1, &input);
+                            print_interpreter_error_for_file(e.0, span, &input, &file_name);
                         }
                     }
                 }

@@ -20,8 +20,8 @@ statement -> Statement
     / TERMINATOR { Statement::Empty }
 
 assignment_statement -> Statement
-    = i:identifier EQUALS e:expr_node TERMINATOR {
-        Statement::Assignment(LhsExpr::Identifier(i), e)
+    = lpos:#position i:identifier rpos:#position EQUALS e:expr_node TERMINATOR {
+        Statement::Assignment(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
     }
 
 variable_declaration -> Statement

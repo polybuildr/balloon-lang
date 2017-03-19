@@ -75,7 +75,7 @@ fn main() {
             ProcessingError::ParseError(parse_error) => {
                 let (parse_error, line_content) = get_error_and_line_for_file(&parse_error,
                                                                               file_name);
-                print_parse_error(file_name.to_string(), line_content, parse_error);
+                print_parse_error(file_name, line_content, parse_error);
                 return;
             }
             ProcessingError::IoError(io_error) => {
@@ -92,7 +92,7 @@ fn main() {
 
     match run_mode {
         RunMode::Parse => println!("{:#?}", ast),
-        RunMode::Run => interpret_ast(ast),
+        RunMode::Run => interpret_ast(ast, file_name),
         RunMode::Check => check_ast(ast),
         RunMode::Unknown => print_usage(),
         RunMode::Repl => unreachable!(),
@@ -107,30 +107,20 @@ fn parse_file(name: &String) -> Result<Vec<ast::StatementNode>, ProcessingError>
     Ok(x?)
 }
 
-fn interpret_ast(ast: Vec<ast::StatementNode>) {
+fn read_file(file_name: &String) -> String {
+    let mut buf_reader = io::BufReader::new(File::open(file_name).unwrap());
+    let mut file_content = String::new();
+    buf_reader.read_to_string(&mut file_content).unwrap();
+    return file_content;
+}
+
+fn interpret_ast(ast: Vec<ast::StatementNode>, file_name: &String) {
     let mut machine = Interpreter::new();
     let result = machine.interpret_program(&ast);
     if let Err(e) = result {
-        match e {
-            InterpreterError::ReferenceError(id) => {
-                println!("reference error: `{}` was not declared", id);
-            }
-            InterpreterError::UndeclaredAssignment(id) => {
-                println!("reference error: cannot assign to undeclared `{}`", id);
-            }
-            InterpreterError::BinaryTypeError(binary_op, type1, type2) => {
-                println!("type error: `{}` cannot operate on types {} and {}",
-                         binary_op,
-                         type1,
-                         type2);
-            }
-            InterpreterError::UnaryTypeError(unary_op, typ) => {
-                println!("type error: `{}` cannot operate on type {}", unary_op, typ);
-            }
-            InterpreterError::NoneError(id) => {
-                println!("missing value error: tried to use return value of non-returning function `{}`", id);
-            }
-        }
+        let file_content = read_file(file_name);
+        let span = offset_span_to_source_span(e.1, &file_content);
+        print_interpreter_error_for_file(e.0, span, &file_content, file_name);
     }
 }
 
