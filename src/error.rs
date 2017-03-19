@@ -4,7 +4,7 @@ use std::fs::File;
 use std::str;
 
 use ansi_term::Style;
-use ansi_term::Colour::Red;
+use ansi_term::Colour::{Red, Yellow};
 
 use parser;
 #[derive(Debug)]
@@ -99,6 +99,7 @@ fn offset_to_line_and_col(input: &String, pos: usize) -> (usize, usize) {
 }
 
 use interpreter::InterpreterError;
+use typechecker::TypeCheckerIssue;
 
 fn adjust_source_span(span: &mut SourceSpan, file_content: &String) {
     if span.end_col == 1 {
@@ -108,62 +109,95 @@ fn adjust_source_span(span: &mut SourceSpan, file_content: &String) {
 }
 
 pub fn print_interpreter_error_for_file(err: InterpreterError, span: SourceSpan, file_content: &String, file_name: &String) {
+    print_typechecker_error_for_file(TypeCheckerIssue::InterpreterError(err), span, file_content, file_name);
+}
+
+pub fn print_typechecker_error_for_file(err: TypeCheckerIssue, span: SourceSpan, file_content: &String, file_name: &String) {
     let mut span = span;
     adjust_source_span(&mut span, file_content);
     if span.start_line == span.end_line {
-        println!("in {}, line {}, col {}:", file_name, span.start_line, span.start_col);
+        println!("in {}, line {}, col {}:", Style::new().bold().paint(file_name.to_string()), span.start_line, span.start_col);
     } else {
-        println!("in {}, starting on line {}, col {}:", file_name, span.start_line, span.start_col);
+        println!("in {}, starting on line {}, col {}:", Style::new().bold().paint(file_name.to_string()), span.start_line, span.start_col);
     }
     match err {
-        InterpreterError::ReferenceError(id) => {
-            println!("{}: `{}` was not declared", Style::new().bold().paint("reference error"), id);
+        TypeCheckerIssue::InterpreterError(e) => {
+            match e {
+                InterpreterError::ReferenceError(id) => {
+                    println!("{}: `{}` was not declared", Red.bold().paint("reference error"), id);
+                }
+                InterpreterError::UndeclaredAssignment(id) => {
+                    println!("{}: cannot assign to undeclared `{}`", Red.bold().paint("reference error"), id);
+                }
+                InterpreterError::BinaryTypeError(binary_op, type1, type2) => {
+                    println!("{}: `{}` cannot operate on types {} and {}",
+                                Red.bold().paint("type error"),
+                                binary_op,
+                                type1,
+                                type2);
+                }
+                InterpreterError::UnaryTypeError(unary_op, typ) => {
+                    println!("{}: `{}` cannot operate on type {}", Red.bold().paint("type error"), unary_op, typ);
+                }
+                InterpreterError::NoneError(id) => {
+                    println!("{}: tried to use return value of non-returning function `{}`", Red.bold().paint("missing value error"), id);
+                }
+            }
         }
-        InterpreterError::UndeclaredAssignment(id) => {
-            println!("{}: cannot assign to undeclared `{}`", Style::new().bold().paint("reference error"), id);
-        }
-        InterpreterError::BinaryTypeError(binary_op, type1, type2) => {
-            println!("{}: `{}` cannot operate on types {} and {}",
-                        Style::new().bold().paint("type error"),
-                        binary_op,
-                        type1,
-                        type2);
-        }
-        InterpreterError::UnaryTypeError(unary_op, typ) => {
-            println!("{}: `{}` cannot operate on type {}", Style::new().bold().paint("type error"), unary_op, typ);
-        }
-        InterpreterError::NoneError(id) => {
-            println!("{}: tried to use return value of non-returning function `{}`", Style::new().bold().paint("missing value error"), id);
+        TypeCheckerIssue::MultipleTypesFromBranchWarning(id) => {
+            println!("{}: `{}` gets different types in branches", Yellow.bold().paint("multiple types from branch"), id);
         }
     }
+
     if span.start_line == span.end_line {
-        println!("{}", file_content.lines().nth(span.start_line - 1).unwrap());
-        let left_padding = String::from_utf8(vec![b' '; span.start_col - 1]).unwrap();
+        let left_padding_size = span.start_line.to_string().len() + 3;
+        println!("{} | {}", span.start_line, file_content.lines().nth(span.start_line - 1).unwrap());
+        let left_padding = String::from_utf8(vec![b' '; span.start_col - 1 + left_padding_size]).unwrap();
         let pointer_string = String::from_utf8(vec![b'^'; span.end_col - span.start_col]).unwrap();
-        println!("{}{}", left_padding, Style::new().bold().paint(pointer_string));
+        println!("{}{}", left_padding, Yellow.bold().paint(pointer_string));
     } else {
-        let first_line_start_bytes = file_content.lines().nth(0).unwrap().bytes().take(span.start_col - 1).collect::<Vec<u8>>();
+        let first_line_start_bytes = file_content.lines().nth(span.start_line - 1).unwrap().bytes().take(span.start_col - 1).collect::<Vec<u8>>();
         let first_line_start_string = str::from_utf8(&first_line_start_bytes).unwrap();
-        let first_line_rest_bytes = file_content.lines().nth(0).unwrap().bytes().skip(span.start_col - 1).collect::<Vec<u8>>();
+        let first_line_rest_bytes = file_content.lines().nth(span.start_line - 1).unwrap().bytes().skip(span.start_col - 1).collect::<Vec<u8>>();
         let first_line_rest_string = str::from_utf8(&first_line_rest_bytes).unwrap();
 
-        let last_line_start_bytes = file_content.lines().nth(span.end_line - 1).unwrap().bytes().take(span.end_col - 1).collect::<Vec<u8>>();
-        let last_line_start_string = str::from_utf8(&last_line_start_bytes).unwrap();
-        let last_line_rest_bytes = file_content.lines().nth(span.end_line - 1).unwrap().bytes().skip(span.end_col - 1).collect::<Vec<u8>>();
-        let last_line_rest_string = str::from_utf8(&last_line_rest_bytes).unwrap();
+        let max_idx_width = span.end_line.to_string().len();
+
+        println!("{line_num:width$} |",
+            line_num = "",
+            width = max_idx_width);
 
         println!(
-            "{}{}",
+            "{line_num:width$} | {}{}",
             first_line_start_string,
-            Red.bold().underline().paint(first_line_rest_string),
-        );
-        for line_idx in span.start_line..span.end_line-1 {
-            println!("{}", file_content.lines().nth(line_idx).unwrap());
+            Red.bold().paint(first_line_rest_string),
+            line_num = span.start_line,
+            width = max_idx_width);
+
+        for line_num in span.start_line..span.end_line-1 {
+            println!(
+                "{line_num:width$} | {}",
+                Red.bold().paint(file_content.lines().nth(line_num).unwrap()),
+                line_num = line_num + 1,
+                width = max_idx_width);
         }
-        println!(
-            "{}{}",
-            Red.bold().underline().paint(last_line_start_string),
-            last_line_rest_string,
-        );
+
+        if span.end_col != 0 {
+            let last_line_start_bytes = file_content.lines().nth(span.end_line - 1).unwrap().bytes().take(span.end_col - 1).collect::<Vec<u8>>();
+            let last_line_start_string = str::from_utf8(&last_line_start_bytes).unwrap();
+            let last_line_rest_bytes = file_content.lines().nth(span.end_line - 1).unwrap().bytes().skip(span.end_col - 1).collect::<Vec<u8>>();
+            let last_line_rest_string = str::from_utf8(&last_line_rest_bytes).unwrap();
+            println!(
+                "{line_num:width$} | {}{}",
+                Red.bold().paint(last_line_start_string),
+                last_line_rest_string,
+                line_num = span.end_line,
+                width = max_idx_width);
+        }
+
+        println!("{line_num:width$} |",
+            line_num = "",
+            width = max_idx_width);
+
     }
 }

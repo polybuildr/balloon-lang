@@ -36,8 +36,10 @@ impl fmt::Display for Type {
 #[derive(Debug)]
 pub enum TypeCheckerIssue {
     InterpreterError(InterpreterError),
-    MultipleTypesFromBranchWarning,
+    MultipleTypesFromBranchWarning(String),
 }
+
+pub type TypeCheckerIssueWithPosition = (TypeCheckerIssue, OffsetSpan);
 
 impl From<InterpreterError> for TypeCheckerIssue {
     fn from(from: InterpreterError) -> Self {
@@ -71,24 +73,24 @@ impl TypeEnvironment {
         };
     }
 
-    pub fn set(&mut self, identifier: &String, typ: Type) -> Result<(), TypeCheckerIssue> {
+    pub fn set(&mut self, identifier: &String, typ: Type) -> bool {
         for table in self.symbol_tables.iter_mut().rev() {
             // TODO: Entry API
             if table.contains_key(identifier) {
                 table.insert(identifier.clone(), typ);
-                return Ok(());
+                return true;
             }
         }
-        Err(InterpreterError::UndeclaredAssignment(identifier.clone()).into())
+        false
     }
 
-    pub fn get_type(&mut self, identifier: &String) -> Result<Type, TypeCheckerIssue> {
+    pub fn get_type(&mut self, identifier: &String) -> Option<Type> {
         for table in self.symbol_tables.iter().rev() {
             if let Some(typ) = table.get(identifier) {
-                return Ok(*typ);
+                return Some(*typ);
             }
         }
-        Err(InterpreterError::ReferenceError(identifier.clone()).into())
+        None
     }
 
     pub fn get_all_keys(&self) -> HashSet<String> {
@@ -102,7 +104,7 @@ impl TypeEnvironment {
     }
 }
 
-pub fn check_program(ast: &Vec<StatementNode>) -> Result<(), Vec<TypeCheckerIssue>> {
+pub fn check_program(ast: &Vec<StatementNode>) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut env = TypeEnvironment::new();
     env.start_scope();
     let result = check_statements(ast, &mut env);
@@ -112,7 +114,7 @@ pub fn check_program(ast: &Vec<StatementNode>) -> Result<(), Vec<TypeCheckerIssu
 
 pub fn check_statements(ast: &Vec<StatementNode>,
                         env: &mut TypeEnvironment)
-                        -> Result<(), Vec<TypeCheckerIssue>> {
+                        -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     for statement in ast.iter() {
         if let Err(mut e) = check_statement(statement, env) {
@@ -128,7 +130,7 @@ pub fn check_statements(ast: &Vec<StatementNode>,
 
 pub fn check_statement(s: &StatementNode,
                        env: &mut TypeEnvironment)
-                       -> Result<(), Vec<TypeCheckerIssue>> {
+                       -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
@@ -140,7 +142,6 @@ pub fn check_statement(s: &StatementNode,
                 }
             };
             env.declare(variable, &checked_type);
-            // println!("{:?} => {}", variable, checked_type);
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
             let checked_type = match check_expr(expr, env) {
@@ -152,8 +153,8 @@ pub fn check_statement(s: &StatementNode,
             };
             match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
-                    if let Err(e) = env.set(id, checked_type) {
-                        issues.push(e);
+                    if !env.set(id, checked_type) {
+                        issues.push((InterpreterError::UndeclaredAssignment(id.clone()).into(), lhs_expr.pos));
                     }
                 }
             };
@@ -194,10 +195,10 @@ pub fn check_statement(s: &StatementNode,
             for name in then_env.get_all_keys() {
                 let then_type = then_env.get_type(&name).unwrap();
                 if else_env.get_type(&name).unwrap() != then_type {
-                    issues.push(TypeCheckerIssue::MultipleTypesFromBranchWarning);
-                    env.set(&name, Type::Any).unwrap();
+                    issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(name.clone()), s.pos));
+                    env.set(&name, Type::Any);
                 } else {
-                    env.set(&name, then_type).unwrap();
+                    env.set(&name, then_type);
                 }
             }
         }
@@ -216,13 +217,13 @@ pub fn check_statement(s: &StatementNode,
     }
 }
 
-fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<TypeCheckerIssue>> {
+fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<TypeCheckerIssueWithPosition>> {
     match expr.data {
         Expr::Literal(ref x) => Ok(Type::from(x.clone())),
         Expr::Identifier(ref id) => {
             match env.get_type(&id) {
-                Ok(t) => Ok(t),
-                Err(e) => Err(vec![e]),
+                Some(t) => Ok(t),
+                None => Err(vec![(InterpreterError::ReferenceError(id.clone()).into(), expr.pos)]),
             }
         }
         Expr::UnaryExpression(ref op, ref expr) => {
@@ -232,7 +233,7 @@ fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<Ty
                         UnaryOp::Minus => {
                             match check_unary_minus_for_type(t) {
                                 Ok(t) => Ok(t),
-                                Err(e) => Err(vec![e]),
+                                Err(e) => Err(vec![(e, expr.pos)]),
                             }
                         }
                     }
@@ -285,7 +286,7 @@ fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<Ty
             };
             match result {
                 Err(e) => {
-                    issues.push(e);
+                    issues.push((e, expr.pos));
                     Err(issues)
                 }
                 Ok(t) => {
@@ -320,7 +321,7 @@ fn check_expr(expr: &ExprNode, env: &mut TypeEnvironment) -> Result<Type, Vec<Ty
             match id.as_ref() {
                 "println" => {},
                 _ => {
-                    return Err(vec![InterpreterError::ReferenceError(id.clone()).into()]);
+                    return Err(vec![(InterpreterError::ReferenceError(id.clone()).into(), expr.pos)]);
                 }
             };
             let mut issues = Vec::new();

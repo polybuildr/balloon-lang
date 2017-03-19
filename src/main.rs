@@ -93,7 +93,7 @@ fn main() {
     match run_mode {
         RunMode::Parse => println!("{:#?}", ast),
         RunMode::Run => interpret_ast(ast, file_name),
-        RunMode::Check => check_ast(ast),
+        RunMode::Check => check_ast(ast, file_name),
         RunMode::Unknown => print_usage(),
         RunMode::Repl => unreachable!(),
     }
@@ -124,7 +124,22 @@ fn interpret_ast(ast: Vec<ast::StatementNode>, file_name: &String) {
     }
 }
 
-fn check_ast(ast: Vec<ast::StatementNode>) {
+fn check_ast(ast: Vec<ast::StatementNode>, file_name: &String) {
     let result = typechecker::check_program(&ast);
-    println!("{:?}", result);
+    match result {
+        Ok(_) => println!("No problems detected in {}.", file_name),
+        Err(errs) => {
+            let num_issues = errs.len();
+            let file_content = read_file(file_name);
+            for error in errs {
+                let span = offset_span_to_source_span(error.1, &file_content);
+                print_typechecker_error_for_file(error.0, span, &file_content, file_name);
+                println!("");
+            }
+            println!("{} {} detected in {}.",
+                num_issues,
+                if num_issues > 1 { "issues" } else { "issue" },
+                file_name);
+        }
+    }
 }
