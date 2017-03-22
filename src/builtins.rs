@@ -5,6 +5,13 @@ pub enum Function {
     Returning(fn (args: Vec<Value>) -> Value),
 }
 
+pub fn get_builtin_from_name(name: &str) -> Option<Function> {
+    match name {
+        "println" => Some(Function::Void(builtin_println)),
+        _ => None,
+    }
+}
+
 pub fn builtin_println(args: Vec<Value>) {
     if args.len() == 0 {
         return;

@@ -266,12 +266,12 @@ impl Interpreter {
                 use builtins;
                 use builtins::Function;
                 // check for builtins
-                let wrapped_func = match id.as_ref() {
-                    "println" => Function::Void(builtins::builtin_println),
-                    _ => {
-                        return Err((InterpreterError::ReferenceError(id.clone()), e.pos));
-                    }
-                };
+                let possible_wrapped_func = builtins::get_builtin_from_name(id.as_ref());
+                if let None = possible_wrapped_func {
+                    return Err((InterpreterError::ReferenceError(id.clone()), e.pos));
+                }
+                let wrapped_func = possible_wrapped_func.unwrap();
+
                 let mut arg_vals = Vec::new();
                 for arg in args.iter() {
                     let val = self.interpret_expr(arg)?;
