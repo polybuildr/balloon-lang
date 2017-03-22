@@ -264,10 +264,10 @@ impl Interpreter {
             }
             Expr::FunctionCall(ref id, ref args) => {
                 use builtins;
-                use builtins::Callable;
+                use builtins::Function;
                 // check for builtins
-                let func = match id.as_ref() {
-                    "println" => builtins::PrintLn {},
+                let wrapped_func = match id.as_ref() {
+                    "println" => Function::Void(builtins::builtin_println),
                     _ => {
                         return Err((InterpreterError::ReferenceError(id.clone()), e.pos));
                     }
@@ -282,9 +282,14 @@ impl Interpreter {
                     }
                     arg_vals.push(val.unwrap());
                 }
-                match func.call(arg_vals) {
-                    Some(v) => Ok(Some(v)),
-                    None => Ok(None),
+                match wrapped_func {
+                    Function::Void(f) => {
+                        f(arg_vals);
+                        Ok(None)
+                    }
+                    Function::Returning(f) => {
+                        Ok(Some(f(arg_vals)))
+                    }
                 }
             }
         }
