@@ -171,7 +171,7 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
         }
         TypeCheckerIssue::MultipleTypesFromBranchWarning(id) => {
             println!("{}: `{}` gets different types in branches",
-                     Yellow.bold().paint("multiple types from branch"),
+                     Style::new().bold().paint("multiple types from branch"),
                      id);
         }
     }
