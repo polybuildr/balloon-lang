@@ -135,7 +135,17 @@ pub fn check_statement(s: &StatementNode,
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let checked_type = match check_expr(expr, env) {
-                Ok(t) => t,
+                Ok(possible_type) => {
+                    match possible_type {
+                        None => {
+                            if let Expr::FunctionCall(ref id, _) = expr.data {
+                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr.pos));
+                            }
+                            Type::Any
+                        }
+                        Some(t) => t,
+                    }
+                }
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
@@ -145,7 +155,17 @@ pub fn check_statement(s: &StatementNode,
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
             let checked_type = match check_expr(expr, env) {
-                Ok(t) => t,
+                Ok(possible_type) => {
+                    match possible_type {
+                        None => {
+                            if let Expr::FunctionCall(ref id, _) = expr.data {
+                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr.pos));
+                            }
+                            Type::Any
+                        }
+                        Some(t) => t,
+                    }
+                }
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
@@ -173,8 +193,13 @@ pub fn check_statement(s: &StatementNode,
             }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
-            if let Err(mut e) = check_expr(if_expr, env) {
+            let if_expr_result = check_expr(if_expr, env);
+            if let Err(mut e) = if_expr_result {
                 issues.append(&mut e);
+            } else if let Ok(None) = if_expr_result {
+                if let Expr::FunctionCall(ref id, _) = if_expr.data {
+                    return Err(vec![(InterpreterError::NoneError(id.clone()).into(), if_expr.pos)]);
+                }
             }
             if let Err(mut e) = check_statement(then_block, env) {
                 issues.append(&mut e);
@@ -183,8 +208,13 @@ pub fn check_statement(s: &StatementNode,
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let mut then_env = env.clone();
             let mut else_env = env.clone();
-            if let Err(mut e) = check_expr(if_expr, env) {
+            let if_expr_result = check_expr(if_expr, env);
+            if let Err(mut e) = if_expr_result {
                 issues.append(&mut e);
+            } else if let Ok(None) = if_expr_result {
+                if let Expr::FunctionCall(ref id, _) = if_expr.data {
+                    return Err(vec![(InterpreterError::NoneError(id.clone()).into(), if_expr.pos)]);
+                }
             }
             if let Err(mut e) = check_statement(then_block, &mut then_env) {
                 issues.append(&mut e);
@@ -221,22 +251,27 @@ pub fn check_statement(s: &StatementNode,
 
 fn check_expr(expr: &ExprNode,
               env: &mut TypeEnvironment)
-              -> Result<Type, Vec<TypeCheckerIssueWithPosition>> {
+              -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     match expr.data {
-        Expr::Literal(ref x) => Ok(Type::from(x.clone())),
+        Expr::Literal(ref x) => Ok(Some(Type::from(x.clone()))),
         Expr::Identifier(ref id) => {
             match env.get_type(&id) {
-                Some(t) => Ok(t),
+                Some(t) => Ok(Some(t)),
                 None => Err(vec![(InterpreterError::ReferenceError(id.clone()).into(), expr.pos)]),
             }
         }
         Expr::UnaryExpression(ref op, ref expr) => {
             match check_expr(expr, env) {
-                Ok(t) => {
+                Ok(possible_type) => {
+                    if let None = possible_type {
+                        if let Expr::FunctionCall(ref id, _) = expr.data {
+                            return Err(vec![(InterpreterError::NoneError(id.clone()).into(), expr.pos)]);
+                        }
+                    }
                     match *op {
                         UnaryOp::Minus => {
-                            match check_unary_minus_for_type(t) {
-                                Ok(t) => Ok(t),
+                            match check_unary_minus_for_type(possible_type.unwrap()) {
+                                Ok(t) => Ok(Some(t)),
                                 Err(e) => Err(vec![(e, expr.pos)]),
                             }
                         }
@@ -247,9 +282,14 @@ fn check_expr(expr: &ExprNode,
         }
         Expr::UnaryLogicalExpression(ref op, ref expr) => {
             match check_expr(expr, env) {
-                Ok(_) => {
+                Ok(possible_type) => {
+                    if let None = possible_type {
+                        if let Expr::FunctionCall(ref id, _) = expr.data {
+                            return Err(vec![(InterpreterError::NoneError(id.clone()).into(), expr.pos)]);
+                        }
+                    }
                     match *op {
-                        LogicalUnaryOp::Not => Ok(Type::Bool),
+                        LogicalUnaryOp::Not => Ok(Some(Type::Bool)),
                     }
                 }
                 Err(e) => Err(e),
@@ -258,14 +298,34 @@ fn check_expr(expr: &ExprNode,
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let mut issues = Vec::new();
             let checked_type_1 = match check_expr(expr1, env) {
-                Ok(t) => t,
+                Ok(possible_type) => {
+                    match possible_type {
+                        None => {
+                            if let Expr::FunctionCall(ref id, _) = expr1.data {
+                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr1.pos));
+                            }
+                            Type::Any
+                        }
+                        Some(t) => t,
+                    }
+                }
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
                 }
             };
             let checked_type_2 = match check_expr(expr2, env) {
-                Ok(t) => t,
+                Ok(possible_type) => {
+                    match possible_type {
+                        None => {
+                            if let Expr::FunctionCall(ref id, _) = expr2.data {
+                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr2.pos));
+                            }
+                            Type::Any
+                        }
+                        Some(t) => t,
+                    }
+                }
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
@@ -295,7 +355,7 @@ fn check_expr(expr: &ExprNode,
                 }
                 Ok(t) => {
                     if issues.len() == 0 {
-                        Ok(t)
+                        Ok(Some(t))
                     } else {
                         Err(issues)
                     }
@@ -307,14 +367,24 @@ fn check_expr(expr: &ExprNode,
             match *op {
                 LogicalBinaryOp::LogicalAnd |
                 LogicalBinaryOp::LogicalOr => {
-                    if let Err(mut e) = check_expr(expr1, env) {
+                    let result1 = check_expr(expr1, env);
+                    if let Err(mut e) = result1 {
                         issues.append(&mut e);
+                    } else if let Ok(None) = result1 {
+                        if let Expr::FunctionCall(ref id, _) = expr1.data {
+                            issues.push((InterpreterError::NoneError(id.clone()).into(), expr1.pos));
+                        }
                     };
-                    if let Err(mut e) = check_expr(expr2, env) {
+                    let result2 = check_expr(expr2, env);
+                    if let Err(mut e) = result2 {
                         issues.append(&mut e);
-                    };
+                    } else if let Ok(None) = result2 {
+                        if let Expr::FunctionCall(ref id, _) = expr2.data {
+                            issues.push((InterpreterError::NoneError(id.clone()).into(), expr2.pos));
+                        }
+                    }
                     if issues.len() == 0 {
-                        Ok(Type::Bool)
+                        Ok(Some(Type::Bool))
                     } else {
                         Err(issues)
                     }
@@ -322,21 +392,29 @@ fn check_expr(expr: &ExprNode,
             }
         }
         Expr::FunctionCall(ref id, ref args) => {
-            match id.as_ref() {
-                "println" => {}
-                _ => {
-                    return Err(vec![(InterpreterError::ReferenceError(id.clone()).into(),
-                                     expr.pos)]);
-                }
-            };
+            use builtins;
+            let possible_wrapped_func = builtins::get_builtin_from_name(id.as_ref());
+            if let None = possible_wrapped_func {
+                return Err(vec![(InterpreterError::ReferenceError(id.clone()).into(), expr.pos)]);
+            }
+            let wrapped_func = possible_wrapped_func.unwrap();
+            use builtins::Function;
             let mut issues = Vec::new();
             for arg in args.iter() {
-                if let Err(mut e) = check_expr(arg, env) {
+                let result = check_expr(arg, env);
+                if let Err(mut e) = result {
                     issues.append(&mut e);
+                } else if let Ok(None) = result {
+                    if let Expr::FunctionCall(ref id, _) = arg.data {
+                        issues.push((InterpreterError::NoneError(id.clone()).into(), arg.pos));
+                    }
                 }
             }
             if issues.len() == 0 {
-                Ok(Type::Any)
+                match wrapped_func {
+                    Function::Returning(_) => Ok(Some(Type::Any)),
+                    Function::Void(_) => Ok(None),
+                }
             } else {
                 Err(issues)
             }
