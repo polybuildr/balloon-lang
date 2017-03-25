@@ -19,7 +19,9 @@ pub fn run_repl() {
                 let orig_input = String::from(line.trim());
                 let mut input = orig_input.clone();
                 if !input.ends_with(";") {
-                    input.push(';');
+                    if let Err(_) = parser::program(&input) {
+                        input.push(';');
+                    }
                 }
                 match parser::program(&input) {
                     Err(parse_error) => {

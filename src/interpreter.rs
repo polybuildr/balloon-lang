@@ -113,12 +113,14 @@ fn interpret_statement(s: &StatementNode,
         }
         Statement::Block(ref statements) => {
             let child_env = Environment::create_child(env.clone());
+            let mut last_result = StatementResult::None;
             for statement in statements.iter() {
-                if let StatementResult::Break = interpret_statement(statement, child_env.clone())? {
+                last_result = interpret_statement(statement, child_env.clone())?;
+                if let StatementResult::Break = last_result {
                     return Ok(StatementResult::Break);
                 }
             }
-            return Ok(StatementResult::None);
+            return Ok(last_result);
         }
         Statement::Expression(ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
