@@ -129,6 +129,8 @@ fn comparisons() {
     assert_eq!(run_and_get_last_value("2 >= 2;"), Value::Bool(true));
     assert_eq!(run_and_get_last_value("3 == 3;"), Value::Bool(true));
     assert_eq!(run_and_get_last_value("7 == 7.0;"), Value::Bool(true));
+    assert_eq!(run_and_get_last_value("7 == 7.1;"), Value::Bool(false));
+    assert_eq!(run_and_get_last_value("true == 1;"), Value::Bool(false));
 }
 
 #[test]
