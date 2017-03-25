@@ -20,9 +20,10 @@ pub enum InterpreterError {
 
 pub type InterpreterErrorWithPosition = (InterpreterError, OffsetSpan);
 
-pub enum StatementEffect {
+pub enum StatementResult {
     None,
     Break,
+    Value(Value),
 }
 
 pub struct Interpreter {
@@ -36,7 +37,7 @@ impl Interpreter {
 
     pub fn run_ast_as_program(&mut self,
                               program: &Vec<StatementNode>)
-                              -> Result<(), InterpreterErrorWithPosition> {
+                              -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
         interpret_program(program, &mut self.env)
     }
 
@@ -50,32 +51,33 @@ impl Interpreter {
 
     pub fn run_ast_as_statements(&mut self,
                                  statements: &Vec<StatementNode>)
-                                 -> Result<(), InterpreterErrorWithPosition> {
+                                 -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
         interpret_statements(statements, &mut self.env)
     }
 }
 
 fn interpret_program(program: &Vec<StatementNode>,
                      env: &mut Environment)
-                     -> Result<(), InterpreterErrorWithPosition> {
+                     -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
     env.start_scope();
-    interpret_statements(program, env)?;
+    let result = interpret_statements(program, env)?;
     env.end_scope();
-    Ok(())
+    Ok(result)
 }
 
 fn interpret_statements(statements: &Vec<StatementNode>,
                         env: &mut Environment)
-                        -> Result<(), InterpreterErrorWithPosition> {
+                        -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
+    let mut last_result = None;
     for statement in statements.iter() {
-        interpret_statement(statement, env)?;
+        last_result = Some(interpret_statement(statement, env)?);
     }
-    Ok(())
+    Ok(last_result)
 }
 
 fn interpret_statement(s: &StatementNode,
                        env: &mut Environment)
-                       -> Result<StatementEffect, InterpreterErrorWithPosition> {
+                       -> Result<StatementResult, InterpreterErrorWithPosition> {
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let val = interpret_expr(expr, env)?;
@@ -85,7 +87,7 @@ fn interpret_statement(s: &StatementNode,
                 }
             }
             env.declare(variable, &val.unwrap());
-            Ok(StatementEffect::None)
+            Ok(StatementResult::None)
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
             let val = interpret_expr(expr, env)?;
@@ -102,22 +104,25 @@ fn interpret_statement(s: &StatementNode,
                     }
                 }
             };
-            Ok(StatementEffect::None)
+            Ok(StatementResult::None)
         }
         Statement::Block(ref statements) => {
             env.start_scope();
             for statement in statements.iter() {
-                if let StatementEffect::Break = interpret_statement(statement, env)? {
+                if let StatementResult::Break = interpret_statement(statement, env)? {
                     env.end_scope();
-                    return Ok(StatementEffect::Break);
+                    return Ok(StatementResult::Break);
                 }
             }
             env.end_scope();
-            return Ok(StatementEffect::None);
+            return Ok(StatementResult::None);
         }
         Statement::Expression(ref expr) => {
-            interpret_expr(expr, env)?;
-            Ok(StatementEffect::None)
+            let val = interpret_expr(expr, env)?;
+            match val {
+                None => Ok(StatementResult::None),
+                Some(x) => Ok(StatementResult::Value(x))
+            }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
             let val = interpret_expr(if_expr, env)?;
@@ -127,11 +132,11 @@ fn interpret_statement(s: &StatementNode,
                 }
             }
             if val.unwrap().is_truthy() {
-                if let StatementEffect::Break = interpret_statement(then_block, env)? {
-                    return Ok(StatementEffect::Break);
+                if let StatementResult::Break = interpret_statement(then_block, env)? {
+                    return Ok(StatementResult::Break);
                 }
             }
-            return Ok(StatementEffect::None);
+            return Ok(StatementResult::None);
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let val = interpret_expr(if_expr, env)?;
@@ -141,28 +146,28 @@ fn interpret_statement(s: &StatementNode,
                 }
             }
             if val.unwrap().is_truthy() {
-                if let StatementEffect::Break = interpret_statement(then_block, env)? {
-                    return Ok(StatementEffect::Break);
+                if let StatementResult::Break = interpret_statement(then_block, env)? {
+                    return Ok(StatementResult::Break);
                 }
             } else {
-                if let StatementEffect::Break = interpret_statement(else_block, env)? {
-                    return Ok(StatementEffect::Break);
+                if let StatementResult::Break = interpret_statement(else_block, env)? {
+                    return Ok(StatementResult::Break);
                 }
             }
-            Ok(StatementEffect::None)
+            Ok(StatementResult::None)
         }
         Statement::Loop(ref block) => {
             env.start_scope();
             loop {
-                if let StatementEffect::Break = interpret_statement(block, env)? {
+                if let StatementResult::Break = interpret_statement(block, env)? {
                     break;
                 }
             }
             env.end_scope();
-            Ok(StatementEffect::None)
+            Ok(StatementResult::None)
         }
-        Statement::Break => Ok(StatementEffect::Break),
-        Statement::Empty => Ok(StatementEffect::None),
+        Statement::Break => Ok(StatementResult::Break),
+        Statement::Empty => Ok(StatementResult::None),
     }
 }
 fn interpret_expr(e: &ExprNode,

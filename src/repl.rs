@@ -4,6 +4,7 @@ use rustyline::Editor;
 use interpreter::*;
 use error::*;
 use parser;
+use interpreter::StatementResult;
 
 pub fn run_repl() {
     println!("Balloon REPL");
@@ -26,9 +27,18 @@ pub fn run_repl() {
                         print_parse_error(&file_name, orig_input, parse_error);
                     }
                     Ok(ast) => {
-                        if let Err(e) = machine.run_ast_as_statements(&ast) {
-                            let span = offset_span_to_source_span(e.1, &input);
-                            print_interpreter_error_for_file(e.0, span, &input, &file_name);
+                        match machine.run_ast_as_statements(&ast) {
+                            Err(e) =>  {
+                                let span = offset_span_to_source_span(e.1, &input);
+                                print_interpreter_error_for_file(e.0, span, &input, &file_name);
+                            }
+                            Ok(possible_result) => {
+                                if let Some(result) = possible_result {
+                                    if let StatementResult::Value(v) = result {
+                                        println!("{}", v);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
