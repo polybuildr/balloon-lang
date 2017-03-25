@@ -168,3 +168,9 @@ fn loop_and_break() {
     assert_eq!(run_and_get_last_value("var x = 5; loop { if x > 20 { break; } x = x + 5; } x;"),
                Value::Number(Number::Integer(25)));
 }
+
+#[test]
+fn block_env() {
+    assert_eq!(run_and_get_last_value("var x = 5; { var x = 10; x = 20; } x;"),
+               Value::Number(Number::Integer(5)));
+}

@@ -10,7 +10,6 @@ pub fn run_repl() {
     println!("Balloon REPL");
     let mut rl = Editor::<()>::new();
     let mut machine = Interpreter::new();
-    machine.setup_for_repl();
     let file_name = "repl".to_string();
     loop {
         let readline = rl.readline("> ");
@@ -57,5 +56,4 @@ pub fn run_repl() {
             }
         }
     }
-    machine.cleanup_for_repl();
 }

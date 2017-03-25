@@ -1,3 +1,6 @@
+use std::rc::Rc;
+use std::cell::RefCell;
+
 use ast::*;
 use value::*;
 use operations;
@@ -38,71 +41,61 @@ impl StatementResult {
 }
 
 pub struct Interpreter {
-    pub env: Environment,
+    pub root_env: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        Interpreter { env: Environment::new() }
+        Interpreter { root_env: Rc::new(RefCell::new(Environment::new())) }
     }
 
     pub fn run_ast_as_program(&mut self,
                               program: &Vec<StatementNode>)
                               -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
-        interpret_program(program, &mut self.env)
-    }
-
-    pub fn setup_for_repl(&mut self) {
-        self.env.start_scope();
-    }
-
-    pub fn cleanup_for_repl(&mut self) {
-        self.env.end_scope();
+        interpret_program(program, self.root_env.clone())
     }
 
     pub fn run_ast_as_statements
         (&mut self,
          statements: &Vec<StatementNode>)
          -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
-        interpret_statements(statements, &mut self.env)
+        interpret_statements(statements, self.root_env.clone())
     }
 }
 
 fn interpret_program(program: &Vec<StatementNode>,
-                     env: &mut Environment)
+                     env: Rc<RefCell<Environment>>)
                      -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
-    env.start_scope();
-    let result = interpret_statements(program, env)?;
-    env.end_scope();
+    let result = interpret_statements(program, env.clone())?;
     Ok(result)
 }
 
 fn interpret_statements(statements: &Vec<StatementNode>,
-                        env: &mut Environment)
+                        env: Rc<RefCell<Environment>>)
                         -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
     let mut last_result = None;
     for statement in statements.iter() {
-        last_result = Some(interpret_statement(statement, env)?);
+        last_result = Some(interpret_statement(statement, env.clone())?);
     }
     Ok(last_result)
 }
 
 fn interpret_statement(s: &StatementNode,
-                       env: &mut Environment)
+                       env: Rc<RefCell<Environment>>)
                        -> Result<StatementResult, InterpreterErrorWithPosition> {
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
-            let val = interpret_expr(expr, env)?;
+            let val = interpret_expr(expr, env.clone())?;
             if let None = val {
                 if let Expr::FunctionCall(ref id, _) = expr.data {
                     return Err((InterpreterError::NoneError(id.clone()), expr.pos));
                 }
             }
-            env.declare(variable, &val.unwrap());
+            env.borrow_mut().declare(variable, &val.unwrap());
             Ok(StatementResult::None)
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
-            let val = interpret_expr(expr, env)?;
+            let val = interpret_expr(expr, env.clone())?;
             if let None = val {
                 if let Expr::FunctionCall(ref id, _) = expr.data {
                     return Err((InterpreterError::NoneError(id.clone()), expr.pos));
@@ -110,7 +103,7 @@ fn interpret_statement(s: &StatementNode,
             }
             match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
-                    if !env.set(id, val.unwrap()) {
+                    if !env.borrow_mut().set(id, val.unwrap()) {
                         return Err((InterpreterError::UndeclaredAssignment(id.clone()),
                                     lhs_expr.pos));
                     }
@@ -119,63 +112,60 @@ fn interpret_statement(s: &StatementNode,
             Ok(StatementResult::None)
         }
         Statement::Block(ref statements) => {
-            env.start_scope();
+            let child_env = Environment::create_child(env.clone());
             for statement in statements.iter() {
-                if let StatementResult::Break = interpret_statement(statement, env)? {
-                    env.end_scope();
+                if let StatementResult::Break = interpret_statement(statement, child_env.clone())? {
                     return Ok(StatementResult::Break);
                 }
             }
-            env.end_scope();
             return Ok(StatementResult::None);
         }
         Statement::Expression(ref expr) => {
-            let val = interpret_expr(expr, env)?;
+            let val = interpret_expr(expr, env.clone())?;
             match val {
                 None => Ok(StatementResult::None),
                 Some(x) => Ok(StatementResult::Value(x)),
             }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
-            let val = interpret_expr(if_expr, env)?;
+            let val = interpret_expr(if_expr, env.clone())?;
             if let None = val {
                 if let Expr::FunctionCall(ref id, _) = if_expr.data {
                     return Err((InterpreterError::NoneError(id.clone()), if_expr.pos));
                 }
             }
             if val.unwrap().is_truthy() {
-                if let StatementResult::Break = interpret_statement(then_block, env)? {
+                if let StatementResult::Break = interpret_statement(then_block, env.clone())? {
                     return Ok(StatementResult::Break);
                 }
             }
             return Ok(StatementResult::None);
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
-            let val = interpret_expr(if_expr, env)?;
+            let val = interpret_expr(if_expr, env.clone())?;
             if let None = val {
                 if let Expr::FunctionCall(ref id, _) = if_expr.data {
                     return Err((InterpreterError::NoneError(id.clone()), if_expr.pos));
                 }
             }
             if val.unwrap().is_truthy() {
-                if let StatementResult::Break = interpret_statement(then_block, env)? {
+                if let StatementResult::Break = interpret_statement(then_block, env.clone())? {
                     return Ok(StatementResult::Break);
                 }
             } else {
-                if let StatementResult::Break = interpret_statement(else_block, env)? {
+                if let StatementResult::Break = interpret_statement(else_block, env.clone())? {
                     return Ok(StatementResult::Break);
                 }
             }
             Ok(StatementResult::None)
         }
         Statement::Loop(ref block) => {
-            env.start_scope();
+            let child_env = Environment::create_child(env.clone());
             loop {
-                if let StatementResult::Break = interpret_statement(block, env)? {
+                if let StatementResult::Break = interpret_statement(block, child_env.clone())? {
                     break;
                 }
             }
-            env.end_scope();
             Ok(StatementResult::None)
         }
         Statement::Break => Ok(StatementResult::Break),
@@ -183,18 +173,18 @@ fn interpret_statement(s: &StatementNode,
     }
 }
 fn interpret_expr(e: &ExprNode,
-                  env: &mut Environment)
+                  env: Rc<RefCell<Environment>>)
                   -> Result<Option<Value>, InterpreterErrorWithPosition> {
     match e.data {
         Expr::Literal(ref x) => Ok(Some(Value::from(x.clone()))),
         Expr::Identifier(ref id) => {
-            match env.get_value(&id) {
+            match env.borrow_mut().get_value(&id) {
                 Some(v) => Ok(Some(v)),
                 None => Err((InterpreterError::ReferenceError(id.clone()), e.pos)),
             }
         }
         Expr::UnaryExpression(ref op, ref expr) => {
-            let val = interpret_expr(expr, env)?;
+            let val = interpret_expr(expr, env.clone())?;
             if let None = val {
                 if let Expr::FunctionCall(ref id, _) = expr.data {
                     return Err((InterpreterError::NoneError(id.clone()), expr.pos));
@@ -210,7 +200,7 @@ fn interpret_expr(e: &ExprNode,
             }
         }
         Expr::UnaryLogicalExpression(ref op, ref expr) => {
-            let val = interpret_expr(expr, env)?;
+            let val = interpret_expr(expr, env.clone())?;
             if let None = val {
                 if let Expr::FunctionCall(ref id, _) = expr.data {
                     return Err((InterpreterError::NoneError(id.clone()), expr.pos));
@@ -221,13 +211,13 @@ fn interpret_expr(e: &ExprNode,
             }
         }
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
-            let possible_val_1 = interpret_expr(expr1, env)?;
+            let possible_val_1 = interpret_expr(expr1, env.clone())?;
             if let None = possible_val_1 {
                 if let Expr::FunctionCall(ref id, _) = expr1.data {
                     return Err((InterpreterError::NoneError(id.clone()), expr1.pos));
                 }
             }
-            let possible_val_2 = interpret_expr(expr2, env)?;
+            let possible_val_2 = interpret_expr(expr2, env.clone())?;
             if let None = possible_val_2 {
                 if let Expr::FunctionCall(ref id, _) = expr2.data {
                     return Err((InterpreterError::NoneError(id.clone()), expr2.pos));
@@ -255,7 +245,7 @@ fn interpret_expr(e: &ExprNode,
         Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
             match *op {
                 LogicalBinaryOp::LogicalAnd => {
-                    let val1 = interpret_expr(expr1, env)?;
+                    let val1 = interpret_expr(expr1, env.clone())?;
                     if let None = val1 {
                         if let Expr::FunctionCall(ref id, _) = expr1.data {
                             return Err((InterpreterError::NoneError(id.clone()), expr1.pos));
@@ -264,7 +254,7 @@ fn interpret_expr(e: &ExprNode,
                     if !val1.unwrap().is_truthy() {
                         return Ok(Some(Value::Bool(false)));
                     }
-                    let val2 = interpret_expr(expr2, env)?;
+                    let val2 = interpret_expr(expr2, env.clone())?;
                     if let None = val2 {
                         if let Expr::FunctionCall(ref id, _) = expr2.data {
                             return Err((InterpreterError::NoneError(id.clone()), expr2.pos));
@@ -273,7 +263,7 @@ fn interpret_expr(e: &ExprNode,
                     Ok(Some(Value::Bool(val2.unwrap().is_truthy())))
                 }
                 LogicalBinaryOp::LogicalOr => {
-                    let val1 = interpret_expr(expr1, env)?;
+                    let val1 = interpret_expr(expr1, env.clone())?;
                     if let None = val1 {
                         if let Expr::FunctionCall(ref id, _) = expr1.data {
                             return Err((InterpreterError::NoneError(id.clone()), expr1.pos));
@@ -282,7 +272,7 @@ fn interpret_expr(e: &ExprNode,
                     if val1.unwrap().is_truthy() {
                         return Ok(Some(Value::Bool(true)));
                     }
-                    let val2 = interpret_expr(expr2, env)?;
+                    let val2 = interpret_expr(expr2, env.clone())?;
                     if let None = val2 {
                         if let Expr::FunctionCall(ref id, _) = expr2.data {
                             return Err((InterpreterError::NoneError(id.clone()), expr2.pos));
@@ -304,7 +294,7 @@ fn interpret_expr(e: &ExprNode,
 
             let mut arg_vals = Vec::new();
             for arg in args.iter() {
-                let val = interpret_expr(arg, env)?;
+                let val = interpret_expr(arg, env.clone())?;
                 if let None = val {
                     if let Expr::FunctionCall(ref id, _) = arg.data {
                         return Err((InterpreterError::NoneError(id.clone()), arg.pos));
