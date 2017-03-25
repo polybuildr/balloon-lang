@@ -92,7 +92,7 @@ fn try_parse_file(file_name: &String) -> Result<Vec<ast::StatementNode>, Process
 fn run_file(file_name: &String) {
     if let Some(ast) = parse_file(file_name) {
         let mut machine = Interpreter::new();
-        let result = machine.interpret_program(&ast);
+        let result = machine.run_ast_as_program(&ast);
         if let Err(e) = result {
             let file_content = read_file(file_name);
             let span = offset_span_to_source_span(e.1, &file_content);

@@ -26,7 +26,7 @@ pub fn run_repl() {
                         print_parse_error(&file_name, orig_input, parse_error);
                     }
                     Ok(ast) => {
-                        if let Err(e) = machine.interpret_statements(&ast) {
+                        if let Err(e) = machine.run_ast_as_statements(&ast) {
                             let span = offset_span_to_source_span(e.1, &input);
                             print_interpreter_error_for_file(e.0, span, &input, &file_name);
                         }
