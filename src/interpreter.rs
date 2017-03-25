@@ -287,9 +287,7 @@ impl Interpreter {
                         f(arg_vals);
                         Ok(None)
                     }
-                    Function::Returning(f) => {
-                        Ok(Some(f(arg_vals)))
-                    }
+                    Function::Returning(f) => Ok(Some(f(arg_vals))),
                 }
             }
         }

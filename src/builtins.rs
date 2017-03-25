@@ -1,8 +1,8 @@
 use value::*;
 
 pub enum Function {
-    Void(fn (args: Vec<Value>)),
-    Returning(fn (args: Vec<Value>) -> Value),
+    Void(fn(args: Vec<Value>)),
+    Returning(fn(args: Vec<Value>) -> Value),
 }
 
 pub fn get_builtin_from_name(name: &str) -> Option<Function> {

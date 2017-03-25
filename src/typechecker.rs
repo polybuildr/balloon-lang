@@ -139,7 +139,8 @@ pub fn check_statement(s: &StatementNode,
                     match possible_type {
                         None => {
                             if let Expr::FunctionCall(ref id, _) = expr.data {
-                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr.pos));
+                                issues.push((InterpreterError::NoneError(id.clone()).into(),
+                                             expr.pos));
                             }
                             Type::Any
                         }
@@ -159,7 +160,8 @@ pub fn check_statement(s: &StatementNode,
                     match possible_type {
                         None => {
                             if let Expr::FunctionCall(ref id, _) = expr.data {
-                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr.pos));
+                                issues.push((InterpreterError::NoneError(id.clone()).into(),
+                                             expr.pos));
                             }
                             Type::Any
                         }
@@ -265,7 +267,8 @@ fn check_expr(expr: &ExprNode,
                 Ok(possible_type) => {
                     if let None = possible_type {
                         if let Expr::FunctionCall(ref id, _) = expr.data {
-                            return Err(vec![(InterpreterError::NoneError(id.clone()).into(), expr.pos)]);
+                            return Err(vec![(InterpreterError::NoneError(id.clone()).into(),
+                                             expr.pos)]);
                         }
                     }
                     match *op {
@@ -285,7 +288,8 @@ fn check_expr(expr: &ExprNode,
                 Ok(possible_type) => {
                     if let None = possible_type {
                         if let Expr::FunctionCall(ref id, _) = expr.data {
-                            return Err(vec![(InterpreterError::NoneError(id.clone()).into(), expr.pos)]);
+                            return Err(vec![(InterpreterError::NoneError(id.clone()).into(),
+                                             expr.pos)]);
                         }
                     }
                     match *op {
@@ -302,7 +306,8 @@ fn check_expr(expr: &ExprNode,
                     match possible_type {
                         None => {
                             if let Expr::FunctionCall(ref id, _) = expr1.data {
-                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr1.pos));
+                                issues.push((InterpreterError::NoneError(id.clone()).into(),
+                                             expr1.pos));
                             }
                             Type::Any
                         }
@@ -319,7 +324,8 @@ fn check_expr(expr: &ExprNode,
                     match possible_type {
                         None => {
                             if let Expr::FunctionCall(ref id, _) = expr2.data {
-                                issues.push((InterpreterError::NoneError(id.clone()).into(), expr2.pos));
+                                issues.push((InterpreterError::NoneError(id.clone()).into(),
+                                             expr2.pos));
                             }
                             Type::Any
                         }
