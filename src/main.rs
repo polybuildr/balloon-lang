@@ -24,6 +24,9 @@ mod error;
 mod typechecker;
 mod builtins;
 
+#[cfg(test)]
+mod interpreter_test;
+
 use interpreter::*;
 
 use error::*;

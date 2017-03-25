@@ -98,6 +98,16 @@ impl ops::Neg for Number {
     }
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Value) -> bool {
+        match (*self, *other) {
+            (Value::Number(a), Value::Number(b)) => a == b,
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
 impl PartialEq for Number {
     fn eq(&self, other: &Number) -> bool {
         match (*self, *other) {

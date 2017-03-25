@@ -28,7 +28,7 @@ pub fn run_repl() {
                     }
                     Ok(ast) => {
                         match machine.run_ast_as_statements(&ast) {
-                            Err(e) =>  {
+                            Err(e) => {
                                 let span = offset_span_to_source_span(e.1, &input);
                                 print_interpreter_error_for_file(e.0, span, &input, &file_name);
                             }

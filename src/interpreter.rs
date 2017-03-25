@@ -26,6 +26,17 @@ pub enum StatementResult {
     Value(Value),
 }
 
+#[cfg(test)]
+impl StatementResult {
+    pub fn unwrap_value(&self) -> Value {
+        if let StatementResult::Value(v) = *self {
+            v
+        } else {
+            panic!("Cannot unwrap value");
+        }
+    }
+}
+
 pub struct Interpreter {
     pub env: Environment,
 }
@@ -49,9 +60,10 @@ impl Interpreter {
         self.env.end_scope();
     }
 
-    pub fn run_ast_as_statements(&mut self,
-                                 statements: &Vec<StatementNode>)
-                                 -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
+    pub fn run_ast_as_statements
+        (&mut self,
+         statements: &Vec<StatementNode>)
+         -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
         interpret_statements(statements, &mut self.env)
     }
 }
@@ -121,7 +133,7 @@ fn interpret_statement(s: &StatementNode,
             let val = interpret_expr(expr, env)?;
             match val {
                 None => Ok(StatementResult::None),
-                Some(x) => Ok(StatementResult::Value(x))
+                Some(x) => Ok(StatementResult::Value(x)),
             }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
