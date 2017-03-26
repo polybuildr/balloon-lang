@@ -23,6 +23,16 @@ pub enum Function {
     },
 }
 
+impl Function {
+    pub fn get_call_sign(&self) -> CallSign {
+        match self {
+            &Function::NativeVoid(ref call_sign, _) => call_sign.clone(),
+            &Function::NativeReturning(ref call_sign, _) => call_sign.clone(),
+            &Function::User { ref call_sign, .. } => call_sign.clone(),
+        }
+    }
+}
+
 pub fn native_println(args: Vec<Value>) {
     if args.len() == 0 {
         return;

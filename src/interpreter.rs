@@ -6,6 +6,7 @@ use value::*;
 use operations;
 use environment::Environment;
 use typechecker::Type;
+use function::*;
 
 #[derive(Debug)]
 pub enum InterpreterError {
@@ -253,27 +254,16 @@ fn interpret_expr(e: &ExprNode,
                 let val = check_val_for_none_error(&possible_val, &arg)?;
                 arg_vals.push(val);
             }
-            use function::*;
+
+            let call_sign = func.get_call_sign();
+            check_args_compat(&arg_vals, call_sign, e)?;
+
             match func {
                 Function::NativeVoid(call_sign, native_fn) => {
-                    if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
-                        if let Expr::Identifier(ref id) = expr.data {
-                            return Err((InterpreterError::ArgumentLength(Some(id.clone())), e.pos));
-                        }
-                        return Err((InterpreterError::ArgumentLength(None), e.pos));
-                    }
                     native_fn(arg_vals);
                     Ok(None)
                 }
-                Function::NativeReturning(call_sign, native_fn) => {
-                    if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
-                        if let Expr::Identifier(ref id) = expr.data {
-                            return Err((InterpreterError::ArgumentLength(Some(id.clone())), e.pos));
-                        }
-                        return Err((InterpreterError::ArgumentLength(None), e.pos));
-                    }
-                    Ok(Some(native_fn(arg_vals)))
-                }
+                Function::NativeReturning(call_sign, native_fn) => Ok(Some(native_fn(arg_vals))),
                 Function::User { returning, call_sign, body, env } => {
                     unimplemented!();
                 }
@@ -282,7 +272,9 @@ fn interpret_expr(e: &ExprNode,
     }
 }
 
-fn check_val_for_none_error(val: &Option<Value>, expr: &ExprNode) -> Result<Value, InterpreterErrorWithPosition> {
+fn check_val_for_none_error(val: &Option<Value>,
+                            expr: &ExprNode)
+                            -> Result<Value, InterpreterErrorWithPosition> {
     if let &None = val {
         if let Expr::FunctionCall(ref f_expr, _) = expr.data {
             if let Expr::Identifier(ref id) = f_expr.data {
@@ -292,4 +284,17 @@ fn check_val_for_none_error(val: &Option<Value>, expr: &ExprNode) -> Result<Valu
         }
     }
     Ok(val.clone().unwrap())
+}
+
+fn check_args_compat(arg_vals: &Vec<Value>,
+                     call_sign: CallSign,
+                     expr: &ExprNode)
+                     -> Result<(), InterpreterErrorWithPosition> {
+    if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
+        if let Expr::Identifier(ref id) = expr.data {
+            return Err((InterpreterError::ArgumentLength(Some(id.clone())), expr.pos));
+        }
+        return Err((InterpreterError::ArgumentLength(None), expr.pos));
+    }
+    Ok(())
 }
