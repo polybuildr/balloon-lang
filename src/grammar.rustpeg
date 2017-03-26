@@ -57,8 +57,13 @@ expr_node -> ExprNode
     = e:binary_expr_node { e }
     / s:simple_expr_node { s }
 
+function_call_node -> ExprNode
+    = lpos:#position f:function_call rpos:#position { ExprNode { pos: (lpos, rpos), data: f } }
+
 function_call -> Expr
-    = id:identifier OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN { Expr::FunctionCall(id, args) }
+    = e:callable_expr_node OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN {
+        Expr::FunctionCall(Box::new(e), args)
+    }
 
 comma_args -> Vec<ExprNode>
     = expr_node ** COMMA
@@ -86,11 +91,19 @@ simple_expr_node -> ExprNode
     / OPEN_PAREN e:expr_node CLOSE_PAREN { e }
 
 simple_expr -> Expr
-    = f:function_call { f }
-    / OP_MINUS e:simple_expr_node { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
+    = OP_MINUS e:simple_expr_node { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
     / NOT e:expr_node { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
     / l:literal { Expr::Literal(l) }
+    / f:function_call { f }
     / i:identifier { Expr::Identifier(i) }
+
+callable_expr_node -> ExprNode
+    = lpos:#position e:callable_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e } }
+    / OPEN_PAREN e:expr_node CLOSE_PAREN { e }
+
+callable_expr -> Expr
+    = i:identifier { Expr::Identifier(i) }
+    // TODO: function call, support `foo()()`
 
 literal -> Literal
     = f:float { Literal::Float(f) }

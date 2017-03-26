@@ -1,14 +1,22 @@
 use parser;
 use interpreter::Interpreter;
+use interpreter::StatementResult;
 use value::Value;
 use value::Number;
 
 fn run_and_get_last_value(code: &str) -> Value {
+    match run_and_get_last_result(code) {
+        StatementResult::Value(ref v) => v.clone(),
+        _ => panic!("Cannot unwrap value"),
+    }
+}
+
+fn run_and_get_last_result(code: &str) -> StatementResult {
     let ast = parser::program(code);
     match ast {
         Ok(ast) => {
             let mut machine = Interpreter::new();
-            machine.run_ast_as_program(&ast).unwrap().unwrap().unwrap_value()
+            machine.run_ast_as_program(&ast).unwrap().unwrap()
         }
         Err(_) => panic!("{:?}", ast),
     }
@@ -175,4 +183,11 @@ fn block_env() {
                Value::Number(Number::Integer(5)));
     assert_eq!(run_and_get_last_value("var x = 5; { var x = 10; x = 20; x; }"),
                Value::Number(Number::Integer(20)));
+}
+
+#[test]
+fn test_println_runs() {
+    assert_eq!(run_and_get_last_result("println();"), StatementResult::None);
+    assert_eq!(run_and_get_last_result("println(5, true,);"),
+               StatementResult::None);
 }

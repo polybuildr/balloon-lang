@@ -18,26 +18,20 @@ pub enum InterpreterError {
     /// When a unary op cannot be performed on the given type
     UnaryTypeError(UnaryOp, Type),
     /// When a non-returning function's return value is used
-    NoneError(String),
+    NoneError(Option<String>),
+    /// When a call is made to a non-function value
+    CallToNonFunction(Option<String>, Type),
+    /// When the number of arguments don't match
+    ArgumentLength(Option<String>),
 }
 
 pub type InterpreterErrorWithPosition = (InterpreterError, OffsetSpan);
 
+#[derive(Debug, PartialEq)]
 pub enum StatementResult {
     None,
     Break,
     Value(Value),
-}
-
-#[cfg(test)]
-impl StatementResult {
-    pub fn unwrap_value(&self) -> Value {
-        if let StatementResult::Value(v) = *self {
-            v
-        } else {
-            panic!("Cannot unwrap value");
-        }
-    }
 }
 
 pub struct Interpreter {
@@ -46,7 +40,7 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        Interpreter { root_env: Rc::new(RefCell::new(Environment::new())) }
+        Interpreter { root_env: Environment::new_root() }
     }
 
     pub fn run_ast_as_program(&mut self,
@@ -87,18 +81,28 @@ fn interpret_statement(s: &StatementNode,
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
             if let None = val {
-                if let Expr::FunctionCall(ref id, _) = expr.data {
-                    return Err((InterpreterError::NoneError(id.clone()), expr.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = expr.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), expr.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), expr.pos));
                 }
             }
-            env.borrow_mut().declare(variable, &val.unwrap());
+            match variable {
+                &Variable::Identifier(ref binding_type, ref name) => {
+                    env.borrow_mut().declare(&name, &val.unwrap());
+                }
+            };
             Ok(StatementResult::None)
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
             if let None = val {
-                if let Expr::FunctionCall(ref id, _) = expr.data {
-                    return Err((InterpreterError::NoneError(id.clone()), expr.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = expr.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), expr.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), expr.pos));
                 }
             }
             match lhs_expr.data {
@@ -132,8 +136,11 @@ fn interpret_statement(s: &StatementNode,
         Statement::IfThen(ref if_expr, ref then_block) => {
             let val = interpret_expr(if_expr, env.clone())?;
             if let None = val {
-                if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                    return Err((InterpreterError::NoneError(id.clone()), if_expr.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = if_expr.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), if_expr.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), if_expr.pos));
                 }
             }
             if val.unwrap().is_truthy() {
@@ -146,8 +153,11 @@ fn interpret_statement(s: &StatementNode,
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let val = interpret_expr(if_expr, env.clone())?;
             if let None = val {
-                if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                    return Err((InterpreterError::NoneError(id.clone()), if_expr.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = if_expr.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), if_expr.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), if_expr.pos));
                 }
             }
             if val.unwrap().is_truthy() {
@@ -188,8 +198,11 @@ fn interpret_expr(e: &ExprNode,
         Expr::UnaryExpression(ref op, ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
             if let None = val {
-                if let Expr::FunctionCall(ref id, _) = expr.data {
-                    return Err((InterpreterError::NoneError(id.clone()), expr.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = expr.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), expr.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), expr.pos));
                 }
             }
             match *op {
@@ -204,8 +217,11 @@ fn interpret_expr(e: &ExprNode,
         Expr::UnaryLogicalExpression(ref op, ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
             if let None = val {
-                if let Expr::FunctionCall(ref id, _) = expr.data {
-                    return Err((InterpreterError::NoneError(id.clone()), expr.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = expr.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), expr.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), expr.pos));
                 }
             }
             match *op {
@@ -215,14 +231,20 @@ fn interpret_expr(e: &ExprNode,
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let possible_val_1 = interpret_expr(expr1, env.clone())?;
             if let None = possible_val_1 {
-                if let Expr::FunctionCall(ref id, _) = expr1.data {
-                    return Err((InterpreterError::NoneError(id.clone()), expr1.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = expr1.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), expr1.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), expr1.pos));
                 }
             }
             let possible_val_2 = interpret_expr(expr2, env.clone())?;
             if let None = possible_val_2 {
-                if let Expr::FunctionCall(ref id, _) = expr2.data {
-                    return Err((InterpreterError::NoneError(id.clone()), expr2.pos));
+                if let Expr::FunctionCall(ref f_expr, _) = expr2.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), expr2.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), expr2.pos));
                 }
             }
             let val1 = possible_val_1.unwrap();
@@ -249,8 +271,12 @@ fn interpret_expr(e: &ExprNode,
                 LogicalBinaryOp::LogicalAnd => {
                     let val1 = interpret_expr(expr1, env.clone())?;
                     if let None = val1 {
-                        if let Expr::FunctionCall(ref id, _) = expr1.data {
-                            return Err((InterpreterError::NoneError(id.clone()), expr1.pos));
+                        if let Expr::FunctionCall(ref f_expr, _) = expr1.data {
+                            if let Expr::Identifier(ref id) = f_expr.data {
+                                return Err((InterpreterError::NoneError(Some(id.clone())),
+                                            expr1.pos));
+                            }
+                            return Err((InterpreterError::NoneError(None), expr1.pos));
                         }
                     }
                     if !val1.unwrap().is_truthy() {
@@ -258,8 +284,12 @@ fn interpret_expr(e: &ExprNode,
                     }
                     let val2 = interpret_expr(expr2, env.clone())?;
                     if let None = val2 {
-                        if let Expr::FunctionCall(ref id, _) = expr2.data {
-                            return Err((InterpreterError::NoneError(id.clone()), expr2.pos));
+                        if let Expr::FunctionCall(ref f_expr, _) = expr2.data {
+                            if let Expr::Identifier(ref id) = f_expr.data {
+                                return Err((InterpreterError::NoneError(Some(id.clone())),
+                                            expr2.pos));
+                            }
+                            return Err((InterpreterError::NoneError(None), expr2.pos));
                         }
                     }
                     Ok(Some(Value::Bool(val2.unwrap().is_truthy())))
@@ -267,8 +297,12 @@ fn interpret_expr(e: &ExprNode,
                 LogicalBinaryOp::LogicalOr => {
                     let val1 = interpret_expr(expr1, env.clone())?;
                     if let None = val1 {
-                        if let Expr::FunctionCall(ref id, _) = expr1.data {
-                            return Err((InterpreterError::NoneError(id.clone()), expr1.pos));
+                        if let Expr::FunctionCall(ref f_expr, _) = expr1.data {
+                            if let Expr::Identifier(ref id) = f_expr.data {
+                                return Err((InterpreterError::NoneError(Some(id.clone())),
+                                            expr1.pos));
+                            }
+                            return Err((InterpreterError::NoneError(None), expr1.pos));
                         }
                     }
                     if val1.unwrap().is_truthy() {
@@ -276,40 +310,77 @@ fn interpret_expr(e: &ExprNode,
                     }
                     let val2 = interpret_expr(expr2, env.clone())?;
                     if let None = val2 {
-                        if let Expr::FunctionCall(ref id, _) = expr2.data {
-                            return Err((InterpreterError::NoneError(id.clone()), expr2.pos));
+                        if let Expr::FunctionCall(ref f_expr, _) = expr2.data {
+                            if let Expr::Identifier(ref id) = f_expr.data {
+                                return Err((InterpreterError::NoneError(Some(id.clone())),
+                                            expr2.pos));
+                            }
+                            return Err((InterpreterError::NoneError(None), expr2.pos));
                         }
                     }
                     Ok(Some(Value::Bool(val2.unwrap().is_truthy())))
                 }
             }
         }
-        Expr::FunctionCall(ref id, ref args) => {
-            use builtins;
-            use builtins::Function;
-            // check for builtins
-            let possible_wrapped_func = builtins::get_builtin_from_name(id.as_ref());
-            if let None = possible_wrapped_func {
-                return Err((InterpreterError::ReferenceError(id.clone()), e.pos));
+        Expr::FunctionCall(ref expr, ref args) => {
+            let val = interpret_expr(expr, env.clone())?;
+            if let None = val {
+                if let Expr::FunctionCall(ref f_expr, _) = expr.data {
+                    if let Expr::Identifier(ref id) = f_expr.data {
+                        return Err((InterpreterError::NoneError(Some(id.clone())), expr.pos));
+                    }
+                    return Err((InterpreterError::NoneError(None), expr.pos));
+                }
             }
-            let wrapped_func = possible_wrapped_func.unwrap();
+            let func = match val.unwrap() {
+                Value::Function(f) => f,
+                v => {
+                    if let Expr::Identifier(ref id) = expr.data {
+                        return Err((InterpreterError::CallToNonFunction(Some(id.clone()),
+                                                                        v.get_type()),
+                                    e.pos));
+                    }
+                    return Err((InterpreterError::CallToNonFunction(None, v.get_type()), e.pos));
+                }
+            };
 
             let mut arg_vals = Vec::new();
             for arg in args.iter() {
                 let val = interpret_expr(arg, env.clone())?;
                 if let None = val {
-                    if let Expr::FunctionCall(ref id, _) = arg.data {
-                        return Err((InterpreterError::NoneError(id.clone()), arg.pos));
+                    if let Expr::FunctionCall(ref f_expr, _) = arg.data {
+                        if let Expr::Identifier(ref id) = f_expr.data {
+                            return Err((InterpreterError::NoneError(Some(id.clone())), arg.pos));
+                        }
+                        return Err((InterpreterError::NoneError(None), arg.pos));
                     }
                 }
                 arg_vals.push(val.unwrap());
             }
-            match wrapped_func {
-                Function::Void(f) => {
-                    f(arg_vals);
+            use function::*;
+            match func {
+                Function::NativeVoid(call_sign, native_fn) => {
+                    if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
+                        if let Expr::Identifier(ref id) = expr.data {
+                            return Err((InterpreterError::ArgumentLength(Some(id.clone())), e.pos));
+                        }
+                        return Err((InterpreterError::ArgumentLength(None), e.pos));
+                    }
+                    native_fn(arg_vals);
                     Ok(None)
                 }
-                Function::Returning(f) => Ok(Some(f(arg_vals))),
+                Function::NativeReturning(call_sign, native_fn) => {
+                    if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
+                        if let Expr::Identifier(ref id) = expr.data {
+                            return Err((InterpreterError::ArgumentLength(Some(id.clone())), e.pos));
+                        }
+                        return Err((InterpreterError::ArgumentLength(None), e.pos));
+                    }
+                    Ok(Some(native_fn(arg_vals)))
+                }
+                Function::User { returning, call_sign, body, env } => {
+                    unimplemented!();
+                }
             }
         }
     }

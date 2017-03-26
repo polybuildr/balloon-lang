@@ -22,7 +22,7 @@ mod environment;
 mod repl;
 mod error;
 mod typechecker;
-mod builtins;
+mod function;
 
 #[cfg(test)]
 mod interpreter_test;

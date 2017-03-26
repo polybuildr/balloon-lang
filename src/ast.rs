@@ -110,7 +110,7 @@ pub enum Expr {
     BinaryLogicalExpression(Box<ExprNode>, LogicalBinaryOp, Box<ExprNode>),
     UnaryExpression(UnaryOp, Box<ExprNode>),
     UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
-    FunctionCall(String, Vec<ExprNode>),
+    FunctionCall(Box<ExprNode>, Vec<ExprNode>),
 }
 
 #[derive(Debug, Clone)]

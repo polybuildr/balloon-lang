@@ -4,11 +4,13 @@ use std::cmp;
 
 use ast;
 use typechecker::Type;
+use function::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Number(Number),
     Bool(bool),
+    Function(Function),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -22,6 +24,7 @@ impl fmt::Display for Value {
         match *self {
             Value::Bool(b) => write!(f, "{}", b),
             Value::Number(n) => write!(f, "{}", n),
+            Value::Function(_) => write!(f, "<Function>"),
         }
     }
 }
@@ -100,9 +103,9 @@ impl ops::Neg for Number {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Value) -> bool {
-        match (*self, *other) {
-            (Value::Number(a), Value::Number(b)) => a == b,
-            (Value::Bool(a), Value::Bool(b)) => a == b,
+        match (self, other) {
+            (&Value::Number(a), &Value::Number(b)) => a == b,
+            (&Value::Bool(a), &Value::Bool(b)) => a == b,
             _ => false,
         }
     }
@@ -146,6 +149,7 @@ impl Value {
         match *self {
             Value::Number(_) => Type::Number,
             Value::Bool(_) => Type::Bool,
+            Value::Function(_) => Type::Function,
         }
     }
 
@@ -158,6 +162,7 @@ impl Value {
                 }
             }
             Value::Bool(b) => b,
+            Value::Function(_) => true,
         }
     }
 }

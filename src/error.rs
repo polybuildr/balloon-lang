@@ -164,10 +164,47 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                              unary_op,
                              typ);
                 }
-                InterpreterError::NoneError(id) => {
-                    println!("{}: tried to use return value of non-returning function `{}`",
-                             Red.bold().paint("missing value error"),
-                             id);
+                InterpreterError::NoneError(possible_id) => {
+                    match possible_id {
+                        Some(id) => {
+                            println!("{}: tried to use return value of non-returning function \
+                                      `{}`",
+                                     Red.bold().paint("missing value error"),
+                                     id);
+                        }
+                        None => {
+                            println!("{}: tried to use return value of non-returning function",
+                                     Red.bold().paint("missing value error"));
+                        }
+                    }
+                }
+                InterpreterError::CallToNonFunction(possible_id, other_type) => {
+                    match possible_id {
+                        Some(id) => {
+                            println!("{}: cannot call `{}` ({}) as Function",
+                                     Red.bold().paint("type error"),
+                                     id,
+                                     other_type);
+                        }
+                        None => {
+                            println!("{}: cannot call {} as Function",
+                                     Red.bold().paint("type error"),
+                                     other_type);
+                        }
+                    }
+                }
+                InterpreterError::ArgumentLength(possible_id) => {
+                    match possible_id {
+                        Some(id) => {
+                            println!("{}: function `{}` called with incorrect number of arguments",
+                                     Red.bold().paint("arguments mismatch"),
+                                     id);
+                        }
+                        None => {
+                            println!("{}: function called with incorrect number of arguments",
+                                     Red.bold().paint("arguments mismatch"));
+                        }
+                    }
                 }
             }
         }
