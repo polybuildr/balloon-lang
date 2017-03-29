@@ -191,3 +191,15 @@ fn test_println_runs() {
     assert_eq!(run_and_get_last_result("println(5, true,);"),
                StatementResult::None);
 }
+
+#[test]
+fn test_factorial() {
+    assert_eq!(
+        run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * factorial(n - 1); } factorial(5); "),
+        Value::Number(Number::Integer(120))
+    );
+    assert_eq!(
+        run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * factorial(n - 1); } factorial(10); "),
+        Value::Number(Number::Integer(3628800))
+    );
+}

@@ -13,6 +13,8 @@ statement -> Statement
     = s:if_statement { s }
     / l:loop_statement { l }
     / BREAK TERMINATOR { Statement::Break }
+    / RETURN e:expr_node? TERMINATOR { Statement::Return(e) }
+    / f:function_definition { f }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
     / e:expr_node TERMINATOR { Statement::Expression(e) }
@@ -42,7 +44,7 @@ if_statement -> Statement
         Statement::IfThenElse(
             e,
             Box::new(StatementNode { pos: (lpos1, rpos1), data: b1 }),
-            Box::new( StatementNode{ pos: (lpos2, rpos2), data: b2 }),
+            Box::new(StatementNode { pos: (lpos2, rpos2), data: b2 }),
         )
     }
     / IF e:expr_node lpos:#position b:block rpos:#position { Statement::IfThen(e, Box::new(StatementNode { pos: (lpos, rpos), data: b })) }
@@ -52,6 +54,21 @@ block -> Statement
 
 _block -> Statement
     = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
+
+function_definition_node -> StatementNode
+    = lpos:#position f:function_definition rpos:#position { StatementNode { pos: (lpos, rpos), data: f } }
+
+function_definition -> Statement
+    = FN i:identifier OPEN_PAREN params:param_list COMMA? CLOSE_PAREN lpos:#position body:block rpos:#position {
+        Statement::FunctionDefinition(
+            i,
+            params,
+            Box::new(StatementNode { pos: (lpos, rpos), data: body } ),
+        )
+    }
+
+param_list -> Vec<String>
+    = identifier ** COMMA
 
 expr_node -> ExprNode
     = e:binary_expr_node { e }
@@ -174,6 +191,10 @@ reserved_identifier = VAR
                     / NOT
                     / "true"
                     / "false"
+                    / LOOP
+                    / BREAK
+                    / FN
+                    / RETURN;
 
 keyword<E> = E __
 
@@ -185,3 +206,5 @@ OR = keyword<"or">
 NOT = keyword<"not">
 LOOP = keyword<"loop">
 BREAK = keyword<"break">
+FN = keyword<"fn">
+RETURN = keyword<"return">

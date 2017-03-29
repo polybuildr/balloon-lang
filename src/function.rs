@@ -18,7 +18,8 @@ pub enum Function {
     User {
         returning: bool,
         call_sign: CallSign,
-        body: Vec<ast::StatementNode>,
+        param_list: Vec<String>,
+        body: Box<ast::StatementNode>,
         env: Rc<RefCell<Environment>>,
     },
 }

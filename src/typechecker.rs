@@ -249,6 +249,8 @@ pub fn check_statement(s: &StatementNode,
         }
         Statement::Break => {}
         Statement::Empty => {}
+        Statement::FunctionDefinition(_, _, _) => unimplemented!(),
+        Statement::Return(_) => unimplemented!(),
     };
     if issues.len() == 0 {
         Ok(())
@@ -409,7 +411,7 @@ fn check_expr(expr: &ExprNode,
                 }
             }
         }
-        Expr::FunctionCall(ref id, ref args) => {
+        Expr::FunctionCall(_, _) => {
             unimplemented!();
         }
     }

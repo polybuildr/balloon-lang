@@ -33,6 +33,7 @@ pub enum StatementResult {
     None,
     Break,
     Value(Value),
+    Return(Option<Value>),
 }
 
 pub struct Interpreter {
@@ -83,7 +84,7 @@ fn interpret_statement(s: &StatementNode,
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, &expr)?;
             match variable {
-                &Variable::Identifier(ref binding_type, ref name) => {
+                &Variable::Identifier(_, ref name) => {
                     env.borrow_mut().declare(&name, &val);
                 }
             };
@@ -109,6 +110,8 @@ fn interpret_statement(s: &StatementNode,
                 last_result = interpret_statement(statement, child_env.clone())?;
                 if let StatementResult::Break = last_result {
                     return Ok(StatementResult::Break);
+                } else if let StatementResult::Return(_) = last_result {
+                    return Ok(last_result);
                 }
             }
             return Ok(last_result);
@@ -124,8 +127,11 @@ fn interpret_statement(s: &StatementNode,
             let possible_val = interpret_expr(if_expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, &if_expr)?;
             if val.is_truthy() {
-                if let StatementResult::Break = interpret_statement(then_block, env.clone())? {
+                let result = interpret_statement(then_block, env.clone())?;
+                if let StatementResult::Break = result {
                     return Ok(StatementResult::Break);
+                } else if let StatementResult::Return(_) = result {
+                    return Ok(result);
                 }
             }
             return Ok(StatementResult::None);
@@ -134,12 +140,18 @@ fn interpret_statement(s: &StatementNode,
             let possible_val = interpret_expr(if_expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, &if_expr)?;
             if val.is_truthy() {
-                if let StatementResult::Break = interpret_statement(then_block, env.clone())? {
+                let result = interpret_statement(then_block, env.clone())?;
+                if let StatementResult::Break = result {
                     return Ok(StatementResult::Break);
+                } else if let StatementResult::Return(_) = result {
+                    return Ok(result);
                 }
             } else {
-                if let StatementResult::Break = interpret_statement(else_block, env.clone())? {
+                let result = interpret_statement(else_block, env.clone())?;
+                if let StatementResult::Break = result {
                     return Ok(StatementResult::Break);
+                } else if let StatementResult::Return(_) = result {
+                    return Ok(result);
                 }
             }
             Ok(StatementResult::None)
@@ -147,11 +159,35 @@ fn interpret_statement(s: &StatementNode,
         Statement::Loop(ref block) => {
             let child_env = Environment::create_child(env.clone());
             loop {
-                if let StatementResult::Break = interpret_statement(block, child_env.clone())? {
+                let result = interpret_statement(block, child_env.clone())?;
+                if let StatementResult::Break = result {
                     break;
+                } else if let StatementResult::Return(_) = result {
+                    return Ok(result);
                 }
             }
             Ok(StatementResult::None)
+        }
+        Statement::FunctionDefinition(ref id, ref param_list, ref body) => {
+            let func = Function::User {
+                returning: false,
+                call_sign: CallSign { num_params: param_list.len(), variadic: false },
+                param_list: param_list.clone(),
+                body: body.clone(),
+                env: env.clone(),
+            };
+            env.borrow_mut().declare(id, &Value::Function(func));
+            Ok(StatementResult::None)
+        }
+        Statement::Return(ref possible_expr) => {
+            match *possible_expr {
+                Some(ref expr) => {
+                    let possible_val = interpret_expr(expr, env.clone())?;
+                    let val = check_val_for_none_error(&possible_val, expr)?;
+                    Ok(StatementResult::Return(Some(val)))
+                }
+                None => Ok(StatementResult::Return(None)),
+            }
         }
         Statement::Break => Ok(StatementResult::Break),
         Statement::Empty => Ok(StatementResult::None),
@@ -259,13 +295,26 @@ fn interpret_expr(e: &ExprNode,
             check_args_compat(&arg_vals, call_sign, e)?;
 
             match func {
-                Function::NativeVoid(call_sign, native_fn) => {
+                Function::NativeVoid(_, native_fn) => {
                     native_fn(arg_vals);
                     Ok(None)
                 }
-                Function::NativeReturning(call_sign, native_fn) => Ok(Some(native_fn(arg_vals))),
-                Function::User { returning, call_sign, body, env } => {
-                    unimplemented!();
+                Function::NativeReturning(_, native_fn) => Ok(Some(native_fn(arg_vals))),
+                Function::User { param_list, body, env, .. } => {
+                    // TODO: returning
+                    let function_env = Environment::create_child(env.clone());
+                    for (param, arg) in param_list.iter().zip(arg_vals.iter()) {
+                        function_env.borrow_mut().declare(&param, &arg);
+                    }
+                    let inner_env = Environment::create_child(function_env);
+                    if let StatementResult::Return(possible_val) = interpret_statement(&body, inner_env)? {
+                        match possible_val {
+                            Some(val) => Ok(Some(val)),
+                            None => Ok(None),
+                        }
+                    } else {
+                        Ok(None)
+                    }
                 }
             }
         }

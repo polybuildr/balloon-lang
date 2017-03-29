@@ -128,6 +128,8 @@ pub enum Statement {
     IfThen(ExprNode, Box<StatementNode>),
     IfThenElse(ExprNode, Box<StatementNode>, Box<StatementNode>),
     Loop(Box<StatementNode>),
+    FunctionDefinition(String, Vec<String>, Box<StatementNode>),
+    Return(Option<ExprNode>),
     Break,
     Empty,
 }
