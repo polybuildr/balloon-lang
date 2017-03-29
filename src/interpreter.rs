@@ -168,17 +168,6 @@ fn interpret_statement(s: &StatementNode,
             }
             Ok(StatementResult::None)
         }
-        Statement::FunctionDefinition(ref id, ref param_list, ref body) => {
-            let func = Function::User {
-                returning: false,
-                call_sign: CallSign { num_params: param_list.len(), variadic: false },
-                param_list: param_list.clone(),
-                body: body.clone(),
-                env: env.clone(),
-            };
-            env.borrow_mut().declare(id, &Value::Function(func));
-            Ok(StatementResult::None)
-        }
         Statement::Return(ref possible_expr) => {
             match *possible_expr {
                 Some(ref expr) => {
@@ -268,6 +257,20 @@ fn interpret_expr(e: &ExprNode,
                     Ok(Some(Value::Bool(val2.is_truthy())))
                 }
             }
+        }
+        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
+            let func = Function::User {
+                returning: false,
+                call_sign: CallSign { num_params: param_list.len(), variadic: false },
+                param_list: param_list.clone(),
+                body: body.clone(),
+                env: env.clone(),
+            };
+            let func_val = Value::Function(func);
+            if let &Some(ref id) = possible_id {
+                env.borrow_mut().declare(&id, &func_val);
+            }
+            Ok(Some(func_val))
         }
         Expr::FunctionCall(ref expr, ref args) => {
             let possible_val = interpret_expr(expr, env.clone())?;

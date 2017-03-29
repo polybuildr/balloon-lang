@@ -14,7 +14,7 @@ statement -> Statement
     / l:loop_statement { l }
     / BREAK TERMINATOR { Statement::Break }
     / RETURN e:expr_node? TERMINATOR { Statement::Return(e) }
-    / f:function_definition { f }
+    / f:function_definition_node { Statement::Expression(f) }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
     / e:expr_node TERMINATOR { Statement::Expression(e) }
@@ -55,12 +55,12 @@ block -> Statement
 _block -> Statement
     = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
 
-function_definition_node -> StatementNode
-    = lpos:#position f:function_definition rpos:#position { StatementNode { pos: (lpos, rpos), data: f } }
+function_definition_node -> ExprNode
+    = lpos:#position f:function_definition rpos:#position { ExprNode { pos: (lpos, rpos), data: f } }
 
-function_definition -> Statement
-    = FN i:identifier OPEN_PAREN params:param_list COMMA? CLOSE_PAREN lpos:#position body:block rpos:#position {
-        Statement::FunctionDefinition(
+function_definition -> Expr
+    = FN i:identifier? OPEN_PAREN params:param_list COMMA? CLOSE_PAREN lpos:#position body:block rpos:#position {
+        Expr::FunctionDefinition(
             i,
             params,
             Box::new(StatementNode { pos: (lpos, rpos), data: body } ),
@@ -112,6 +112,7 @@ simple_expr -> Expr
     / NOT e:expr_node { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
     / l:literal { Expr::Literal(l) }
     / f:function_call { f }
+    / f:function_definition { f }
     / i:identifier { Expr::Identifier(i) }
 
 callable_expr_node -> ExprNode

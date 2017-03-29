@@ -110,6 +110,7 @@ pub enum Expr {
     BinaryLogicalExpression(Box<ExprNode>, LogicalBinaryOp, Box<ExprNode>),
     UnaryExpression(UnaryOp, Box<ExprNode>),
     UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
+    FunctionDefinition(Option<String>, Vec<String>, Box<StatementNode>),
     FunctionCall(Box<ExprNode>, Vec<ExprNode>),
 }
 
@@ -128,7 +129,6 @@ pub enum Statement {
     IfThen(ExprNode, Box<StatementNode>),
     IfThenElse(ExprNode, Box<StatementNode>, Box<StatementNode>),
     Loop(Box<StatementNode>),
-    FunctionDefinition(String, Vec<String>, Box<StatementNode>),
     Return(Option<ExprNode>),
     Break,
     Empty,
