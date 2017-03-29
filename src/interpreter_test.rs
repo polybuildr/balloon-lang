@@ -203,3 +203,18 @@ fn test_factorial() {
         Value::Number(Number::Integer(3628800))
     );
 }
+
+#[test]
+fn test_curried_add() {
+    let code = "fn addX(x) {
+    return fn addXY(y) {
+        return x + y;
+    };
+}
+
+(addX(10))(20);
+";
+    assert_eq!(
+        run_and_get_last_value(code), Value::Number(Number::Integer(30))
+    );
+}
