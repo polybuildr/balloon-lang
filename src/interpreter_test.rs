@@ -207,7 +207,7 @@ fn test_factorial() {
 #[test]
 fn test_curried_add() {
     let code = "fn addX(x) {
-    return fn addXY(y) {
+    return fn(y) {
         return x + y;
     };
 }
