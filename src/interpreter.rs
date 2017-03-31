@@ -8,7 +8,7 @@ use environment::Environment;
 use typechecker::Type;
 use function::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum InterpreterError {
     /// When an undeclared identifier is used on the RHS
     ReferenceError(String),

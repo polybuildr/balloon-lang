@@ -2,7 +2,7 @@ use std::fmt;
 
 pub type OffsetSpan = (usize, usize);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -16,18 +16,18 @@ pub enum BinaryOp {
     StrictEquals,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LogicalBinaryOp {
     LogicalAnd,
     LogicalOr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOp {
     Minus,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LogicalUnaryOp {
     Not,
 }

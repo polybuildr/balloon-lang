@@ -35,7 +35,7 @@ impl fmt::Display for Type {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TypeCheckerIssue {
     InterpreterError(InterpreterError),
     MultipleTypesFromBranchWarning(String),
