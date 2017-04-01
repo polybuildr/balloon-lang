@@ -218,3 +218,28 @@ fn test_curried_add() {
         run_and_get_last_value(code), Value::Number(Number::Integer(30))
     );
 }
+
+#[test]
+fn test_y_combinator() {
+    let code = "fn Y(f) {
+    var lazywrapper = fn () { return Y (f); };
+    return f(lazywrapper);
+}
+
+fn factorialwrap(lazywrapfact) {
+    fn factorial(i) {
+        if (i == 0) {
+            return 1;
+        } else {
+            return i * (lazywrapfact())(i - 1);
+        }
+    }
+    return factorial;
+}
+
+var fact = Y(factorialwrap);
+
+fact(4);
+";
+    assert_eq!(run_and_get_last_value(code), Value::Number(Number::Integer(24)));
+}
