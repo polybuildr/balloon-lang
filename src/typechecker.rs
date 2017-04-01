@@ -181,19 +181,14 @@ pub fn check_statement(s: &StatementNode,
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let checked_type = match check_expr(expr, env.clone()) {
-                Ok(possible_type) => {
-                    match possible_type {
-                        None => {
-                            if let Expr::FunctionCall(ref id, _) = expr.data {
-                                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
-                                                 .into(),
-                                             expr.pos));
-                            }
-                            Type::Any
-                        }
-                        Some(t) => t,
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     expr.pos));
                     }
+                    Type::Any
                 }
+                Ok(Some(t)) => t,
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
@@ -206,31 +201,23 @@ pub fn check_statement(s: &StatementNode,
             };
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
-            println!("called assignment!");
             let checked_type = match check_expr(expr, env.clone()) {
-                Ok(possible_type) => {
-                    match possible_type {
-                        None => {
-                            if let Expr::FunctionCall(ref id, _) = expr.data {
-                                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
-                                                 .into(),
-                                             expr.pos));
-                            }
-                            Type::Any
-                        }
-                        Some(t) => t,
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     expr.pos));
                     }
+                    Type::Any
                 }
+                Ok(Some(t)) => t,
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
                 }
             };
-            println!("checked_type: {:?}", checked_type);
             match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
                     if !env.borrow_mut().set(id, checked_type) {
-                        println!("env after assign: {:?}", env.borrow());
                         issues.push((InterpreterError::UndeclaredAssignment(id.clone()).into(),
                                      lhs_expr.pos));
                     }
@@ -250,13 +237,16 @@ pub fn check_statement(s: &StatementNode,
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
             let if_expr_result = check_expr(if_expr, env.clone());
-            if let Err(mut e) = if_expr_result {
-                issues.append(&mut e);
-            } else if let Ok(None) = if_expr_result {
-                if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                    return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                     if_expr.pos)]);
+            match if_expr_result {
+                Err(mut e) => issues.append(&mut e),
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = if_expr.data {
+                        return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
+                                             .into(),
+                                         if_expr.pos)]);
+                    }
                 }
+                Ok(Some(_)) => {}
             }
             if let Err(mut e) = check_statement(then_block, env.clone()) {
                 issues.append(&mut e);
@@ -266,13 +256,18 @@ pub fn check_statement(s: &StatementNode,
             let then_env = TypeEnvironment::create_clone(env.clone());
             let else_env = TypeEnvironment::create_clone(env.clone());
             let if_expr_result = check_expr(if_expr, env.clone());
-            if let Err(mut e) = if_expr_result {
-                issues.append(&mut e);
-            } else if let Ok(None) = if_expr_result {
-                if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                    return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                     if_expr.pos)]);
+            match if_expr_result {
+                Err(mut e) => {
+                    issues.append(&mut e);
                 }
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = if_expr.data {
+                        return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
+                                             .into(),
+                                         if_expr.pos)]);
+                    }
+                }
+                Ok(Some(_)) => {}
             }
 
             if let Err(mut e) = check_statement(then_block, then_env.clone()) {
@@ -326,17 +321,18 @@ fn check_expr(expr: &ExprNode,
         }
         Expr::UnaryExpression(ref op, ref expr) => {
             match check_expr(expr, env.clone()) {
-                Ok(possible_type) => {
-                    if let None = possible_type {
-                        if let Expr::FunctionCall(ref id, _) = expr.data {
-                            return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
-                                                 .into(),
-                                             expr.pos)]);
-                        }
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
+                        return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
+                                             .into(),
+                                         expr.pos)]);
                     }
+                    unreachable!();
+                }
+                Ok(Some(typ)) => {
                     match *op {
                         UnaryOp::Minus => {
-                            match check_unary_minus_for_type(possible_type.unwrap()) {
+                            match check_unary_minus_for_type(typ) {
                                 Ok(t) => Ok(Some(t)),
                                 Err(e) => Err(vec![(e, expr.pos)]),
                             }
@@ -348,14 +344,15 @@ fn check_expr(expr: &ExprNode,
         }
         Expr::UnaryLogicalExpression(ref op, ref expr) => {
             match check_expr(expr, env.clone()) {
-                Ok(possible_type) => {
-                    if let None = possible_type {
-                        if let Expr::FunctionCall(ref id, _) = expr.data {
-                            return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
-                                                 .into(),
-                                             expr.pos)]);
-                        }
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
+                        return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
+                                             .into(),
+                                         expr.pos)]);
                     }
+                    unreachable!();
+                }
+                Ok(Some(_)) => {
                     match *op {
                         LogicalUnaryOp::Not => Ok(Some(Type::Bool)),
                     }
@@ -366,38 +363,28 @@ fn check_expr(expr: &ExprNode,
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let mut issues = Vec::new();
             let checked_type_1 = match check_expr(expr1, env.clone()) {
-                Ok(possible_type) => {
-                    match possible_type {
-                        None => {
-                            if let Expr::FunctionCall(ref id, _) = expr1.data {
-                                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
-                                                 .into(),
-                                             expr1.pos));
-                            }
-                            Type::Any
-                        }
-                        Some(t) => t,
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr1.data {
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     expr1.pos));
                     }
+                    Type::Any
                 }
+                Ok(Some(t)) => t,
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
                 }
             };
             let checked_type_2 = match check_expr(expr2, env.clone()) {
-                Ok(possible_type) => {
-                    match possible_type {
-                        None => {
-                            if let Expr::FunctionCall(ref id, _) = expr2.data {
-                                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
-                                                 .into(),
-                                             expr2.pos));
-                            }
-                            Type::Any
-                        }
-                        Some(t) => t,
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr2.data {
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     expr2.pos));
                     }
+                    Type::Any
                 }
+                Ok(Some(t)) => t,
                 Err(mut e) => {
                     issues.append(&mut e);
                     Type::Any
@@ -439,24 +426,32 @@ fn check_expr(expr: &ExprNode,
             match *op {
                 LogicalBinaryOp::LogicalAnd |
                 LogicalBinaryOp::LogicalOr => {
-                    let result1 = check_expr(expr1, env.clone());
-                    if let Err(mut e) = result1 {
-                        issues.append(&mut e);
-                    } else if let Ok(None) = result1 {
-                        if let Expr::FunctionCall(ref id, _) = expr1.data {
-                            issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                       expr1.pos));
+                    match check_expr(expr1, env.clone()) {
+                        Err(mut e) => {
+                            issues.append(&mut e);
                         }
+                        Ok(None) => {
+                            if let Expr::FunctionCall(ref id, _) = expr1.data {
+                                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
+                                                 .into(),
+                                             expr1.pos));
+                            }
+                        }
+                        Ok(Some(_)) => {}
                     };
-                    let result2 = check_expr(expr2, env.clone());
-                    if let Err(mut e) = result2 {
-                        issues.append(&mut e);
-                    } else if let Ok(None) = result2 {
-                        if let Expr::FunctionCall(ref id, _) = expr2.data {
-                            issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                       expr2.pos));
+                    match check_expr(expr2, env.clone()) {
+                        Err(mut e) => {
+                            issues.append(&mut e);
                         }
-                    }
+                        Ok(None) => {
+                            if let Expr::FunctionCall(ref id, _) = expr2.data {
+                                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
+                                                 .into(),
+                                             expr2.pos));
+                            }
+                        }
+                        Ok(Some(_)) => {}
+                    };
                     if issues.len() == 0 {
                         Ok(Some(Type::Bool))
                     } else {
