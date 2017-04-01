@@ -146,10 +146,10 @@ impl Number {
 
 impl Value {
     pub fn get_type(&self) -> Type {
-        match *self {
-            Value::Number(_) => Type::Number,
-            Value::Bool(_) => Type::Bool,
-            Value::Function(_) => Type::Function,
+        match self {
+            &Value::Number(_) => Type::Number,
+            &Value::Bool(_) => Type::Bool,
+            &Value::Function(ref f) => Type::Function(f.clone()),
         }
     }
 
