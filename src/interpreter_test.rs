@@ -194,14 +194,12 @@ fn test_println_runs() {
 
 #[test]
 fn test_factorial() {
-    assert_eq!(
-        run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * factorial(n - 1); } factorial(5); "),
-        Value::Number(Number::Integer(120))
-    );
-    assert_eq!(
-        run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * factorial(n - 1); } factorial(10); "),
-        Value::Number(Number::Integer(3628800))
-    );
+    assert_eq!(run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * \
+                                       factorial(n - 1); } factorial(5); "),
+               Value::Number(Number::Integer(120)));
+    assert_eq!(run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * \
+                                       factorial(n - 1); } factorial(10); "),
+               Value::Number(Number::Integer(3628800)));
 }
 
 #[test]
@@ -214,9 +212,8 @@ fn test_curried_add() {
 
 (addX(10))(20);
 ";
-    assert_eq!(
-        run_and_get_last_value(code), Value::Number(Number::Integer(30))
-    );
+    assert_eq!(run_and_get_last_value(code),
+               Value::Number(Number::Integer(30)));
 }
 
 #[test]
@@ -241,5 +238,6 @@ var fact = Y(factorialwrap);
 
 fact(4);
 ";
-    assert_eq!(run_and_get_last_value(code), Value::Number(Number::Integer(24)));
+    assert_eq!(run_and_get_last_value(code),
+               Value::Number(Number::Integer(24)));
 }

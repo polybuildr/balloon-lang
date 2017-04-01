@@ -92,7 +92,10 @@ impl TypeEnvironment {
     }
 
     pub fn new() -> TypeEnvironment {
-        TypeEnvironment { symbol_table: HashMap::new(), parent: None }
+        TypeEnvironment {
+            symbol_table: HashMap::new(),
+            parent: None,
+        }
     }
 
     pub fn create_clone(env: Rc<RefCell<TypeEnvironment>>) -> Rc<RefCell<TypeEnvironment>> {
@@ -101,7 +104,10 @@ impl TypeEnvironment {
     }
 
     pub fn create_child(parent: Rc<RefCell<TypeEnvironment>>) -> Rc<RefCell<TypeEnvironment>> {
-        let env = TypeEnvironment { parent: Some(parent), symbol_table: HashMap::default() };
+        let env = TypeEnvironment {
+            parent: Some(parent),
+            symbol_table: HashMap::default(),
+        };
         Rc::new(RefCell::new(env))
     }
 
@@ -268,11 +274,11 @@ pub fn check_statement(s: &StatementNode,
                                      if_expr.pos)]);
                 }
             }
-            
+
             if let Err(mut e) = check_statement(then_block, then_env.clone()) {
                 issues.append(&mut e);
             }
-            
+
             if let Err(mut e) = check_statement(else_block, else_env.clone()) {
                 issues.append(&mut e);
             }
@@ -282,9 +288,9 @@ pub fn check_statement(s: &StatementNode,
                 let then_type = then_env.borrow().get_type(&name).unwrap();
                 let else_type = else_env.borrow().get_type(&name).unwrap();
                 println!("{}: {:?} and {:?}", name, then_type, else_type);
-                if  else_type != then_type {
+                if else_type != then_type {
                     issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(name.clone()),
-                                    s.pos));
+                                 s.pos));
                     env.borrow_mut().set(&name, Type::Any);
                 } else {
                     env.borrow_mut().set(&name, then_type);

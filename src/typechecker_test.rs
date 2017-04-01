@@ -1,7 +1,7 @@
 use parser;
 use typechecker::check_program;
 use typechecker::Type;
-use typechecker::{TypeCheckerIssue, TypeCheckerIssueWithPosition};  
+use typechecker::{TypeCheckerIssue, TypeCheckerIssueWithPosition};
 use interpreter::InterpreterError;
 use ast::{BinaryOp, UnaryOp};
 
@@ -85,9 +85,8 @@ fn check_unary_minus_error() {
 #[test]
 fn check_multiple_types_from_branch() {
     let result = check_and_get_result("var x = 5; if true { x = true; } else { x = 10; } ");
-    assert_eq!(result.unwrap_err(), [
-        (TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (11, 50))
-    ]);
+    assert_eq!(result.unwrap_err(),
+               [(TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (11, 50))]);
 }
 
 // #[test]
@@ -97,4 +96,3 @@ fn check_multiple_types_from_branch() {
 //         (TypeCheckerIssue::InterpreterError(InterpreterError::NoneError(Some("println".to_owned()))), (1, 10))
 //     ]);
 // }
-

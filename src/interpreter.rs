@@ -261,7 +261,10 @@ fn interpret_expr(e: &ExprNode,
         Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
             let func = Function::User {
                 returning: false,
-                call_sign: CallSign { num_params: param_list.len(), variadic: false },
+                call_sign: CallSign {
+                    num_params: param_list.len(),
+                    variadic: false,
+                },
                 param_list: param_list.clone(),
                 body: body.clone(),
                 env: env.clone(),
@@ -310,7 +313,8 @@ fn interpret_expr(e: &ExprNode,
                         function_env.borrow_mut().declare(&param, &arg);
                     }
                     let inner_env = Environment::create_child(function_env);
-                    if let StatementResult::Return(possible_val) = interpret_statement(&body, inner_env)? {
+                    if let StatementResult::Return(possible_val) =
+                        interpret_statement(&body, inner_env)? {
                         match possible_val {
                             Some(val) => Ok(Some(val)),
                             None => Ok(None),
