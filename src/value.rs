@@ -149,7 +149,7 @@ impl Value {
         match self {
             &Value::Number(_) => Type::Number,
             &Value::Bool(_) => Type::Bool,
-            &Value::Function(ref f) => Type::Function(f.clone()),
+            &Value::Function(_) => Type::Function(None),
         }
     }
 

@@ -10,11 +10,34 @@ use interpreter::InterpreterError;
 use function::*;
 
 #[derive(Clone, Debug)]
+pub enum FunctionType {
+    NativeVoid(CallSign),
+    NativeReturning(CallSign),
+    User {
+        returning: bool,
+        call_sign: CallSign,
+        param_list: Vec<String>,
+        body: Box<ast::StatementNode>,
+        env: Rc<RefCell<TypeEnvironment>>,
+    },
+}
+
+impl FunctionType {
+    pub fn get_call_sign(&self) -> CallSign {
+        match self {
+            &FunctionType::NativeVoid(ref call_sign) => call_sign.clone(),
+            &FunctionType::NativeReturning(ref call_sign) => call_sign.clone(),
+            &FunctionType::User { ref call_sign, .. } => call_sign.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Type {
     Number,
     Bool,
     Any,
-    Function(Function),
+    Function(Option<FunctionType>),
 }
 
 impl PartialEq for Type {
@@ -79,14 +102,13 @@ impl TypeEnvironment {
     pub fn new_root() -> Rc<RefCell<TypeEnvironment>> {
         let mut env = TypeEnvironment::new();
         let builtin_functions = &[("println",
-                                   Function::NativeVoid(CallSign {
-                                                            num_params: 0,
-                                                            variadic: true,
-                                                        },
-                                                        native_println))];
+                                   FunctionType::NativeVoid(CallSign {
+                                       num_params: 0,
+                                       variadic: true,
+                                   }))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
-            env.declare(&name.to_string(), &Type::Function(func.clone()));
+            env.declare(&name.to_string(), &Type::Function(Some(func.clone())));
         }
         Rc::new(RefCell::new(env))
     }
@@ -299,7 +321,9 @@ pub fn check_statement(s: &StatementNode,
         }
         Statement::Break => {}
         Statement::Empty => {}
-        Statement::Return(_) => unimplemented!(),
+        Statement::Return(ref possible_expr) => {
+            unimplemented!();
+        }
     };
     if issues.len() == 0 {
         Ok(())
@@ -460,10 +484,100 @@ fn check_expr(expr: &ExprNode,
                 }
             }
         }
-        Expr::FunctionCall(_, _) => {
-            unimplemented!();
+        Expr::FunctionCall(ref f_expr, ref args) => {
+            let mut issues = Vec::new();
+            let checked_type = match check_expr(f_expr, env.clone()) {
+                Err(mut e) => {
+                    issues.append(&mut e);
+                    Type::Any
+                }
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = f_expr.data {
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     f_expr.pos));
+                    }
+                    Type::Any
+                }
+                Ok(Some(t)) => t,
+            };
+
+            let mut arg_types = Vec::new();
+            for arg in args.iter() {
+                let possible_type = check_expr(arg, env.clone());
+                let arg_type = match possible_type {
+                    Err(mut e) => {
+                        issues.append(&mut e);
+                        Type::Any
+                    }
+                    Ok(None) => {
+                        if let Expr::FunctionCall(ref id, _) = arg.data {
+                            issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                       arg.pos));
+                        }
+                        Type::Any
+                    }
+                    Ok(Some(typ)) => typ,
+                };
+                arg_types.push(arg_type);
+            }
+
+            let func_type = match checked_type {
+                Type::Function(None) => unreachable!(),
+                Type::Function(Some(func_type)) => func_type,
+                v => {
+                    if let Expr::Identifier(ref id) = expr.data {
+                        issues.push((InterpreterError::CallToNonFunction(Some(id.clone()), v)
+                                         .into(),
+                                     expr.pos));
+                    } else {
+                        issues.push((InterpreterError::CallToNonFunction(None, v).into(), expr.pos));
+                    }
+                    return Err(issues);
+                }
+            };
+
+            if let Err(e) = check_args_compat(&arg_types, func_type.get_call_sign(), expr) {
+                issues.push(e);
+            }
+
+            if issues.len() == 0 {
+                let ret_type = match func_type {
+                    FunctionType::NativeReturning(_) => Some(Type::Any),
+                    FunctionType::NativeVoid(_) => None,
+                    FunctionType::User { .. } => Some(Type::Any),
+                };
+                Ok(ret_type)
+            } else {
+                Err(issues)
+            }
         }
-        Expr::FunctionDefinition(_, _, _) => unimplemented!(),
+        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
+            let func = FunctionType::User {
+                // FIXME
+                returning: false,
+                call_sign: CallSign {
+                    num_params: param_list.len(),
+                    variadic: false,
+                },
+                param_list: param_list.clone(),
+                body: body.clone(),
+                env: env.clone(),
+            };
+            let func_type = Type::Function(Some(func));
+            if let &Some(ref id) = possible_id {
+                env.borrow_mut().declare(&id, &func_type);
+            }
+            let function_env = TypeEnvironment::create_clone(env);
+
+            for param in param_list {
+                function_env.borrow_mut().declare(&param, &Type::Any);
+            }
+            let inner_env = TypeEnvironment::create_child(function_env);
+            if let Err(e) = check_statement(&body, inner_env) {
+                return Err(e);
+            }
+            Ok(Some(func_type))
+        }
     }
 }
 
@@ -505,4 +619,17 @@ fn try_get_name_of_fn(expr: &Box<ExprNode>) -> Option<String> {
     } else {
         None
     }
+}
+
+fn check_args_compat(arg_types: &Vec<Type>,
+                     call_sign: CallSign,
+                     expr: &ExprNode)
+                     -> Result<(), TypeCheckerIssueWithPosition> {
+    if !call_sign.variadic && call_sign.num_params != arg_types.len() {
+        if let Expr::Identifier(ref id) = expr.data {
+            return Err((InterpreterError::ArgumentLength(Some(id.clone())).into(), expr.pos));
+        }
+        return Err((InterpreterError::ArgumentLength(None).into(), expr.pos));
+    }
+    Ok(())
 }

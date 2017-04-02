@@ -260,6 +260,7 @@ fn interpret_expr(e: &ExprNode,
         }
         Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
             let func = Function::User {
+                // FIXME: returning is no longer always false
                 returning: false,
                 call_sign: CallSign {
                     num_params: param_list.len(),

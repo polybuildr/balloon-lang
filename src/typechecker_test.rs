@@ -89,10 +89,25 @@ fn check_multiple_types_from_branch() {
                [(TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (11, 50))]);
 }
 
-// #[test]
-// fn check_none_error_for_builtin() {
-//     let result = check_and_get_result("-println(10);");
-//     assert_eq!(result.unwrap_err(), [
-//         (TypeCheckerIssue::InterpreterError(InterpreterError::NoneError(Some("println".to_owned()))), (1, 10))
-//     ]);
-// }
+#[test]
+fn check_none_error_for_builtin() {
+    let result = check_and_get_result("-println(10);");
+    assert_eq!(result.unwrap_err(),
+               [(TypeCheckerIssue::InterpreterError(InterpreterError::NoneError(Some("println"
+                     .to_owned()))),
+                 (1, 12))]);
+}
+
+#[test]
+fn check_arg_mismatch_fail() {
+    let result = check_and_get_result("fn f(x) {} f(1);");
+    assert!(result.is_ok());
+}
+
+#[test]
+fn check_arg_mismatch_pass() {
+    let result = check_and_get_result("fn f(x) {} f();");
+    assert_eq!(result.unwrap_err(),
+               [((TypeCheckerIssue::InterpreterError(InterpreterError::ArgumentLength(None))),
+                 (11, 14))]);
+}
