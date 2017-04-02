@@ -1,9 +1,9 @@
 use parser;
 use typechecker::check_program;
-use typechecker::Type;
 use typechecker::{TypeCheckerIssue, TypeCheckerIssueWithPosition};
 use interpreter::InterpreterError;
-use ast::{BinaryOp, UnaryOp};
+use typechecker::Type;
+use ast::*;
 
 fn check_and_get_result(code: &str) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let ast = parser::program(code);
@@ -110,4 +110,26 @@ fn check_arg_mismatch_pass() {
     assert_eq!(result.unwrap_err(),
                [((TypeCheckerIssue::InterpreterError(InterpreterError::ArgumentLength(None))),
                  (11, 14))]);
+}
+
+#[test]
+fn check_type_error_in_fn() {
+    let result = check_and_get_result("fn f() { true + 1; }");
+    assert_eq!(result.unwrap_err(),
+               [(TypeCheckerIssue::InterpreterError(InterpreterError::BinaryTypeError(BinaryOp::Add, Type::Bool, Type::Number)),
+                 (9, 17))]);
+}
+
+#[test]
+fn check_no_reference_error_in_fn() {
+    let result = check_and_get_result("var x = 1; fn f() { x; }");
+    assert!(result.is_ok());
+}
+
+#[test]
+fn check_reference_error_in_fn() {
+    let result = check_and_get_result("fn f() { x; }");
+    assert_eq!(result.unwrap_err(),
+               [(TypeCheckerIssue::InterpreterError(InterpreterError::ReferenceError("x".to_owned())),
+                 (9, 10))]);
 }
