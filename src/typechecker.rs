@@ -262,9 +262,9 @@ pub fn check_statement(s: &StatementNode,
                 Err(mut e) => issues.append(&mut e),
                 Ok(None) => {
                     if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                        return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
                                              .into(),
-                                         if_expr.pos)]);
+                                         if_expr.pos));
                     }
                 }
                 Ok(Some(_)) => {}
@@ -283,9 +283,9 @@ pub fn check_statement(s: &StatementNode,
                 }
                 Ok(None) => {
                     if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                        return Err(vec![(InterpreterError::NoneError(try_get_name_of_fn(id))
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
                                              .into(),
-                                         if_expr.pos)]);
+                                         if_expr.pos));
                     }
                 }
                 Ok(Some(_)) => {}
