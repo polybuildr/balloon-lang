@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::rc::Rc;
@@ -88,7 +88,7 @@ impl From<InterpreterError> for TypeCheckerIssue {
 
 #[derive(Clone)]
 pub struct TypeEnvironment {
-    pub symbol_table: HashMap<String, Type>,
+    pub symbol_table: BTreeMap<String, Type>,
     parent: Option<Rc<RefCell<TypeEnvironment>>>,
 }
 
@@ -115,7 +115,7 @@ impl TypeEnvironment {
 
     pub fn new() -> TypeEnvironment {
         TypeEnvironment {
-            symbol_table: HashMap::new(),
+            symbol_table: BTreeMap::new(),
             parent: None,
         }
     }
@@ -128,7 +128,7 @@ impl TypeEnvironment {
     pub fn create_child(parent: Rc<RefCell<TypeEnvironment>>) -> Rc<RefCell<TypeEnvironment>> {
         let env = TypeEnvironment {
             parent: Some(parent),
-            symbol_table: HashMap::default(),
+            symbol_table: BTreeMap::default(),
         };
         Rc::new(RefCell::new(env))
     }
