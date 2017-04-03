@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::collections::HashSet;
 use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -160,17 +159,15 @@ impl TypeEnvironment {
         }
     }
 
-    pub fn get_all_keys(&self) -> HashSet<String> {
-        let mut keys = HashSet::new();
-        for key in self.symbol_table.keys() {
-            keys.insert(key.clone());
+    pub fn get_all_pairs(&self) -> Vec<(String, Type)> {
+        let mut pairs = Vec::new();
+        for (key, value) in self.symbol_table.iter() {
+            pairs.push((key.clone(), value.clone()));
         }
         if let Some(ref parent) = self.parent {
-            for key in parent.borrow().get_all_keys() {
-                keys.insert(key.clone());
-            }
+            pairs.append(&mut parent.borrow().get_all_pairs());
         }
-        keys
+        pairs
     }
 }
 
@@ -296,21 +293,26 @@ pub fn check_statement(s: &StatementNode,
                 issues.append(&mut e);
             }
 
+            let then_pairs = then_env.borrow().get_all_pairs();
+
             if let Err(mut e) = check_statement(else_block, else_env.clone()) {
                 issues.append(&mut e);
             }
 
-            let names = then_env.borrow().get_all_keys();
-            for name in names {
-                let then_type = then_env.borrow().get_type(&name).unwrap();
-                let else_type = else_env.borrow().get_type(&name).unwrap();
-                println!("{}: {:?} and {:?}", name, then_type, else_type);
+            let else_pairs = else_env.borrow().get_all_pairs();
+
+            for (then_pair, else_pair) in then_pairs.iter().zip(else_pairs.iter()) {
+                let &(ref then_name, ref then_type) = then_pair;
+                let &(ref else_name, ref else_type) = else_pair;
+                if then_name != else_name {
+                    panic!("Unexpected behaviour when iterating through environments!");
+                }
                 if else_type != then_type {
-                    issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(name.clone()),
+                    issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
                                  s.pos));
-                    env.borrow_mut().set(&name, Type::Any);
+                    env.borrow_mut().set(&then_name, Type::Any);
                 } else {
-                    env.borrow_mut().set(&name, then_type);
+                    env.borrow_mut().set(&then_name, then_type.clone());
                 }
             }
         }

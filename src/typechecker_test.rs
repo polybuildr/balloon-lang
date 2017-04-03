@@ -133,3 +133,19 @@ fn check_reference_error_in_fn() {
                [(TypeCheckerIssue::InterpreterError(InterpreterError::ReferenceError("x".to_owned())),
                  (9, 10))]);
 }
+
+#[test]
+fn check_nested_multiple_types_error() {
+    let result = check_and_get_result("var x = 1;
+if 1 {
+    if 2 {
+        x = true;
+    } else {
+        x = 1;
+    }
+} else {
+    x = 5;
+}");
+    assert_eq!(result.unwrap_err(),
+              [(TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (22, 81))]);
+}
