@@ -326,7 +326,24 @@ pub fn check_statement(s: &StatementNode,
         Statement::Break => {}
         Statement::Empty => {}
         Statement::Return(ref possible_expr) => {
-            unimplemented!();
+            if let &Some(ref expr) = possible_expr {
+                match check_expr(expr, env.clone()) {
+                    Ok(None) => {
+                        if let Expr::FunctionCall(ref id, _) = expr.data {
+                            issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
+                                                .into(),
+                                            expr.pos));
+                        }
+                        unreachable!();
+                    }
+                    Ok(Some(_)) => {
+                        // TODO
+                    }
+                    Err(mut e) => {
+                        issues.append(&mut e);
+                    },
+                };
+            }
         }
     };
     if issues.len() == 0 {
