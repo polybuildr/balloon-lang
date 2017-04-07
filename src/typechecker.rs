@@ -37,6 +37,7 @@ pub enum Type {
     Bool,
     Any,
     Function(Option<FunctionType>),
+    String,
 }
 
 impl PartialEq for Type {
@@ -58,6 +59,7 @@ impl From<ast::Literal> for Type {
             ast::Literal::Integer(_) => Type::Number,
             ast::Literal::Float(_) => Type::Number,
             ast::Literal::Bool(_) => Type::Bool,
+            ast::Literal::String(_) => Type::String,
         }
     }
 }
@@ -69,6 +71,7 @@ impl fmt::Display for Type {
             Type::Bool => write!(f, "Bool"),
             Type::Any => write!(f, "Any"),
             Type::Function(_) => write!(f, "Function"),
+            Type::String => write!(f, "String"),
         }
     }
 }
@@ -262,9 +265,8 @@ pub fn check_statement(s: &StatementNode,
                 Err(mut e) => issues.append(&mut e),
                 Ok(None) => {
                     if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
-                                             .into(),
-                                         if_expr.pos));
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     if_expr.pos));
                     }
                 }
                 Ok(Some(_)) => {}
@@ -283,9 +285,8 @@ pub fn check_statement(s: &StatementNode,
                 }
                 Ok(None) => {
                     if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
-                                             .into(),
-                                         if_expr.pos));
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     if_expr.pos));
                     }
                 }
                 Ok(Some(_)) => {}
@@ -330,9 +331,8 @@ pub fn check_statement(s: &StatementNode,
                 match check_expr(expr, env.clone()) {
                     Ok(None) => {
                         if let Expr::FunctionCall(ref id, _) = expr.data {
-                            issues.push((InterpreterError::NoneError(try_get_name_of_fn(id))
-                                                .into(),
-                                            expr.pos));
+                            issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                       expr.pos));
                         }
                         unreachable!();
                     }
@@ -341,7 +341,7 @@ pub fn check_statement(s: &StatementNode,
                     }
                     Err(mut e) => {
                         issues.append(&mut e);
-                    },
+                    }
                 };
             }
         }
@@ -437,7 +437,7 @@ fn check_expr(expr: &ExprNode,
             };
             use ast::BinaryOp::*;
             let result = match *op {
-                ref op @ Add |
+                Add => check_add_for_types(&checked_type_1, &checked_type_2),
                 ref op @ Sub |
                 ref op @ Mul |
                 ref op @ Div |
@@ -607,6 +607,17 @@ fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {
         Type::Number => Ok(Type::Number),
         Type::Any => Ok(Type::Any),
         _ => Err(InterpreterError::UnaryTypeError(UnaryOp::Minus, typ).into()),
+    }
+}
+
+fn check_add_for_types(t1: &Type, t2: &Type) -> Result<Type, TypeCheckerIssue> {
+    match (t1, t2) {
+        (&Type::Number, &Type::Number) => Ok(Type::Number),
+        (&Type::String, _) => Ok(Type::String),
+        (_, &Type::String) => Ok(Type::String),
+        (&Type::Any, _) => Ok(Type::Any),
+        (_, &Type::Any) => Ok(Type::Any),
+        _ => Err(InterpreterError::BinaryTypeError(BinaryOp::Add, t1.clone(), t2.clone()).into()),
     }
 }
 

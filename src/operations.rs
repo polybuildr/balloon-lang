@@ -12,6 +12,9 @@ pub fn unary_minus(a: Value) -> Result<Value, InterpreterError> {
 pub fn add(a: Value, b: Value) -> Result<Value, InterpreterError> {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+        (Value::String(sa), Value::String(sb)) => Ok(Value::String(sa + &sb)),
+        (Value::String(s), other) => Ok(Value::String(s + &other.to_string())),
+        (other, Value::String(s)) => Ok(Value::String(other.to_string() + &s)),
         (a, b) => Err(InterpreterError::BinaryTypeError(BinaryOp::Add, a.get_type(), b.get_type())),
     }
 }

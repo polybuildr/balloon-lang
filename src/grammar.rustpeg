@@ -127,6 +127,13 @@ literal -> Literal
     = f:float { Literal::Float(f) }
     / i:integer { Literal::Integer(i) }
     / b:boolean { Literal::Bool(b) }
+    / s:doubleQuotedString { Literal::String(s) }
+
+doubleQuotedString -> String
+    = #quiet<_doubleQuotedString> / #expected("string")
+
+_doubleQuotedString -> String
+    = '"' s:$([^"]*) '"' __ { s.to_owned() }
 
 integer -> i64
     = #quiet<_integer> / #expected("number")

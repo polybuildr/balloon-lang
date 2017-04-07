@@ -147,5 +147,5 @@ if 1 {
     x = 5;
 }");
     assert_eq!(result.unwrap_err(),
-              [(TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (22, 81))]);
+               [(TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (22, 81))]);
 }

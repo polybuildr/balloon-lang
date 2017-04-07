@@ -241,3 +241,12 @@ fact(4);
     assert_eq!(run_and_get_last_value(code),
                Value::Number(Number::Integer(24)));
 }
+
+#[test]
+fn test_string_concat() {
+    assert_eq!(run_and_get_last_value("\"abc\" + \"def\";"), Value::String("abcdef".to_owned()));
+    assert_eq!(run_and_get_last_value("\"abc\" + 123;"), Value::String("abc123".to_owned()));
+    assert_eq!(run_and_get_last_value("\"abc\" + true;"), Value::String("abctrue".to_owned()));
+    assert_eq!(run_and_get_last_value("456 + \"abc\";"), Value::String("456abc".to_owned()));
+    assert_eq!(run_and_get_last_value("false + \"abc\";"), Value::String("falseabc".to_owned()));
+}

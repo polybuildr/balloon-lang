@@ -11,6 +11,7 @@ pub enum Value {
     Number(Number),
     Bool(bool),
     Function(Function),
+    String(String),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -25,6 +26,7 @@ impl fmt::Display for Value {
             Value::Bool(b) => write!(f, "{}", b),
             Value::Number(n) => write!(f, "{}", n),
             Value::Function(_) => write!(f, "<Function>"),
+            Value::String(ref s) => write!(f, "{}", s),
         }
     }
 }
@@ -106,6 +108,7 @@ impl PartialEq for Value {
         match (self, other) {
             (&Value::Number(a), &Value::Number(b)) => a == b,
             (&Value::Bool(a), &Value::Bool(b)) => a == b,
+            (&Value::String(ref sa), &Value::String(ref sb)) => sa == sb,
             _ => false,
         }
     }
@@ -150,6 +153,7 @@ impl Value {
             &Value::Number(_) => Type::Number,
             &Value::Bool(_) => Type::Bool,
             &Value::Function(_) => Type::Function(None),
+            &Value::String(_) => Type::String,
         }
     }
 
@@ -162,6 +166,7 @@ impl Value {
                 }
             }
             Value::Bool(b) => b,
+            Value::String(ref s) => s != "",
             Value::Function(_) => true,
         }
     }
@@ -173,6 +178,7 @@ impl From<ast::Literal> for Value {
             ast::Literal::Integer(x) => Value::Number(Number::Integer(x)),
             ast::Literal::Float(x) => Value::Number(Number::Float(x)),
             ast::Literal::Bool(x) => Value::Bool(x),
+            ast::Literal::String(s) => Value::String(s),
         }
     }
 }
