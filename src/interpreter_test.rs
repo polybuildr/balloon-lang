@@ -51,6 +51,12 @@ fn variable_reassignment_with_type_change() {
 }
 
 #[test]
+fn identifier_name() {
+    assert_eq!(run_and_get_last_value("var _x_X123_ = false; _x_X123_;"),
+               Value::Bool(false));
+}
+
+#[test]
 fn arithmetic_1() {
     assert_eq!(run_and_get_last_value("(1 + 3 / (1 + 1)) * 12 - 1;"),
                Value::Number(Number::Float(29.0)));
