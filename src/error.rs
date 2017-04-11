@@ -35,7 +35,7 @@ pub fn get_error_and_line_for_file(parse_error: &parser::ParseError,
     let line_content;
 
     // error was in last line which was empty
-    if let None = line {
+    if line.is_none() {
         parse_error.line -= 1;
         buf_reader.seek(io::SeekFrom::Start(0)).unwrap();
         // more helpful to point to end of previous line
@@ -48,11 +48,11 @@ pub fn get_error_and_line_for_file(parse_error: &parser::ParseError,
     (parse_error, line_content)
 }
 
-pub fn print_parse_error(file_name: &String,
-                         line_content: String,
-                         parse_error: parser::ParseError) {
+pub fn print_parse_error(file_name: &str,
+                         line_content: &str,
+                         parse_error: &parser::ParseError) {
     println!("{}: {}: line {}, col {}: expected one of {:?}",
-             Style::new().bold().paint(file_name.clone()),
+             Style::new().bold().paint((*file_name).to_owned()),
              Red.bold().paint("parse error"),
              parse_error.line,
              parse_error.column,
@@ -73,7 +73,7 @@ pub struct SourceSpan {
     pub end_col: usize,
 }
 
-pub fn offset_span_to_source_span(span: OffsetSpan, input: &String) -> SourceSpan {
+pub fn offset_span_to_source_span(span: OffsetSpan, input: &str) -> SourceSpan {
     let (start_line, start_col) = offset_to_line_and_col(input, span.0);
     let (end_line, end_col) = offset_to_line_and_col(input, span.1 - 1);
     SourceSpan {
@@ -84,7 +84,7 @@ pub fn offset_span_to_source_span(span: OffsetSpan, input: &String) -> SourceSpa
     }
 }
 
-fn offset_to_line_and_col(input: &String, pos: usize) -> (usize, usize) {
+fn offset_to_line_and_col(input: &str, pos: usize) -> (usize, usize) {
     let mut remaining = pos;
     let mut line_num: usize = 1;
     for line in input.lines() {
@@ -95,13 +95,13 @@ fn offset_to_line_and_col(input: &String, pos: usize) -> (usize, usize) {
         remaining -= line_length;
         line_num += 1;
     }
-    return (line_num, remaining + 1);
+    (line_num, remaining + 1)
 }
 
 use interpreter::InterpreterError;
 use typechecker::TypeCheckerIssue;
 
-fn adjust_source_span(span: &mut SourceSpan, file_content: &String) {
+fn adjust_source_span(span: &mut SourceSpan, file_content: &str) {
     if (span.start_line != span.end_line) && span.end_col == 1 {
         span.end_col = 0;
     }
@@ -113,8 +113,8 @@ fn adjust_source_span(span: &mut SourceSpan, file_content: &String) {
 
 pub fn print_interpreter_error_for_file(err: InterpreterError,
                                         span: SourceSpan,
-                                        file_content: &String,
-                                        file_name: &String) {
+                                        file_content: &str,
+                                        file_name: &str) {
     print_typechecker_error_for_file(TypeCheckerIssue::InterpreterError(err),
                                      span,
                                      file_content,
@@ -123,8 +123,8 @@ pub fn print_interpreter_error_for_file(err: InterpreterError,
 
 pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                                         span: SourceSpan,
-                                        file_content: &String,
-                                        file_name: &String) {
+                                        file_content: &str,
+                                        file_name: &str) {
     let mut span = span;
     adjust_source_span(&mut span, file_content);
     if span.start_line == span.end_line {

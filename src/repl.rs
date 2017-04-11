@@ -18,14 +18,12 @@ pub fn run_repl() {
                 rl.add_history_entry(&line);
                 let orig_input = String::from(line.trim());
                 let mut input = orig_input.clone();
-                if !input.ends_with(";") {
-                    if let Err(_) = parser::program(&input) {
-                        input.push(';');
-                    }
+                if !input.ends_with(';') && parser::program(&input).is_err() {
+                    input.push(';');
                 }
                 match parser::program(&input) {
                     Err(parse_error) => {
-                        print_parse_error(&file_name, orig_input, parse_error);
+                        print_parse_error(&file_name, &orig_input, &parse_error);
                     }
                     Ok(ast) => {
                         match machine.run_ast_as_statements(&ast) {

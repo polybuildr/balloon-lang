@@ -50,25 +50,25 @@ impl Environment {
         Rc::new(RefCell::new(env))
     }
 
-    pub fn declare(&mut self, identifier: &String, value: &Value) {
-        self.symbol_table.insert(identifier.clone(), value.clone());
+    pub fn declare(&mut self, identifier: &str, value: &Value) {
+        self.symbol_table.insert(identifier.to_owned(), value.clone());
     }
 
-    pub fn set(&mut self, identifier: &String, value: Value) -> bool {
+    pub fn set(&mut self, identifier: &str, value: Value) -> bool {
         // TODO: Entry API
         if self.symbol_table.contains_key(identifier) {
-            self.symbol_table.insert(identifier.clone(), value);
-            return true;
+            self.symbol_table.insert(identifier.to_owned(), value);
+            true
         } else {
             match self.parent {
-                Some(ref parent) => return parent.borrow_mut().set(identifier, value),
-                None => return false,
-            };
+                Some(ref parent) => parent.borrow_mut().set(identifier, value),
+                None => false,
+            }
         }
     }
 
     // TODO: Why &mut?
-    pub fn get_value(&mut self, identifier: &String) -> Option<Value> {
+    pub fn get_value(&mut self, identifier: &str) -> Option<Value> {
         if let Some(val) = self.symbol_table.get(identifier) {
             return Some(val.clone());
         } else {

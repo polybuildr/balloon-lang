@@ -65,14 +65,14 @@ fn main() {
     };
 }
 
-fn parse_file(file_name: &String) -> Option<Vec<ast::StatementNode>> {
+fn parse_file(file_name: &str) -> Option<Vec<ast::StatementNode>> {
     match try_parse_file(file_name) {
         Err(err) => {
             match err {
                 ProcessingError::ParseError(parse_error) => {
                     let (parse_error, line_content) = get_error_and_line_for_file(&parse_error,
                                                                                   file_name);
-                    print_parse_error(file_name, line_content, parse_error);
+                    print_parse_error(file_name, &line_content, &parse_error);
                 }
                 ProcessingError::IoError(io_error) => {
                     match io_error.kind() {
@@ -87,7 +87,7 @@ fn parse_file(file_name: &String) -> Option<Vec<ast::StatementNode>> {
     }
 }
 
-fn try_parse_file(file_name: &String) -> Result<Vec<ast::StatementNode>, ProcessingError> {
+fn try_parse_file(file_name: &str) -> Result<Vec<ast::StatementNode>, ProcessingError> {
     let mut input_file = File::open(file_name)?;
     let mut input = String::new();
     input_file.read_to_string(&mut input)?;
@@ -95,7 +95,7 @@ fn try_parse_file(file_name: &String) -> Result<Vec<ast::StatementNode>, Process
     Ok(x?)
 }
 
-fn run_file(file_name: &String) {
+fn run_file(file_name: &str) {
     if let Some(ast) = parse_file(file_name) {
         let mut machine = Interpreter::new();
         let result = machine.run_ast_as_program(&ast);
@@ -107,7 +107,7 @@ fn run_file(file_name: &String) {
     }
 }
 
-fn typecheck_file(file_name: &String) {
+fn typecheck_file(file_name: &str) {
     if let Some(ast) = parse_file(file_name) {
         let result = typechecker::check_program(&ast);
         match result {
@@ -129,9 +129,9 @@ fn typecheck_file(file_name: &String) {
     }
 }
 
-fn read_file(file_name: &String) -> String {
+fn read_file(file_name: &str) -> String {
     let mut buf_reader = io::BufReader::new(File::open(file_name).unwrap());
     let mut file_content = String::new();
     buf_reader.read_to_string(&mut file_content).unwrap();
-    return file_content;
+    file_content
 }

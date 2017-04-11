@@ -46,27 +46,27 @@ impl Interpreter {
     }
 
     pub fn run_ast_as_program(&mut self,
-                              program: &Vec<StatementNode>)
+                              program: &[StatementNode])
                               -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
         interpret_program(program, self.root_env.clone())
     }
 
     pub fn run_ast_as_statements
         (&mut self,
-         statements: &Vec<StatementNode>)
+         statements: &[StatementNode])
          -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
         interpret_statements(statements, self.root_env.clone())
     }
 }
 
-fn interpret_program(program: &Vec<StatementNode>,
+fn interpret_program(program: &[StatementNode],
                      env: Rc<RefCell<Environment>>)
                      -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
     let result = interpret_statements(program, env.clone())?;
     Ok(result)
 }
 
-fn interpret_statements(statements: &Vec<StatementNode>,
+fn interpret_statements(statements: &[StatementNode],
                         env: Rc<RefCell<Environment>>)
                         -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
     let mut last_result = None;
@@ -82,17 +82,17 @@ fn interpret_statement(s: &StatementNode,
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, &expr)?;
-            match variable {
-                &Variable::Identifier(_, ref name) => {
-                    env.borrow_mut().declare(&name, &val);
+            let val = check_val_for_none_error(&possible_val, expr)?;
+            match *variable {
+                Variable::Identifier(_, ref name) => {
+                    env.borrow_mut().declare(name, &val);
                 }
             };
             Ok(StatementResult::None)
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, &expr)?;
+            let val = check_val_for_none_error(&possible_val, expr)?;
             match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
                     if !env.borrow_mut().set(id, val) {
@@ -114,7 +114,7 @@ fn interpret_statement(s: &StatementNode,
                     return Ok(last_result);
                 }
             }
-            return Ok(last_result);
+            Ok(last_result)
         }
         Statement::Expression(ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
@@ -125,7 +125,7 @@ fn interpret_statement(s: &StatementNode,
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
             let possible_val = interpret_expr(if_expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, &if_expr)?;
+            let val = check_val_for_none_error(&possible_val, if_expr)?;
             if val.is_truthy() {
                 let result = interpret_statement(then_block, env.clone())?;
                 if let StatementResult::Break = result {
@@ -134,11 +134,11 @@ fn interpret_statement(s: &StatementNode,
                     return Ok(result);
                 }
             }
-            return Ok(StatementResult::None);
+            Ok(StatementResult::None)
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let possible_val = interpret_expr(if_expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, &if_expr)?;
+            let val = check_val_for_none_error(&possible_val, if_expr)?;
             if val.is_truthy() {
                 let result = interpret_statement(then_block, env.clone())?;
                 if let StatementResult::Break = result {
@@ -188,14 +188,14 @@ fn interpret_expr(e: &ExprNode,
     match e.data {
         Expr::Literal(ref x) => Ok(Some(Value::from(x.clone()))),
         Expr::Identifier(ref id) => {
-            match env.borrow_mut().get_value(&id) {
+            match env.borrow_mut().get_value(id) {
                 Some(v) => Ok(Some(v)),
                 None => Err((InterpreterError::ReferenceError(id.clone()), e.pos)),
             }
         }
         Expr::UnaryExpression(ref op, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, &expr)?;
+            let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
                 UnaryOp::Minus => {
                     match operations::unary_minus(val) {
@@ -207,16 +207,16 @@ fn interpret_expr(e: &ExprNode,
         }
         Expr::UnaryLogicalExpression(ref op, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, &expr)?;
+            let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
                 LogicalUnaryOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
             }
         }
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
             let possible_val_1 = interpret_expr(expr1, env.clone())?;
-            let val1 = check_val_for_none_error(&possible_val_1, &expr1)?;
+            let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
             let possible_val_2 = interpret_expr(expr2, env.clone())?;
-            let val2 = check_val_for_none_error(&possible_val_2, &expr2)?;
+            let val2 = check_val_for_none_error(&possible_val_2, expr2)?;
             let retval = match *op {
                 BinaryOp::Add => operations::add(val1, val2),
                 BinaryOp::Sub => operations::subtract(val1, val2),
@@ -238,22 +238,22 @@ fn interpret_expr(e: &ExprNode,
             match *op {
                 LogicalBinaryOp::LogicalAnd => {
                     let possible_val_1 = interpret_expr(expr1, env.clone())?;
-                    let val1 = check_val_for_none_error(&possible_val_1, &expr1)?;
+                    let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
                     if !val1.is_truthy() {
                         return Ok(Some(Value::Bool(false)));
                     }
                     let possible_val_2 = interpret_expr(expr2, env.clone())?;
-                    let val2 = check_val_for_none_error(&possible_val_2, &expr2)?;
+                    let val2 = check_val_for_none_error(&possible_val_2, expr2)?;
                     Ok(Some(Value::Bool(val2.is_truthy())))
                 }
                 LogicalBinaryOp::LogicalOr => {
                     let possible_val_1 = interpret_expr(expr1, env.clone())?;
-                    let val1 = check_val_for_none_error(&possible_val_1, &expr1)?;
+                    let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
                     if val1.is_truthy() {
                         return Ok(Some(Value::Bool(true)));
                     }
                     let possible_val_2 = interpret_expr(expr2, env.clone())?;
-                    let val2 = check_val_for_none_error(&possible_val_2, &expr2)?;
+                    let val2 = check_val_for_none_error(&possible_val_2, expr2)?;
                     Ok(Some(Value::Bool(val2.is_truthy())))
                 }
             }
@@ -271,14 +271,14 @@ fn interpret_expr(e: &ExprNode,
                 env: env.clone(),
             };
             let func_val = Value::Function(func);
-            if let &Some(ref id) = possible_id {
-                env.borrow_mut().declare(&id, &func_val);
+            if let Some(ref id) = *possible_id {
+                env.borrow_mut().declare(id, &func_val);
             }
             Ok(Some(func_val))
         }
         Expr::FunctionCall(ref expr, ref args) => {
             let possible_val = interpret_expr(expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, &expr)?;
+            let val = check_val_for_none_error(&possible_val, expr)?;
             let func = match val {
                 Value::Function(f) => f,
                 v => {
@@ -294,12 +294,12 @@ fn interpret_expr(e: &ExprNode,
             let mut arg_vals = Vec::new();
             for arg in args.iter() {
                 let possible_val = interpret_expr(arg, env.clone())?;
-                let val = check_val_for_none_error(&possible_val, &arg)?;
+                let val = check_val_for_none_error(&possible_val, arg)?;
                 arg_vals.push(val);
             }
 
             let call_sign = func.get_call_sign();
-            check_args_compat(&arg_vals, call_sign, e)?;
+            check_args_compat(&arg_vals, &call_sign, e)?;
 
             match func {
                 Function::NativeVoid(_, native_fn) => {
@@ -311,7 +311,7 @@ fn interpret_expr(e: &ExprNode,
                     // TODO: returning
                     let function_env = Environment::create_child(env.clone());
                     for (param, arg) in param_list.iter().zip(arg_vals.iter()) {
-                        function_env.borrow_mut().declare(&param, &arg);
+                        function_env.borrow_mut().declare(param, arg);
                     }
                     let inner_env = Environment::create_child(function_env);
                     if let StatementResult::Return(possible_val) =
@@ -332,7 +332,7 @@ fn interpret_expr(e: &ExprNode,
 fn check_val_for_none_error(val: &Option<Value>,
                             expr: &ExprNode)
                             -> Result<Value, InterpreterErrorWithPosition> {
-    if let &None = val {
+    if val.is_none() {
         if let Expr::FunctionCall(ref f_expr, _) = expr.data {
             if let Expr::Identifier(ref id) = f_expr.data {
                 return Err((InterpreterError::NoneError(Some(id.clone())), expr.pos));
@@ -343,8 +343,8 @@ fn check_val_for_none_error(val: &Option<Value>,
     Ok(val.clone().unwrap())
 }
 
-fn check_args_compat(arg_vals: &Vec<Value>,
-                     call_sign: CallSign,
+fn check_args_compat(arg_vals: &[Value],
+                     call_sign: &CallSign,
                      expr: &ExprNode)
                      -> Result<(), InterpreterErrorWithPosition> {
     if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
