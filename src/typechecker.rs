@@ -203,49 +203,10 @@ pub fn check_statement(s: &StatementNode,
     let mut issues = Vec::new();
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
-            let checked_type = match check_expr(expr, env.clone()) {
-                Ok(None) => {
-                    if let Expr::FunctionCall(ref id, _) = expr.data {
-                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                     expr.pos));
-                    }
-                    Type::Any
-                }
-                Ok(Some(t)) => t,
-                Err(mut e) => {
-                    issues.append(&mut e);
-                    Type::Any
-                }
-            };
-            match *variable {
-                Variable::Identifier(_, ref id) => {
-                    env.borrow_mut().declare(id, &checked_type);
-                }
-            };
+            check_statement_variable_declaration(variable, expr, env.clone(), &mut issues);
         }
         Statement::Assignment(ref lhs_expr, ref expr) => {
-            let checked_type = match check_expr(expr, env.clone()) {
-                Ok(None) => {
-                    if let Expr::FunctionCall(ref id, _) = expr.data {
-                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                     expr.pos));
-                    }
-                    Type::Any
-                }
-                Ok(Some(t)) => t,
-                Err(mut e) => {
-                    issues.append(&mut e);
-                    Type::Any
-                }
-            };
-            match lhs_expr.data {
-                LhsExpr::Identifier(ref id) => {
-                    if !env.borrow_mut().set(id, checked_type) {
-                        issues.push((InterpreterError::UndeclaredAssignment(id.clone()).into(),
-                                     lhs_expr.pos));
-                    }
-                }
-            };
+            check_statement_assignment(lhs_expr, expr, env.clone(), &mut issues);
         }
         Statement::Block(ref statements) => {
             let child_env = TypeEnvironment::create_child(env);
@@ -259,64 +220,15 @@ pub fn check_statement(s: &StatementNode,
             }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
-            let if_expr_result = check_expr(if_expr, env.clone());
-            match if_expr_result {
-                Err(mut e) => issues.append(&mut e),
-                Ok(None) => {
-                    if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                     if_expr.pos));
-                    }
-                }
-                Ok(Some(_)) => {}
-            }
-            if let Err(mut e) = check_statement(then_block, env.clone()) {
-                issues.append(&mut e);
-            }
+            check_statement_if_then(if_expr, then_block, env.clone(), &mut issues);
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
-            let then_env = TypeEnvironment::create_clone(env.clone());
-            let else_env = TypeEnvironment::create_clone(env.clone());
-            let if_expr_result = check_expr(if_expr, env.clone());
-            match if_expr_result {
-                Err(mut e) => {
-                    issues.append(&mut e);
-                }
-                Ok(None) => {
-                    if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                     if_expr.pos));
-                    }
-                }
-                Ok(Some(_)) => {}
-            }
-
-            if let Err(mut e) = check_statement(then_block, then_env.clone()) {
-                issues.append(&mut e);
-            }
-
-            let then_pairs = then_env.borrow().get_all_pairs();
-
-            if let Err(mut e) = check_statement(else_block, else_env.clone()) {
-                issues.append(&mut e);
-            }
-
-            let else_pairs = else_env.borrow().get_all_pairs();
-
-            for (then_pair, else_pair) in then_pairs.iter().zip(else_pairs.iter()) {
-                let &(ref then_name, ref then_type) = then_pair;
-                let &(ref else_name, ref else_type) = else_pair;
-                if then_name != else_name {
-                    panic!("Unexpected behaviour when iterating through environments!");
-                }
-                if else_type != then_type {
-                    issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
-                                 s.pos));
-                    env.borrow_mut().set(then_name, Type::Any);
-                } else {
-                    env.borrow_mut().set(then_name, then_type.clone());
-                }
-            }
+            check_statement_if_then_else(s,
+                                         if_expr,
+                                         then_block,
+                                         else_block,
+                                         env.clone(),
+                                         &mut issues);
         }
         Statement::Loop(ref block) => {
             if let Err(mut e) = check_statement(block, env.clone()) {
@@ -325,23 +237,7 @@ pub fn check_statement(s: &StatementNode,
         }
         Statement::Break | Statement::Empty => {}
         Statement::Return(ref possible_expr) => {
-            if let Some(ref expr) = *possible_expr {
-                match check_expr(expr, env.clone()) {
-                    Ok(None) => {
-                        if let Expr::FunctionCall(ref id, _) = expr.data {
-                            issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                       expr.pos));
-                        }
-                        unreachable!();
-                    }
-                    Ok(Some(_)) => {
-                        // TODO
-                    }
-                    Err(mut e) => {
-                        issues.append(&mut e);
-                    }
-                };
-            }
+            check_statement_return(possible_expr, env.clone(), &mut issues);
         }
     };
     if issues.is_empty() {
@@ -597,6 +493,149 @@ fn check_expr(expr: &ExprNode,
             }
             Ok(Some(func_type))
         }
+    }
+}
+
+fn check_statement_variable_declaration(variable: &Variable,
+                                        expr: &ExprNode,
+                                        env: Rc<RefCell<TypeEnvironment>>,
+                                        issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+    let checked_type = match check_expr(expr, env.clone()) {
+        Ok(None) => {
+            if let Expr::FunctionCall(ref id, _) = expr.data {
+                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
+            }
+            Type::Any
+        }
+        Ok(Some(t)) => t,
+        Err(mut e) => {
+            issues.append(&mut e);
+            Type::Any
+        }
+    };
+    match *variable {
+        Variable::Identifier(_, ref id) => {
+            env.borrow_mut().declare(id, &checked_type);
+        }
+    };
+}
+
+fn check_statement_assignment(lhs_expr: &LhsExprNode,
+                              expr: &ExprNode,
+                              env: Rc<RefCell<TypeEnvironment>>,
+                              issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+    let checked_type = match check_expr(expr, env.clone()) {
+        Ok(None) => {
+            if let Expr::FunctionCall(ref id, _) = expr.data {
+                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
+            }
+            Type::Any
+        }
+        Ok(Some(t)) => t,
+        Err(mut e) => {
+            issues.append(&mut e);
+            Type::Any
+        }
+    };
+    match lhs_expr.data {
+        LhsExpr::Identifier(ref id) => {
+            if !env.borrow_mut().set(id, checked_type) {
+                issues.push((InterpreterError::UndeclaredAssignment(id.clone()).into(),
+                             lhs_expr.pos));
+            }
+        }
+    };
+}
+
+fn check_statement_if_then(if_expr: &ExprNode,
+                           then_block: &StatementNode,
+                           env: Rc<RefCell<TypeEnvironment>>,
+                           issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+    let if_expr_result = check_expr(if_expr, env.clone());
+    match if_expr_result {
+        Err(mut e) => issues.append(&mut e),
+        Ok(None) => {
+            if let Expr::FunctionCall(ref id, _) = if_expr.data {
+                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                             if_expr.pos));
+            }
+        }
+        Ok(Some(_)) => {}
+    }
+    if let Err(mut e) = check_statement(then_block, env.clone()) {
+        issues.append(&mut e);
+    }
+}
+
+fn check_statement_if_then_else(statement: &StatementNode,
+                                if_expr: &ExprNode,
+                                then_block: &StatementNode,
+                                else_block: &StatementNode,
+                                env: Rc<RefCell<TypeEnvironment>>,
+                                issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+    let then_env = TypeEnvironment::create_clone(env.clone());
+    let else_env = TypeEnvironment::create_clone(env.clone());
+    let if_expr_result = check_expr(if_expr, env.clone());
+    match if_expr_result {
+        Err(mut e) => {
+            issues.append(&mut e);
+        }
+        Ok(None) => {
+            if let Expr::FunctionCall(ref id, _) = if_expr.data {
+                issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                             if_expr.pos));
+            }
+        }
+        Ok(Some(_)) => {}
+    }
+
+    if let Err(mut e) = check_statement(then_block, then_env.clone()) {
+        issues.append(&mut e);
+    }
+
+    let then_pairs = then_env.borrow().get_all_pairs();
+
+    if let Err(mut e) = check_statement(else_block, else_env.clone()) {
+        issues.append(&mut e);
+    }
+
+    let else_pairs = else_env.borrow().get_all_pairs();
+
+    for (then_pair, else_pair) in then_pairs.iter().zip(else_pairs.iter()) {
+        let &(ref then_name, ref then_type) = then_pair;
+        let &(ref else_name, ref else_type) = else_pair;
+        if then_name != else_name {
+            panic!("Unexpected behaviour when iterating through environments!");
+        }
+        if else_type != then_type {
+            issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
+                         statement.pos));
+            env.borrow_mut().set(then_name, Type::Any);
+        } else {
+            env.borrow_mut().set(then_name, then_type.clone());
+        }
+    }
+}
+
+fn check_statement_return(possible_expr: &Option<ExprNode>,
+                          env: Rc<RefCell<TypeEnvironment>>,
+                          issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+    if let Some(ref expr) = *possible_expr {
+        match check_expr(expr, env.clone()) {
+            Ok(None) => {
+                if let Expr::FunctionCall(ref id, _) = expr.data {
+                    issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                 expr.pos));
+                }
+                unreachable!();
+            }
+            Ok(Some(_)) => {
+                // TODO
+            }
+            Err(mut e) => {
+                issues.append(&mut e);
+            }
+        };
     }
 }
 
