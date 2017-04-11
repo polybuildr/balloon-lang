@@ -48,9 +48,7 @@ pub fn get_error_and_line_for_file(parse_error: &parser::ParseError,
     (parse_error, line_content)
 }
 
-pub fn print_parse_error(file_name: &str,
-                         line_content: &str,
-                         parse_error: &parser::ParseError) {
+pub fn print_parse_error(file_name: &str, line_content: &str, parse_error: &parser::ParseError) {
     println!("{}: {}: line {}, col {}: expected one of {:?}",
              Style::new().bold().paint((*file_name).to_owned()),
              Red.bold().paint("parse error"),

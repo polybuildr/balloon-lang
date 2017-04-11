@@ -323,8 +323,7 @@ pub fn check_statement(s: &StatementNode,
                 issues.append(&mut e);
             }
         }
-        Statement::Break |
-        Statement::Empty => {}
+        Statement::Break | Statement::Empty => {}
         Statement::Return(ref possible_expr) => {
             if let Some(ref expr) = *possible_expr {
                 match check_expr(expr, env.clone()) {
@@ -614,8 +613,7 @@ fn check_add_for_types(t1: &Type, t2: &Type) -> Result<Type, TypeCheckerIssue> {
         (&Type::Number, &Type::Number) => Ok(Type::Number),
         (&Type::String, _) |
         (_, &Type::String) => Ok(Type::String),
-        (&Type::Any, _) |
-        (_, &Type::Any) => Ok(Type::Any),
+        (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
         _ => Err(InterpreterError::BinaryTypeError(BinaryOp::Add, t1.clone(), t2.clone()).into()),
     }
 }
@@ -626,8 +624,7 @@ fn check_binary_arithmetic_for_types(op: BinaryOp,
                                      -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Number),
-        (&Type::Any, _) |
-        (_, &Type::Any) => Ok(Type::Any),
+        (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
         _ => Err(InterpreterError::BinaryTypeError(op, t1.clone(), t2.clone()).into()),
     }
 }
@@ -638,8 +635,7 @@ fn check_binary_comparison_for_types(op: BinaryOp,
                                      -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Bool),
-        (&Type::Any, _) |
-        (_, &Type::Any) => Ok(Type::Any),
+        (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
         _ => Err(InterpreterError::BinaryTypeError(op, t1.clone(), t2.clone()).into()),
     }
 }
