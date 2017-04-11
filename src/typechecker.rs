@@ -23,10 +23,10 @@ pub enum FunctionType {
 
 impl FunctionType {
     pub fn get_call_sign(&self) -> CallSign {
-        match self {
-            &FunctionType::NativeVoid(ref call_sign) => call_sign.clone(),
-            &FunctionType::NativeReturning(ref call_sign) => call_sign.clone(),
-            &FunctionType::User { ref call_sign, .. } => call_sign.clone(),
+        match *self {
+            FunctionType::NativeVoid(ref call_sign) |
+            FunctionType::NativeReturning(ref call_sign) |
+            FunctionType::User { ref call_sign, .. } => call_sign.clone(),
         }
     }
 }
@@ -43,10 +43,10 @@ pub enum Type {
 impl PartialEq for Type {
     fn eq(&self, other: &Type) -> bool {
         match (self, other) {
-            (&Type::Number, &Type::Number) => true,
-            (&Type::Bool, &Type::Bool) => true,
-            (&Type::Function(_), &Type::Function(_)) => true,
-            (&Type::Any, _) => true,
+            (&Type::Number, &Type::Number) |
+            (&Type::Bool, &Type::Bool) |
+            (&Type::Function(_), &Type::Function(_)) |
+            (&Type::Any, _) |
             (_, &Type::Any) => true,
             _ => false,
         }
@@ -56,7 +56,7 @@ impl PartialEq for Type {
 impl From<ast::Literal> for Type {
     fn from(from: ast::Literal) -> Self {
         match from {
-            ast::Literal::Integer(_) => Type::Number,
+            ast::Literal::Integer(_) |
             ast::Literal::Float(_) => Type::Number,
             ast::Literal::Bool(_) => Type::Bool,
             ast::Literal::String(_) => Type::String,
@@ -137,23 +137,23 @@ impl TypeEnvironment {
         Rc::new(RefCell::new(env))
     }
 
-    pub fn declare(&mut self, id: &String, typ: &Type) {
-        self.symbol_table.insert(id.clone(), typ.clone());
+    pub fn declare(&mut self, id: &str, typ: &Type) {
+        self.symbol_table.insert(id.to_owned(), typ.clone());
     }
 
-    pub fn set(&mut self, identifier: &String, typ: Type) -> bool {
+    pub fn set(&mut self, identifier: &str, typ: Type) -> bool {
         if self.symbol_table.contains_key(identifier) {
-            self.symbol_table.insert(identifier.clone(), typ);
-            return true;
+            self.symbol_table.insert(identifier.to_owned(), typ);
+            true
         } else {
             match self.parent {
-                Some(ref parent) => return parent.borrow_mut().set(identifier, typ),
-                None => return false,
-            };
+                Some(ref parent) => parent.borrow_mut().set(identifier, typ),
+                None => false,
+            }
         }
     }
 
-    pub fn get_type(&self, identifier: &String) -> Option<Type> {
+    pub fn get_type(&self, identifier: &str) -> Option<Type> {
         if let Some(typ) = self.symbol_table.get(identifier) {
             return Some(typ.clone());
         } else {
@@ -166,7 +166,7 @@ impl TypeEnvironment {
 
     pub fn get_all_pairs(&self) -> Vec<(String, Type)> {
         let mut pairs = Vec::new();
-        for (key, value) in self.symbol_table.iter() {
+        for (key, value) in &self.symbol_table {
             pairs.push((key.clone(), value.clone()));
         }
         if let Some(ref parent) = self.parent {
@@ -176,13 +176,12 @@ impl TypeEnvironment {
     }
 }
 
-pub fn check_program(ast: &Vec<StatementNode>) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
+pub fn check_program(ast: &[StatementNode]) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let root_env = TypeEnvironment::new_root();
-    let result = check_statements(ast, root_env.clone());
-    result
+    check_statements(ast, root_env.clone())
 }
 
-pub fn check_statements(ast: &Vec<StatementNode>,
+pub fn check_statements(ast: &[StatementNode],
                         env: Rc<RefCell<TypeEnvironment>>)
                         -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
@@ -191,7 +190,7 @@ pub fn check_statements(ast: &Vec<StatementNode>,
             issues.append(&mut e);
         }
     }
-    if issues.len() == 0 {
+    if issues.is_empty() {
         Ok(())
     } else {
         Err(issues)
@@ -218,8 +217,8 @@ pub fn check_statement(s: &StatementNode,
                     Type::Any
                 }
             };
-            match variable {
-                &Variable::Identifier(_, ref id) => {
+            match *variable {
+                Variable::Identifier(_, ref id) => {
                     env.borrow_mut().declare(id, &checked_type);
                 }
             };
@@ -313,9 +312,9 @@ pub fn check_statement(s: &StatementNode,
                 if else_type != then_type {
                     issues.push((TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
                                  s.pos));
-                    env.borrow_mut().set(&then_name, Type::Any);
+                    env.borrow_mut().set(then_name, Type::Any);
                 } else {
-                    env.borrow_mut().set(&then_name, then_type.clone());
+                    env.borrow_mut().set(then_name, then_type.clone());
                 }
             }
         }
@@ -324,10 +323,9 @@ pub fn check_statement(s: &StatementNode,
                 issues.append(&mut e);
             }
         }
-        Statement::Break => {}
-        Statement::Empty => {}
+        Statement::Break | Statement::Empty => {}
         Statement::Return(ref possible_expr) => {
-            if let &Some(ref expr) = possible_expr {
+            if let Some(ref expr) = *possible_expr {
                 match check_expr(expr, env.clone()) {
                     Ok(None) => {
                         if let Expr::FunctionCall(ref id, _) = expr.data {
@@ -346,7 +344,7 @@ pub fn check_statement(s: &StatementNode,
             }
         }
     };
-    if issues.len() == 0 {
+    if issues.is_empty() {
         Ok(())
     } else {
         Err(issues)
@@ -359,7 +357,7 @@ fn check_expr(expr: &ExprNode,
     match expr.data {
         Expr::Literal(ref x) => Ok(Some(Type::from(x.clone()))),
         Expr::Identifier(ref id) => {
-            match env.borrow().get_type(&id) {
+            match env.borrow().get_type(id) {
                 Some(t) => Ok(Some(t)),
                 None => Err(vec![(InterpreterError::ReferenceError(id.clone()).into(), expr.pos)]),
             }
@@ -458,7 +456,7 @@ fn check_expr(expr: &ExprNode,
                     Err(issues)
                 }
                 Ok(t) => {
-                    if issues.len() == 0 {
+                    if issues.is_empty() {
                         Ok(Some(t))
                     } else {
                         Err(issues)
@@ -497,7 +495,7 @@ fn check_expr(expr: &ExprNode,
                         }
                         Ok(Some(_)) => {}
                     };
-                    if issues.len() == 0 {
+                    if issues.is_empty() {
                         Ok(Some(Type::Bool))
                     } else {
                         Err(issues)
@@ -557,14 +555,14 @@ fn check_expr(expr: &ExprNode,
                 }
             };
 
-            if let Err(e) = check_args_compat(&arg_types, func_type.get_call_sign(), expr) {
+            if let Err(e) = check_args_compat(&arg_types, &func_type.get_call_sign(), expr) {
                 issues.push(e);
             }
 
-            if issues.len() == 0 {
+            if issues.is_empty() {
                 let ret_type = match func_type {
-                    FunctionType::NativeReturning(_) => Some(Type::Any),
                     FunctionType::NativeVoid(_) => None,
+                    FunctionType::NativeReturning(_) |
                     FunctionType::User { .. } => Some(Type::Any),
                 };
                 Ok(ret_type)
@@ -585,16 +583,16 @@ fn check_expr(expr: &ExprNode,
                 env: env.clone(),
             };
             let func_type = Type::Function(Some(func));
-            if let &Some(ref id) = possible_id {
-                env.borrow_mut().declare(&id, &func_type);
+            if let Some(ref id) = *possible_id {
+                env.borrow_mut().declare(id, &func_type);
             }
             let function_env = TypeEnvironment::create_clone(env);
 
             for param in param_list {
-                function_env.borrow_mut().declare(&param, &Type::Any);
+                function_env.borrow_mut().declare(param, &Type::Any);
             }
             let inner_env = TypeEnvironment::create_child(function_env);
-            if let Err(e) = check_statement(&body, inner_env) {
+            if let Err(e) = check_statement(body, inner_env) {
                 return Err(e);
             }
             Ok(Some(func_type))
@@ -613,10 +611,9 @@ fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {
 fn check_add_for_types(t1: &Type, t2: &Type) -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Number),
-        (&Type::String, _) => Ok(Type::String),
+        (&Type::String, _) |
         (_, &Type::String) => Ok(Type::String),
-        (&Type::Any, _) => Ok(Type::Any),
-        (_, &Type::Any) => Ok(Type::Any),
+        (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
         _ => Err(InterpreterError::BinaryTypeError(BinaryOp::Add, t1.clone(), t2.clone()).into()),
     }
 }
@@ -627,8 +624,7 @@ fn check_binary_arithmetic_for_types(op: BinaryOp,
                                      -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Number),
-        (&Type::Any, _) => Ok(Type::Any),
-        (_, &Type::Any) => Ok(Type::Any),
+        (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
         _ => Err(InterpreterError::BinaryTypeError(op, t1.clone(), t2.clone()).into()),
     }
 }
@@ -639,8 +635,7 @@ fn check_binary_comparison_for_types(op: BinaryOp,
                                      -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Bool),
-        (&Type::Any, _) => Ok(Type::Any),
-        (_, &Type::Any) => Ok(Type::Any),
+        (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
         _ => Err(InterpreterError::BinaryTypeError(op, t1.clone(), t2.clone()).into()),
     }
 }
@@ -653,8 +648,8 @@ fn try_get_name_of_fn(expr: &Box<ExprNode>) -> Option<String> {
     }
 }
 
-fn check_args_compat(arg_types: &Vec<Type>,
-                     call_sign: CallSign,
+fn check_args_compat(arg_types: &[Type],
+                     call_sign: &CallSign,
                      expr: &ExprNode)
                      -> Result<(), TypeCheckerIssueWithPosition> {
     if !call_sign.variadic && call_sign.num_params != arg_types.len() {

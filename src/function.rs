@@ -26,22 +26,23 @@ pub enum Function {
 
 impl Function {
     pub fn get_call_sign(&self) -> CallSign {
-        match self {
-            &Function::NativeVoid(ref call_sign, _) => call_sign.clone(),
-            &Function::NativeReturning(ref call_sign, _) => call_sign.clone(),
-            &Function::User { ref call_sign, .. } => call_sign.clone(),
+        match *self {
+            Function::NativeVoid(ref call_sign, _) |
+            Function::NativeReturning(ref call_sign, _) |
+            Function::User { ref call_sign, .. } => call_sign.clone(),
         }
     }
 }
 
+#[allow(needless_pass_by_value)]
 pub fn native_println(args: Vec<Value>) {
-    if args.len() == 0 {
+    if args.is_empty() {
         return;
     }
     if args.len() == 1 {
-        println!("{}", args.get(0).unwrap());
+        println!("{}", args[0]);
     } else {
-        print!("{}", args.get(0).unwrap());
+        print!("{}", args[0]);
         for arg in args.iter().skip(1) {
             print!(" {}", arg);
         }
