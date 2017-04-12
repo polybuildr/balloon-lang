@@ -80,6 +80,8 @@ impl fmt::Display for Type {
 pub enum TypeCheckerIssue {
     InterpreterError(InterpreterError),
     MultipleTypesFromBranchWarning(String),
+    UnreachableCodeAfterReturn,
+    FunctionNotAlwaysReturning,
 }
 
 pub type TypeCheckerIssueWithPosition = (TypeCheckerIssue, OffsetSpan);
@@ -186,7 +188,7 @@ pub fn check_statements(ast: &[StatementNode],
                         -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     for statement in ast.iter() {
-        if let Err(mut e) = check_statement(statement, env.clone()) {
+        if let Err(mut e) = check_statement(statement, env.clone()).0 {
             issues.append(&mut e);
         }
     }
@@ -197,10 +199,18 @@ pub fn check_statements(ast: &[StatementNode],
     }
 }
 
+#[derive(Debug)]
+pub enum StatementEffect {
+    None,
+    Return(Option<Type>),
+    ConditionalReturn(Option<Type>),
+}
+
 pub fn check_statement(s: &StatementNode,
                        env: Rc<RefCell<TypeEnvironment>>)
-                       -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
+                       -> (Result<(), Vec<TypeCheckerIssueWithPosition>>, StatementEffect) {
     let mut issues = Vec::new();
+    let mut effect = StatementEffect::None;
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             check_statement_variable_declaration(variable, expr, env.clone(), &mut issues);
@@ -209,10 +219,7 @@ pub fn check_statement(s: &StatementNode,
             check_statement_assignment(lhs_expr, expr, env.clone(), &mut issues);
         }
         Statement::Block(ref statements) => {
-            let child_env = TypeEnvironment::create_child(env);
-            if let Err(mut e) = check_statements(statements, child_env) {
-                issues.append(&mut e);
-            }
+            effect = check_statement_block(statements, env.clone(), &mut issues);
         }
         Statement::Expression(ref expr) => {
             if let Err(mut e) = check_expr(expr, env.clone()) {
@@ -220,30 +227,33 @@ pub fn check_statement(s: &StatementNode,
             }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
-            check_statement_if_then(if_expr, then_block, env.clone(), &mut issues);
+            effect = check_statement_if_then(if_expr, then_block, env.clone(), &mut issues);
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
-            check_statement_if_then_else(s,
-                                         if_expr,
-                                         then_block,
-                                         else_block,
-                                         env.clone(),
-                                         &mut issues);
+            effect = check_statement_if_then_else(s,
+                                                  if_expr,
+                                                  then_block,
+                                                  else_block,
+                                                  env.clone(),
+                                                  &mut issues);
         }
         Statement::Loop(ref block) => {
-            if let Err(mut e) = check_statement(block, env.clone()) {
+            if let Err(mut e) = check_statement(block, env.clone()).0 {
                 issues.append(&mut e);
             }
         }
-        Statement::Break | Statement::Empty => {}
+        Statement::Break => {}
+        Statement::Empty => {}
         Statement::Return(ref possible_expr) => {
-            check_statement_return(possible_expr, env.clone(), &mut issues);
+            let possible_return_type =
+                check_statement_return(possible_expr, env.clone(), &mut issues);
+            effect = StatementEffect::Return(possible_return_type);
         }
     };
     if issues.is_empty() {
-        Ok(())
+        (Ok(()), effect)
     } else {
-        Err(issues)
+        (Err(issues), effect)
     }
 }
 
@@ -328,10 +338,48 @@ fn check_statement_assignment(lhs_expr: &LhsExprNode,
     };
 }
 
+fn check_statement_block(statements: &[StatementNode],
+                         env: Rc<RefCell<TypeEnvironment>>,
+                         issues: &mut Vec<TypeCheckerIssueWithPosition>)
+                         -> StatementEffect {
+    let child_env = TypeEnvironment::create_child(env);
+    let mut final_effect = StatementEffect::None;
+    for statement in statements.iter() {
+        if let StatementEffect::Return(_) = final_effect {
+            issues.push((TypeCheckerIssue::UnreachableCodeAfterReturn, (statement.pos)));
+            break;
+        }
+        let response = check_statement(statement, child_env.clone());
+        if let Err(mut e) = response.0 {
+            issues.append(&mut e);
+        }
+        match final_effect {
+            StatementEffect::None => {
+                final_effect = response.1;
+            }
+            StatementEffect::Return(_) => { unreachable!() }
+            StatementEffect::ConditionalReturn(_) => {
+                match response.1 {
+                    StatementEffect::None => {},
+                    StatementEffect::ConditionalReturn => {
+                        final_effect = get_combined_effect(&statement,
+                                            &final_effect,
+                                            &response.1,
+                                            issues)
+                    }
+                }
+                
+            }
+        }
+    }
+    final_effect
+}
+
 fn check_statement_if_then(if_expr: &ExprNode,
                            then_block: &StatementNode,
                            env: Rc<RefCell<TypeEnvironment>>,
-                           issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+                           issues: &mut Vec<TypeCheckerIssueWithPosition>)
+                           -> StatementEffect {
     let if_expr_result = check_expr(if_expr, env.clone());
     match if_expr_result {
         Err(mut e) => issues.append(&mut e),
@@ -343,9 +391,11 @@ fn check_statement_if_then(if_expr: &ExprNode,
         }
         Ok(Some(_)) => {}
     }
-    if let Err(mut e) = check_statement(then_block, env.clone()) {
+    let then_block_response = check_statement(then_block, env.clone());
+    if let Err(mut e) = then_block_response.0 {
         issues.append(&mut e);
     }
+    then_block_response.1
 }
 
 fn check_statement_if_then_else(statement: &StatementNode,
@@ -353,7 +403,8 @@ fn check_statement_if_then_else(statement: &StatementNode,
                                 then_block: &StatementNode,
                                 else_block: &StatementNode,
                                 env: Rc<RefCell<TypeEnvironment>>,
-                                issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+                                issues: &mut Vec<TypeCheckerIssueWithPosition>)
+                                -> StatementEffect {
     let then_env = TypeEnvironment::create_clone(env.clone());
     let else_env = TypeEnvironment::create_clone(env.clone());
     let if_expr_result = check_expr(if_expr, env.clone());
@@ -370,13 +421,15 @@ fn check_statement_if_then_else(statement: &StatementNode,
         Ok(Some(_)) => {}
     }
 
-    if let Err(mut e) = check_statement(then_block, then_env.clone()) {
+    let then_block_response = check_statement(then_block, then_env.clone());
+    if let Err(mut e) = then_block_response.0 {
         issues.append(&mut e);
     }
 
     let then_pairs = then_env.borrow().get_all_pairs();
 
-    if let Err(mut e) = check_statement(else_block, else_env.clone()) {
+    let else_block_response = check_statement(else_block, else_env.clone());
+    if let Err(mut e) = else_block_response.0 {
         issues.append(&mut e);
     }
 
@@ -396,27 +449,39 @@ fn check_statement_if_then_else(statement: &StatementNode,
             env.borrow_mut().set(then_name, then_type.clone());
         }
     }
+
+    get_combined_effect(&statement,
+                        &then_block_response.1,
+                        &else_block_response.1,
+                        issues)
 }
 
 fn check_statement_return(possible_expr: &Option<ExprNode>,
                           env: Rc<RefCell<TypeEnvironment>>,
-                          issues: &mut Vec<TypeCheckerIssueWithPosition>) {
-    if let Some(ref expr) = *possible_expr {
-        match check_expr(expr, env.clone()) {
-            Ok(None) => {
-                if let Expr::FunctionCall(ref id, _) = expr.data {
-                    issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
-                                 expr.pos));
+                          issues: &mut Vec<TypeCheckerIssueWithPosition>)
+                          -> Option<Type> {
+    match *possible_expr {
+        Some(ref expr) => {
+            let mut ret_type = None;
+            match check_expr(expr, env.clone()) {
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
+                        issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                     expr.pos));
+                    } else {
+                        unreachable!();
+                    }
                 }
-                unreachable!();
+                Ok(Some(typ)) => {
+                    ret_type = Some(typ);
+                }
+                Err(mut e) => {
+                    issues.append(&mut e);
+                }
             }
-            Ok(Some(_)) => {
-                // TODO
-            }
-            Err(mut e) => {
-                issues.append(&mut e);
-            }
-        };
+            ret_type
+        }
+        None => None,
     }
 }
 
@@ -673,7 +738,7 @@ fn check_expr_function_definition(possible_id: &Option<String>,
         function_env.borrow_mut().declare(param, &Type::Any);
     }
     let inner_env = TypeEnvironment::create_child(function_env);
-    if let Err(e) = check_statement(body, inner_env) {
+    if let Err(e) = check_statement(body, inner_env).0 {
         return Err(e);
     }
     Ok(Some(func_type))
@@ -738,4 +803,30 @@ fn check_args_compat(arg_types: &[Type],
         return Err((InterpreterError::ArgumentLength(None).into(), expr.pos));
     }
     Ok(())
+}
+
+fn get_combined_effect(statement_1: &StatementNode,
+                       effect_1: &StatementEffect,
+                       statement_2: &StatementNode,
+                       effect_2: &StatementEffect,
+                       issues: &mut Vec<TypeCheckerIssueWithPosition>)
+                       -> StatementEffect {
+    match (effect_1, effect_2) {
+        (&StatementEffect::Return(Some(ref type_a)), &StatementEffect::Return(Some(ref type_b))) => {
+            if type_a == type_b {
+                StatementEffect::Return(Some(type_a.clone()))
+            } else {
+                StatementEffect::Return(Some(Type::Any))
+            }
+        }
+        (&StatementEffect::Return(Some(_)), _) => {
+            issues.push((TypeCheckerIssue::FunctionNotAlwaysReturning, statement_2.pos));
+            StatementEffect::None
+        }
+        (_, &StatementEffect::Return(Some(_))) => {
+            issues.push((TypeCheckerIssue::FunctionNotAlwaysReturning, statement_1.pos));
+            StatementEffect::None
+        }
+        _ => StatementEffect::None,
+    }
 }
