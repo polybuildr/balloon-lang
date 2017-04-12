@@ -211,6 +211,14 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                      Style::new().bold().paint("multiple types from branch"),
                      id);
         }
+        TypeCheckerIssue::UnreachableCodeAfterReturn => {
+            println!("{}: unreachable code found after return",
+                     Style::new().bold().paint("unreachable code"));
+        }
+        TypeCheckerIssue::FunctionNotAlwaysReturning => {
+            println!("{}: function does not always return a value",
+                     Style::new().bold().paint("possibly void function"));
+        }
     }
 
     if span.start_line == span.end_line {
