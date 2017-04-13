@@ -37,6 +37,7 @@ pub enum Type {
     Bool,
     Any,
     Function(Option<FunctionType>),
+    Tuple,
     String,
 }
 
@@ -72,6 +73,7 @@ impl fmt::Display for Type {
             Type::Any => write!(f, "Any"),
             Type::Function(_) => write!(f, "Function"),
             Type::String => write!(f, "String"),
+            Type::Tuple => write!(f, "Tuple"),
         }
     }
 }
@@ -258,6 +260,7 @@ fn check_expr(expr: &ExprNode,
                 None => Err(vec![(InterpreterError::ReferenceError(id.clone()).into(), expr.pos)]),
             }
         }
+        Expr::Tuple(ref elems) => check_expr_tuple(elems, env.clone()),
         Expr::UnaryExpression(ref op, ref expr) => check_expr_unary_op(op, expr, env.clone()),
         Expr::UnaryLogicalExpression(ref op, ref expr) => {
             check_expr_unary_logical_op(op, expr, env.clone())
@@ -417,6 +420,34 @@ fn check_statement_return(possible_expr: &Option<ExprNode>,
                 issues.append(&mut e);
             }
         };
+    }
+}
+
+fn check_expr_tuple(elems: &[ExprNode],
+                    env: Rc<RefCell<TypeEnvironment>>)
+                    -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
+    let mut issues = Vec::new();
+    for elem_expr in elems {
+        match check_expr(elem_expr, env.clone()) {
+            Ok(None) => {
+                if let Expr::FunctionCall(ref id, _) = elem_expr.data {
+                    issues.push((InterpreterError::NoneError(try_get_name_of_fn(id)).into(),
+                                 elem_expr.pos));
+                }
+                unreachable!();
+            }
+            Ok(Some(_)) => {
+                // TODO?
+            }
+            Err(mut e) => {
+                issues.append(&mut e);
+            }
+        };
+    }
+    if issues.is_empty() {
+        Ok(Some(Type::Bool))
+    } else {
+        Err(issues)
     }
 }
 

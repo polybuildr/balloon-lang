@@ -113,6 +113,7 @@ pub enum Expr {
     UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
     FunctionDefinition(Option<String>, Vec<String>, Box<StatementNode>),
     FunctionCall(Box<ExprNode>, Vec<ExprNode>),
+    Tuple(Vec<ExprNode>),
 }
 
 #[derive(Debug, Clone)]

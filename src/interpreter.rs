@@ -193,6 +193,15 @@ fn interpret_expr(e: &ExprNode,
                 None => Err((InterpreterError::ReferenceError(id.clone()), e.pos)),
             }
         }
+        Expr::Tuple(ref elems) => {
+            let mut values = Vec::new();
+            for elem_expr in elems {
+                let possible_val = interpret_expr(elem_expr, env.clone())?;
+                let val = check_val_for_none_error(&possible_val, elem_expr)?;
+                values.push(val);
+            }
+            Ok(Some(Value::Tuple(values)))
+        }
         Expr::UnaryExpression(ref op, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
@@ -227,7 +236,7 @@ fn interpret_expr(e: &ExprNode,
                 BinaryOp::LessThanOrEqual => operations::less_than_or_equal(val1, val2),
                 BinaryOp::GreaterThan => operations::greater_than(val1, val2),
                 BinaryOp::GreaterThanOrEqual => operations::greater_than_or_equal(val1, val2),
-                BinaryOp::StrictEquals => operations::strict_equals(val1, val2),
+                BinaryOp::StrictEquals => Ok(Value::Bool(val1 == val2)),
             };
             match retval {
                 Ok(v) => Ok(Some(v)),

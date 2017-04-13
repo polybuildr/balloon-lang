@@ -166,6 +166,20 @@ fn id_in_expr() {
 }
 
 #[test]
+fn create_tuple() {
+    assert_eq!(run_and_get_last_value("(1, 2, 3);"),
+               Value::Tuple(vec![Value::Number(Number::Integer(1)),
+                                 Value::Number(Number::Integer(2)),
+                                 Value::Number(Number::Integer(3))]));
+}
+
+#[test]
+fn add_tuples() {
+    assert_eq!(run_and_get_last_value("(\"a\",) + (\"t\",);"),
+               Value::Tuple(vec![Value::String("a".to_owned()), Value::String("t".to_owned())]));
+}
+
+#[test]
 fn if_expr_true() {
     assert_eq!(run_and_get_last_value("var x = 5; if 1 < 2 { x = 6; } else { x = 7; } x;"),
                Value::Number(Number::Integer(6)));
@@ -250,9 +264,14 @@ fact(4);
 
 #[test]
 fn test_string_concat() {
-    assert_eq!(run_and_get_last_value("\"abc\" + \"def\";"), Value::String("abcdef".to_owned()));
-    assert_eq!(run_and_get_last_value("\"abc\" + 123;"), Value::String("abc123".to_owned()));
-    assert_eq!(run_and_get_last_value("\"abc\" + true;"), Value::String("abctrue".to_owned()));
-    assert_eq!(run_and_get_last_value("456 + \"abc\";"), Value::String("456abc".to_owned()));
-    assert_eq!(run_and_get_last_value("false + \"abc\";"), Value::String("falseabc".to_owned()));
+    assert_eq!(run_and_get_last_value("\"abc\" + \"def\";"),
+               Value::String("abcdef".to_owned()));
+    assert_eq!(run_and_get_last_value("\"abc\" + 123;"),
+               Value::String("abc123".to_owned()));
+    assert_eq!(run_and_get_last_value("\"abc\" + true;"),
+               Value::String("abctrue".to_owned()));
+    assert_eq!(run_and_get_last_value("456 + \"abc\";"),
+               Value::String("456abc".to_owned()));
+    assert_eq!(run_and_get_last_value("false + \"abc\";"),
+               Value::String("falseabc".to_owned()));
 }

@@ -12,6 +12,7 @@ pub enum Value {
     Bool(bool),
     Function(Function),
     String(String),
+    Tuple(Vec<Value>),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -27,6 +28,16 @@ impl fmt::Display for Value {
             Value::Number(n) => write!(f, "{}", n),
             Value::Function(_) => write!(f, "<Function>"),
             Value::String(ref s) => write!(f, "{}", s),
+            Value::Tuple(ref t) => {
+                let mut output = "(".to_owned();
+                for elem in &t[0..t.len() - 1] {
+                    output.push_str(&elem.to_string());
+                    output.push_str(", ");
+                }
+                output.push_str(&t[t.len() - 1].to_string());
+                output.push_str(")");
+                write!(f, "{}", output)
+            }
         }
     }
 }
@@ -109,6 +120,7 @@ impl PartialEq for Value {
             (&Value::Number(a), &Value::Number(b)) => a == b,
             (&Value::Bool(a), &Value::Bool(b)) => a == b,
             (&Value::String(ref sa), &Value::String(ref sb)) => sa == sb,
+            (&Value::Tuple(ref ta), &Value::Tuple(ref tb)) => ta == tb,
             _ => false,
         }
     }
@@ -154,6 +166,7 @@ impl Value {
             Value::Bool(_) => Type::Bool,
             Value::Function(_) => Type::Function(None),
             Value::String(_) => Type::String,
+            Value::Tuple(_) => Type::Tuple,
         }
     }
 
@@ -168,6 +181,7 @@ impl Value {
             Value::Bool(b) => b,
             Value::String(ref s) => s != "",
             Value::Function(_) => true,
+            Value::Tuple(ref t) => !t.is_empty(),
         }
     }
 }
