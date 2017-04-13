@@ -31,10 +31,10 @@ impl fmt::Debug for Value {
             Value::Tuple(ref t) => {
                 let mut output = "(".to_owned();
                 for elem in &t[0..t.len() - 1] {
-                    output.push_str(&elem.to_string());
+                    output.push_str(&format!("{:?}", elem));
                     output.push_str(", ");
                 }
-                output.push_str(&t[t.len() - 1].to_string());
+                output.push_str(&format!("{:?}", &t[t.len() - 1]));
                 output.push_str(")");
                 write!(f, "{}", output)
             }
@@ -46,6 +46,16 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::String(ref s) => write!(f, "{}", s),
+            Value::Tuple(ref t) => {
+                let mut output = "(".to_owned();
+                for elem in &t[0..t.len() - 1] {
+                    output.push_str(&format!("{}", elem));
+                    output.push_str(", ");
+                }
+                output.push_str(&format!("{}", &t[t.len() - 1]));
+                output.push_str(")");
+                write!(f, "{}", output)
+            }
             ref value => write!(f, "{:?}", value),
         }
     }
