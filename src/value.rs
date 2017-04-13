@@ -6,7 +6,7 @@ use ast;
 use typechecker::Type;
 use function::*;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Value {
     Number(Number),
     Bool(bool),
@@ -21,13 +21,13 @@ pub enum Number {
     Float(f64),
 }
 
-impl fmt::Display for Value {
+impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::Bool(b) => write!(f, "{}", b),
             Value::Number(n) => write!(f, "{}", n),
             Value::Function(_) => write!(f, "<Function>"),
-            Value::String(ref s) => write!(f, "{}", s),
+            Value::String(ref s) => write!(f, "\"{}\"", s),
             Value::Tuple(ref t) => {
                 let mut output = "(".to_owned();
                 for elem in &t[0..t.len() - 1] {
@@ -38,6 +38,15 @@ impl fmt::Display for Value {
                 output.push_str(")");
                 write!(f, "{}", output)
             }
+        }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Value::String(ref s) => write!(f, "{}", s),
+            ref value => write!(f, "{:?}", value),
         }
     }
 }

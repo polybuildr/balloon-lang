@@ -34,7 +34,7 @@ pub fn run_repl() {
                             Ok(possible_result) => {
                                 if let Some(result) = possible_result {
                                     if let StatementResult::Value(v) = result {
-                                        println!("{}", v);
+                                        println!("{:?}", v);
                                     }
                                 }
                             }
