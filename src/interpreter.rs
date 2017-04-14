@@ -299,7 +299,6 @@ fn interpret_expr(e: &ExprNode,
                     return Err((InterpreterError::CallToNonFunction(None, v.get_type()), e.pos));
                 }
             };
-
             let mut arg_vals = Vec::new();
             for arg in args.iter() {
                 let possible_val = interpret_expr(arg, env.clone())?;
@@ -310,29 +309,33 @@ fn interpret_expr(e: &ExprNode,
             let call_sign = func.get_call_sign();
             check_args_compat(&arg_vals, &call_sign, e)?;
 
-            match func {
-                Function::NativeVoid(_, native_fn) => {
-                    native_fn(arg_vals);
-                    Ok(None)
+            call_func(&func, &arg_vals)
+        }
+    }
+}
+
+pub fn call_func(func: &Function, arg_vals: &Vec<Value>) -> Result<Option<Value>, InterpreterErrorWithPosition> {
+    match *func {
+        Function::NativeVoid(_, ref native_fn) => {
+            native_fn(arg_vals.clone());
+            Ok(None)
+        }
+        Function::NativeReturning(_, ref native_fn) => Ok(Some(native_fn(arg_vals.clone()))),
+        Function::User { ref param_list, ref body, ref env, .. } => {
+            // TODO: returning
+            let function_env = Environment::create_child(env.clone());
+            for (param, arg) in param_list.iter().zip(arg_vals.iter()) {
+                function_env.borrow_mut().declare(param, arg);
+            }
+            let inner_env = Environment::create_child(function_env);
+            if let StatementResult::Return(possible_val) =
+                interpret_statement(&body, inner_env)? {
+                match possible_val {
+                    Some(val) => Ok(Some(val)),
+                    None => Ok(None),
                 }
-                Function::NativeReturning(_, native_fn) => Ok(Some(native_fn(arg_vals))),
-                Function::User { param_list, body, env, .. } => {
-                    // TODO: returning
-                    let function_env = Environment::create_child(env.clone());
-                    for (param, arg) in param_list.iter().zip(arg_vals.iter()) {
-                        function_env.borrow_mut().declare(param, arg);
-                    }
-                    let inner_env = Environment::create_child(function_env);
-                    if let StatementResult::Return(possible_val) =
-                        interpret_statement(&body, inner_env)? {
-                        match possible_val {
-                            Some(val) => Ok(Some(val)),
-                            None => Ok(None),
-                        }
-                    } else {
-                        Ok(None)
-                    }
-                }
+            } else {
+                Ok(None)
             }
         }
     }
