@@ -314,7 +314,9 @@ fn interpret_expr(e: &ExprNode,
     }
 }
 
-pub fn call_func(func: &Function, arg_vals: &Vec<Value>) -> Result<Option<Value>, InterpreterErrorWithPosition> {
+pub fn call_func(func: &Function,
+                 arg_vals: &Vec<Value>)
+                 -> Result<Option<Value>, InterpreterErrorWithPosition> {
     match *func {
         Function::NativeVoid(_, ref native_fn) => {
             native_fn(arg_vals.clone());
@@ -328,8 +330,7 @@ pub fn call_func(func: &Function, arg_vals: &Vec<Value>) -> Result<Option<Value>
                 function_env.borrow_mut().declare(param, arg);
             }
             let inner_env = Environment::create_child(function_env);
-            if let StatementResult::Return(possible_val) =
-                interpret_statement(&body, inner_env)? {
+            if let StatementResult::Return(possible_val) = interpret_statement(&body, inner_env)? {
                 match possible_val {
                     Some(val) => Ok(Some(val)),
                     None => Ok(None),

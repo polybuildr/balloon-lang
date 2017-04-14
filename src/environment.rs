@@ -27,7 +27,13 @@ impl Environment {
                                                             num_params: 0,
                                                             variadic: true,
                                                         },
-                                                        native_println))];
+                                                        native_println)),
+                                  ("run_http_server",
+                                   Function::NativeVoid(CallSign {
+                                                            num_params: 1,
+                                                            variadic: false,
+                                                        },
+                                                        native_run_http_server))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
             env.declare(&name.to_string(), &Value::Function(func.clone()));

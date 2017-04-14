@@ -49,3 +49,41 @@ pub fn native_println(args: Vec<Value>) {
         println!("");
     }
 }
+
+#[allow(needless_pass_by_value)]
+pub fn native_run_http_server(args: Vec<Value>) {
+    use std::net::{TcpListener, Shutdown};
+    use interpreter::call_func;
+    use std::io::Write;
+
+    let ref handler_val = args[0];
+
+    let handler_func = match *handler_val {
+        Value::Function(ref f) => f,
+        _ => panic!("http_server: handler is not a Function"),
+    };
+    let server = TcpListener::bind("0.0.0.0:8000").unwrap();
+    for stream in server.incoming() {
+        let handler_response = call_func(handler_func, &vec![]);
+
+        let handler_response_value = if let Ok(Some(val)) = handler_response {
+            val
+        } else {
+            panic!("http_server: handler did not return a value");
+        };
+
+        match stream {
+            Ok(mut stream) => {
+                let response =
+                    "HTTP/1.0 200 OK\r\nServer:Balloon\r\nContent-Type:text/html\r\n\r\n"
+                        .to_owned() + &handler_response_value.to_string();
+                stream.write_all(response.as_bytes()).unwrap();
+                stream.flush().unwrap();
+                stream.shutdown(Shutdown::Both).unwrap();
+            }
+            Err(e) => {
+                println!("ERROR: {:?}", e);
+            }
+        }
+    }
+}
