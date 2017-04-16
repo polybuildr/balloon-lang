@@ -1,6 +1,6 @@
 use value::*;
 use ast::{BinaryOp, UnaryOp};
-use interpreter::RuntimeError;
+use runtime::RuntimeError;
 
 pub fn unary_minus(a: Value) -> Result<Value, RuntimeError> {
     match a {

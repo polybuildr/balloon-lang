@@ -15,7 +15,8 @@ mod parser {
 }
 
 mod ast;
-mod interpreter;
+mod runtime;
+mod ast_walk_interpreter;
 mod value;
 mod operations;
 mod environment;
@@ -30,28 +31,38 @@ mod interpreter_test;
 #[cfg(test)]
 mod typechecker_test;
 
-use interpreter::*;
+use runtime::*;
+use ast_walk_interpreter::*;
 
 use error::*;
 
+// FIXME: How do you represent the usage style in POSIX notation?
 fn print_usage() {
-    println!("usage: balloon [MODE] FILE
+    println!("usage: balloon [--repl-llvm | [MODE] FILE ]
+
+
+--repl-llvm     launches the experimental REPL
 
 where MODE is one of:
---run      (default) runs the file
---check    type check the file
---parse    only parse the file, don't run it");
+--run           (default) runs the file [FILE]
+--check         type check the file [FILE]
+--parse         only parse the file [FILE], don't run it");
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
     match args.len() {
-        1 => repl::run_repl(),
-        2 => run_file(&args[1]),
+        1 => repl::run_repl(AstWalkInterpreter::new()),
+        2 => {
+            match args[1].as_str() {
+                "--repl-llvm" => panic!("unimplemented LLVM backend"),
+                filepath => run_file(filepath, AstWalkInterpreter::new())
+            }
+        }
         3 => {
             match args[1].as_str() {
-                "--run" => run_file(&args[2]),
+                "--run" => run_file(&args[2], AstWalkInterpreter::new()),
                 "--check" => typecheck_file(&args[2]),
                 "--parse" => {
                     if let Some(ast) = parse_file(&args[2]) {
@@ -95,9 +106,8 @@ fn try_parse_file(file_name: &str) -> Result<Vec<ast::StatementNode>, Processing
     Ok(x?)
 }
 
-fn run_file(file_name: &str) {
+fn run_file<T: Interpreter>(file_name: &str,mut machine: T) {
     if let Some(ast) = parse_file(file_name) {
-        let mut machine = Interpreter::new();
         let result = machine.run_ast_as_program(&ast);
         if let Err(e) = result {
             let file_content = read_file(file_name);

@@ -96,7 +96,7 @@ fn offset_to_line_and_col(input: &str, pos: usize) -> (usize, usize) {
     (line_num, remaining + 1)
 }
 
-use interpreter::RuntimeError;
+use runtime::RuntimeError;
 use typechecker::TypeCheckerIssue;
 
 fn adjust_source_span(span: &mut SourceSpan, file_content: &str) {

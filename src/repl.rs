@@ -1,15 +1,16 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-use interpreter::*;
+use runtime::*;
 use error::*;
 use parser;
-use interpreter::StatementResult;
+use runtime::StatementResult;
 
-pub fn run_repl() {
+pub fn run_repl<T : Interpreter>(mut machine: T) {
     println!("Balloon REPL");
     let mut rl = Editor::<()>::new();
-    let mut machine = Interpreter::new();
+    // let mut machine = Interpreter::new();
+
     let file_name = "repl".to_string();
     loop {
         let readline = rl.readline("> ");
