@@ -1,7 +1,7 @@
 use parser;
 use typechecker::check_program;
 use typechecker::{TypeCheckerIssue, TypeCheckerIssueWithPosition};
-use interpreter::RuntimeError;
+use runtime::RuntimeError;
 use typechecker::Type;
 use ast::*;
 

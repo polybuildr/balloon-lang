@@ -5,7 +5,7 @@ use std::cell::RefCell;
 
 use ast::*;
 use ast;
-use interpreter::RuntimeError;
+use runtime::RuntimeError;
 use function::*;
 
 #[derive(Clone, Debug)]

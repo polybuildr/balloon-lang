@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use value::*;
 use ast;
 use environment::Environment;
-use interpreter::RuntimeError;
+use runtime::RuntimeError;
 
 #[derive(Clone, Debug)]
 pub struct CallSign {
@@ -55,7 +55,8 @@ pub fn native_println(args: Vec<Value>) -> Result<(), RuntimeError> {
 #[allow(needless_pass_by_value)]
 pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
     use std::net::{TcpListener, Shutdown};
-    use interpreter::call_func;
+    // TODO: refactor this to not call into ast_walk_interpreter
+    use ast_walk_interpreter::call_func;
     use std::io::Write;
 
     let ref handler_val = args[0];

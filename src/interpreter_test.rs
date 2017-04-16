@@ -1,6 +1,7 @@
 use parser;
-use interpreter::Interpreter;
-use interpreter::StatementResult;
+use runtime::Interpreter;
+use runtime::StatementResult;
+use ast_walk_interpreter::AstWalkInterpreter;
 use value::Value;
 use value::Number;
 
@@ -15,8 +16,23 @@ fn run_and_get_last_result(code: &str) -> StatementResult {
     let ast = parser::program(code);
     match ast {
         Ok(ast) => {
-            let mut machine = Interpreter::new();
-            machine.run_ast_as_program(&ast).unwrap().unwrap()
+            let mut ast_walk_interpreter = AstWalkInterpreter::new();
+            let reference_val = ast_walk_interpreter.run_ast_as_program(&ast)
+                .unwrap().unwrap();
+            return reference_val
+            /*
+             * Test plan forward once LLVM backend is written
+            let mut llvm_interpreter = LLVMInterpreter::new()
+            let llvm_val = llvm_interpreter.run_ast_as_program(&ast)
+                .unwrap().unwrap();
+
+            if (llvm_val == reference_val) {
+                reference_val
+            }
+            else {
+                panic!("LLVM value: {:?} does not agree with Reference Value {:?}"
+            }
+            */
         }
         Err(_) => panic!("{:?}", ast),
     }
