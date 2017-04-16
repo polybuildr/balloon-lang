@@ -96,7 +96,7 @@ fn offset_to_line_and_col(input: &str, pos: usize) -> (usize, usize) {
     (line_num, remaining + 1)
 }
 
-use interpreter::InterpreterError;
+use interpreter::RuntimeError;
 use typechecker::TypeCheckerIssue;
 
 fn adjust_source_span(span: &mut SourceSpan, file_content: &str) {
@@ -109,11 +109,11 @@ fn adjust_source_span(span: &mut SourceSpan, file_content: &str) {
     }
 }
 
-pub fn print_interpreter_error_for_file(err: InterpreterError,
+pub fn print_interpreter_error_for_file(err: RuntimeError,
                                         span: SourceSpan,
                                         file_content: &str,
                                         file_name: &str) {
-    print_typechecker_error_for_file(TypeCheckerIssue::InterpreterError(err),
+    print_typechecker_error_for_file(TypeCheckerIssue::RuntimeError(err),
                                      span,
                                      file_content,
                                      file_name);
@@ -137,32 +137,32 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                  span.start_col);
     }
     match err {
-        TypeCheckerIssue::InterpreterError(e) => {
+        TypeCheckerIssue::RuntimeError(e) => {
             match e {
-                InterpreterError::ReferenceError(id) => {
+                RuntimeError::ReferenceError(id) => {
                     println!("{}: `{}` was not declared",
                              Red.bold().paint("reference error"),
                              id);
                 }
-                InterpreterError::UndeclaredAssignment(id) => {
+                RuntimeError::UndeclaredAssignment(id) => {
                     println!("{}: cannot assign to undeclared `{}`",
                              Red.bold().paint("reference error"),
                              id);
                 }
-                InterpreterError::BinaryTypeError(binary_op, type1, type2) => {
+                RuntimeError::BinaryTypeError(binary_op, type1, type2) => {
                     println!("{}: `{}` cannot operate on types {} and {}",
                              Red.bold().paint("type error"),
                              binary_op,
                              type1,
                              type2);
                 }
-                InterpreterError::UnaryTypeError(unary_op, typ) => {
+                RuntimeError::UnaryTypeError(unary_op, typ) => {
                     println!("{}: `{}` cannot operate on type {}",
                              Red.bold().paint("type error"),
                              unary_op,
                              typ);
                 }
-                InterpreterError::NoneError(possible_id) => {
+                RuntimeError::NoneError(possible_id) => {
                     match possible_id {
                         Some(id) => {
                             println!("{}: tried to use return value of non-returning function \
@@ -176,7 +176,7 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                         }
                     }
                 }
-                InterpreterError::CallToNonFunction(possible_id, other_type) => {
+                RuntimeError::CallToNonFunction(possible_id, other_type) => {
                     match possible_id {
                         Some(id) => {
                             println!("{}: cannot call `{}` ({}) as Function",
@@ -191,7 +191,7 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                         }
                     }
                 }
-                InterpreterError::ArgumentLength(possible_id) => {
+                RuntimeError::ArgumentLength(possible_id) => {
                     match possible_id {
                         Some(id) => {
                             println!("{}: function `{}` called with incorrect number of arguments",

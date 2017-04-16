@@ -9,7 +9,7 @@ use typechecker::Type;
 use function::*;
 
 #[derive(Debug, PartialEq)]
-pub enum InterpreterError {
+pub enum RuntimeError {
     /// When an undeclared identifier is used on the RHS
     ReferenceError(String),
     /// When an undeclared identifier is assigned to
@@ -26,7 +26,7 @@ pub enum InterpreterError {
     ArgumentLength(Option<String>),
 }
 
-pub type InterpreterErrorWithPosition = (InterpreterError, OffsetSpan);
+pub type RuntimeErrorWithPosition = (RuntimeError, OffsetSpan);
 
 #[derive(Debug, PartialEq)]
 pub enum StatementResult {
@@ -47,28 +47,28 @@ impl Interpreter {
 
     pub fn run_ast_as_program(&mut self,
                               program: &[StatementNode])
-                              -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
+                              -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
         interpret_program(program, self.root_env.clone())
     }
 
     pub fn run_ast_as_statements
         (&mut self,
          statements: &[StatementNode])
-         -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
+         -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
         interpret_statements(statements, self.root_env.clone())
     }
 }
 
 fn interpret_program(program: &[StatementNode],
                      env: Rc<RefCell<Environment>>)
-                     -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
+                     -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
     let result = interpret_statements(program, env.clone())?;
     Ok(result)
 }
 
 fn interpret_statements(statements: &[StatementNode],
                         env: Rc<RefCell<Environment>>)
-                        -> Result<Option<StatementResult>, InterpreterErrorWithPosition> {
+                        -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
     let mut last_result = None;
     for statement in statements.iter() {
         last_result = Some(interpret_statement(statement, env.clone())?);
@@ -78,7 +78,7 @@ fn interpret_statements(statements: &[StatementNode],
 
 fn interpret_statement(s: &StatementNode,
                        env: Rc<RefCell<Environment>>)
-                       -> Result<StatementResult, InterpreterErrorWithPosition> {
+                       -> Result<StatementResult, RuntimeErrorWithPosition> {
     match s.data {
         Statement::VariableDeclaration(ref variable, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
@@ -96,7 +96,7 @@ fn interpret_statement(s: &StatementNode,
             match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
                     if !env.borrow_mut().set(id, val) {
-                        return Err((InterpreterError::UndeclaredAssignment(id.clone()),
+                        return Err((RuntimeError::UndeclaredAssignment(id.clone()),
                                     lhs_expr.pos));
                     }
                 }
@@ -184,13 +184,13 @@ fn interpret_statement(s: &StatementNode,
 }
 fn interpret_expr(e: &ExprNode,
                   env: Rc<RefCell<Environment>>)
-                  -> Result<Option<Value>, InterpreterErrorWithPosition> {
+                  -> Result<Option<Value>, RuntimeErrorWithPosition> {
     match e.data {
         Expr::Literal(ref x) => Ok(Some(Value::from(x.clone()))),
         Expr::Identifier(ref id) => {
             match env.borrow_mut().get_value(id) {
                 Some(v) => Ok(Some(v)),
-                None => Err((InterpreterError::ReferenceError(id.clone()), e.pos)),
+                None => Err((RuntimeError::ReferenceError(id.clone()), e.pos)),
             }
         }
         Expr::Tuple(ref elems) => {
@@ -292,11 +292,11 @@ fn interpret_expr(e: &ExprNode,
                 Value::Function(f) => f,
                 v => {
                     if let Expr::Identifier(ref id) = expr.data {
-                        return Err((InterpreterError::CallToNonFunction(Some(id.clone()),
+                        return Err((RuntimeError::CallToNonFunction(Some(id.clone()),
                                                                         v.get_type()),
                                     e.pos));
                     }
-                    return Err((InterpreterError::CallToNonFunction(None, v.get_type()), e.pos));
+                    return Err((RuntimeError::CallToNonFunction(None, v.get_type()), e.pos));
                 }
             };
             let mut arg_vals = Vec::new();
@@ -316,7 +316,7 @@ fn interpret_expr(e: &ExprNode,
 
 pub fn call_func(func: &Function,
                  arg_vals: &Vec<Value>)
-                 -> Result<Option<Value>, InterpreterErrorWithPosition> {
+                 -> Result<Option<Value>, RuntimeErrorWithPosition> {
     match *func {
         Function::NativeVoid(_, ref native_fn) => {
             native_fn(arg_vals.clone());
@@ -344,13 +344,13 @@ pub fn call_func(func: &Function,
 
 fn check_val_for_none_error(val: &Option<Value>,
                             expr: &ExprNode)
-                            -> Result<Value, InterpreterErrorWithPosition> {
+                            -> Result<Value, RuntimeErrorWithPosition> {
     if val.is_none() {
         if let Expr::FunctionCall(ref f_expr, _) = expr.data {
             if let Expr::Identifier(ref id) = f_expr.data {
-                return Err((InterpreterError::NoneError(Some(id.clone())), expr.pos));
+                return Err((RuntimeError::NoneError(Some(id.clone())), expr.pos));
             }
-            return Err((InterpreterError::NoneError(None), expr.pos));
+            return Err((RuntimeError::NoneError(None), expr.pos));
         }
     }
     Ok(val.clone().unwrap())
@@ -359,12 +359,12 @@ fn check_val_for_none_error(val: &Option<Value>,
 fn check_args_compat(arg_vals: &[Value],
                      call_sign: &CallSign,
                      expr: &ExprNode)
-                     -> Result<(), InterpreterErrorWithPosition> {
+                     -> Result<(), RuntimeErrorWithPosition> {
     if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
         if let Expr::Identifier(ref id) = expr.data {
-            return Err((InterpreterError::ArgumentLength(Some(id.clone())), expr.pos));
+            return Err((RuntimeError::ArgumentLength(Some(id.clone())), expr.pos));
         }
-        return Err((InterpreterError::ArgumentLength(None), expr.pos));
+        return Err((RuntimeError::ArgumentLength(None), expr.pos));
     }
     Ok(())
 }
