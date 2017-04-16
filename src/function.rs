@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use value::*;
 use ast;
 use environment::Environment;
+use interpreter::RuntimeError;
 
 #[derive(Clone, Debug)]
 pub struct CallSign {
@@ -13,8 +14,8 @@ pub struct CallSign {
 
 #[derive(Clone, Debug)]
 pub enum Function {
-    NativeVoid(CallSign, fn(Vec<Value>)),
-    NativeReturning(CallSign, fn(Vec<Value>) -> Value),
+    NativeVoid(CallSign, fn(Vec<Value>) -> Result<(), RuntimeError>),
+    NativeReturning(CallSign, fn(Vec<Value>) -> Result<Value, RuntimeError>),
     User {
         returning: bool,
         call_sign: CallSign,
@@ -35,9 +36,9 @@ impl Function {
 }
 
 #[allow(needless_pass_by_value)]
-pub fn native_println(args: Vec<Value>) {
+pub fn native_println(args: Vec<Value>) -> Result<(), RuntimeError> {
     if args.is_empty() {
-        return;
+        return Ok(());
     }
     if args.len() == 1 {
         println!("{}", args[0]);
@@ -48,10 +49,11 @@ pub fn native_println(args: Vec<Value>) {
         }
         println!("");
     }
+    Ok(())
 }
 
 #[allow(needless_pass_by_value)]
-pub fn native_run_http_server(args: Vec<Value>) {
+pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
     use std::net::{TcpListener, Shutdown};
     use interpreter::call_func;
     use std::io::Write;
@@ -60,7 +62,7 @@ pub fn native_run_http_server(args: Vec<Value>) {
 
     let handler_func = match *handler_val {
         Value::Function(ref f) => f,
-        _ => panic!("http_server: handler is not a Function"),
+        _ => return Err(RuntimeError::GeneralRuntimeError("http_server: handler is not a Function".to_owned())),
     };
     let server = TcpListener::bind("0.0.0.0:8000").unwrap();
     for stream in server.incoming() {
@@ -69,7 +71,7 @@ pub fn native_run_http_server(args: Vec<Value>) {
         let handler_response_value = if let Ok(Some(val)) = handler_response {
             val
         } else {
-            panic!("http_server: handler did not return a value");
+            return Err(RuntimeError::GeneralRuntimeError("http_server: handler did not return a value".to_owned()));
         };
 
         match stream {
@@ -82,8 +84,9 @@ pub fn native_run_http_server(args: Vec<Value>) {
                 stream.shutdown(Shutdown::Both).unwrap();
             }
             Err(e) => {
-                println!("ERROR: {:?}", e);
+                return Err(RuntimeError::GeneralRuntimeError(format!("http_server: Error in TcpStream: {:?}", e).to_owned()));
             }
         }
     }
+    Ok(())
 }

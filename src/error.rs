@@ -124,6 +124,7 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                                         file_content: &str,
                                         file_name: &str) {
     let mut span = span;
+    let mut error_to_print_after_this = None;
     adjust_source_span(&mut span, file_content);
     if span.start_line == span.end_line {
         println!("in {}, line {}, col {}:",
@@ -204,6 +205,13 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                         }
                     }
                 }
+                RuntimeError::GeneralRuntimeError(message) => {
+                    println!("{}: {}", Red.bold().paint("runtime error"), message);
+                }
+                RuntimeError::InsideFunctionCall(error_with_position) => {
+                    println!("{}:", Red.bold().paint("error in function call"));
+                    error_to_print_after_this = Some(error_with_position);
+                }
             }
         }
         TypeCheckerIssue::MultipleTypesFromBranchWarning(id) => {
@@ -279,6 +287,9 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
         }
 
         println!("{line_num:width$} |", line_num = "", width = max_idx_width);
-
+    }
+    if let Some(next_err) = error_to_print_after_this {
+        let span = offset_span_to_source_span(next_err.1, &file_content);
+        print_typechecker_error_for_file(TypeCheckerIssue::RuntimeError(next_err.0), span, file_content, file_name);
     }
 }

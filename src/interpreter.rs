@@ -24,6 +24,10 @@ pub enum RuntimeError {
     CallToNonFunction(Option<String>, Type),
     /// When the number of arguments don't match
     ArgumentLength(Option<String>),
+    /// When nothing else suits
+    GeneralRuntimeError(String),
+    /// When a runtime error occurs inside a function call and is getting propagated as a plain RuntimeError
+    InsideFunctionCall(Box<RuntimeErrorWithPosition>),
 }
 
 pub type RuntimeErrorWithPosition = (RuntimeError, OffsetSpan);
@@ -309,20 +313,24 @@ fn interpret_expr(e: &ExprNode,
             let call_sign = func.get_call_sign();
             check_args_compat(&arg_vals, &call_sign, e)?;
 
-            call_func(&func, &arg_vals)
+            let call_func_result = call_func(&func, &arg_vals);
+            match call_func_result {
+                Ok(possible_val) => Ok(possible_val),
+                Err(runtime_error) => Err((runtime_error, e.pos))
+            }
         }
     }
 }
 
 pub fn call_func(func: &Function,
                  arg_vals: &Vec<Value>)
-                 -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                 -> Result<Option<Value>, RuntimeError> {
     match *func {
         Function::NativeVoid(_, ref native_fn) => {
-            native_fn(arg_vals.clone());
+            native_fn(arg_vals.clone())?;
             Ok(None)
         }
-        Function::NativeReturning(_, ref native_fn) => Ok(Some(native_fn(arg_vals.clone()))),
+        Function::NativeReturning(_, ref native_fn) => Ok(Some(native_fn(arg_vals.clone())?)),
         Function::User { ref param_list, ref body, ref env, .. } => {
             // TODO: returning
             let function_env = Environment::create_child(env.clone());
@@ -330,13 +338,21 @@ pub fn call_func(func: &Function,
                 function_env.borrow_mut().declare(param, arg);
             }
             let inner_env = Environment::create_child(function_env);
-            if let StatementResult::Return(possible_val) = interpret_statement(&body, inner_env)? {
-                match possible_val {
-                    Some(val) => Ok(Some(val)),
-                    None => Ok(None),
+            let result = interpret_statement(&body, inner_env);
+            match result {
+                Err(error_with_position) => {
+                    Err(RuntimeError::InsideFunctionCall(Box::new(error_with_position)))
                 }
-            } else {
-                Ok(None)
+                Ok(statement_result) => {
+                    if let StatementResult::Return(possible_val) = statement_result {
+                        match possible_val {
+                            Some(val) => Ok(Some(val)),
+                            None => Ok(None),
+                        }
+                    } else {
+                        Ok(None)
+                    }
+                }
             }
         }
     }
