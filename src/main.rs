@@ -57,7 +57,7 @@ fn main() {
         2 => {
             match args[1].as_str() {
                 "--repl-llvm" => panic!("unimplemented LLVM backend"),
-                filepath => run_file(filepath, AstWalkInterpreter::new())
+                filepath => run_file(filepath, AstWalkInterpreter::new()),
             }
         }
         3 => {
@@ -106,7 +106,7 @@ fn try_parse_file(file_name: &str) -> Result<Vec<ast::StatementNode>, Processing
     Ok(x?)
 }
 
-fn run_file<T: Interpreter>(file_name: &str,mut machine: T) {
+fn run_file<T: Interpreter>(file_name: &str, mut machine: T) {
     if let Some(ast) = parse_file(file_name) {
         let result = machine.run_ast_as_program(&ast);
         if let Err(e) = result {

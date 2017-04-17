@@ -277,6 +277,9 @@ fn check_expr(expr: &ExprNode,
         Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
             check_expr_function_definition(possible_id, param_list, body, env.clone())
         }
+        Expr::MemberAccessByIndex(ref expr, ref index_expr) => {
+            check_expr_member_access_by_index(expr, index_expr, env.clone())
+        }
     }
 }
 
@@ -324,8 +327,7 @@ fn check_statement_assignment(lhs_expr: &LhsExprNode,
     match lhs_expr.data {
         LhsExpr::Identifier(ref id) => {
             if !env.borrow_mut().set(id, checked_type) {
-                issues.push((RuntimeError::UndeclaredAssignment(id.clone()).into(),
-                             lhs_expr.pos));
+                issues.push((RuntimeError::UndeclaredAssignment(id.clone()).into(), lhs_expr.pos));
             }
         }
     };
@@ -340,8 +342,7 @@ fn check_statement_if_then(if_expr: &ExprNode,
         Err(mut e) => issues.append(&mut e),
         Ok(None) => {
             if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                             if_expr.pos));
+                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), if_expr.pos));
             }
         }
         Ok(Some(_)) => {}
@@ -366,8 +367,7 @@ fn check_statement_if_then_else(statement: &StatementNode,
         }
         Ok(None) => {
             if let Expr::FunctionCall(ref id, _) = if_expr.data {
-                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                             if_expr.pos));
+                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), if_expr.pos));
             }
         }
         Ok(Some(_)) => {}
@@ -408,8 +408,7 @@ fn check_statement_return(possible_expr: &Option<ExprNode>,
         match check_expr(expr, env.clone()) {
             Ok(None) => {
                 if let Expr::FunctionCall(ref id, _) = expr.data {
-                    issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                 expr.pos));
+                    issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
                 }
                 unreachable!();
             }
@@ -445,7 +444,7 @@ fn check_expr_tuple(elems: &[ExprNode],
         };
     }
     if issues.is_empty() {
-        Ok(Some(Type::Bool))
+        Ok(Some(Type::Tuple))
     } else {
         Err(issues)
     }
@@ -508,8 +507,7 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
     let checked_type_1 = match check_expr(expr1, env.clone()) {
         Ok(None) => {
             if let Expr::FunctionCall(ref id, _) = expr1.data {
-                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                expr1.pos));
+                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr1.pos));
             }
             Type::Any
         }
@@ -522,8 +520,7 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
     let checked_type_2 = match check_expr(expr2, env.clone()) {
         Ok(None) => {
             if let Expr::FunctionCall(ref id, _) = expr2.data {
-                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                expr2.pos));
+                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr2.pos));
             }
             Type::Any
         }
@@ -620,8 +617,7 @@ fn check_expr_function_call(expr: &ExprNode,
         }
         Ok(None) => {
             if let Expr::FunctionCall(ref id, _) = f_expr.data {
-                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                f_expr.pos));
+                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), f_expr.pos));
             }
             Type::Any
         }
@@ -638,8 +634,7 @@ fn check_expr_function_call(expr: &ExprNode,
             }
             Ok(None) => {
                 if let Expr::FunctionCall(ref id, _) = arg.data {
-                    issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                 arg.pos));
+                    issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), arg.pos));
                 }
                 Type::Any
             }
@@ -708,6 +703,58 @@ fn check_expr_function_definition(possible_id: &Option<String>,
         return Err(e);
     }
     Ok(Some(func_type))
+}
+
+fn check_expr_member_access_by_index(expr: &ExprNode,
+                                     index_expr: &ExprNode,
+                                     env: Rc<RefCell<TypeEnvironment>>)
+                                     -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
+    let mut issues = Vec::new();
+    let object_type = match check_expr(expr, env.clone()) {
+        Err(mut e) => {
+            issues.append(&mut e);
+            Type::Any
+        }
+        Ok(None) => {
+            if let Expr::FunctionCall(ref id, _) = expr.data {
+                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
+            }
+            Type::Any
+        }
+        Ok(Some(typ)) => typ,
+    };
+    match object_type {
+        Type::Tuple => {}
+        typ => {
+            println!("got type as {}", typ);
+            issues.push((RuntimeError::SubscriptOnNonSubscriptable(typ).into(), expr.pos));
+        }
+    };
+    match check_expr(index_expr, env.clone()) {
+        Err(mut e) => {
+            issues.append(&mut e);
+        }
+        Ok(None) => {
+            if let Expr::FunctionCall(ref id, _) = index_expr.data {
+                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
+                                index_expr.pos));
+            }
+        }
+        Ok(Some(typ)) => {
+            match typ {
+                Type::Number => {}
+                non_integral_type => {
+                    issues.push((RuntimeError::NonIntegralSubscript(non_integral_type).into(),
+                                 index_expr.pos));
+                }
+            };
+        }
+    };
+    if issues.is_empty() {
+        Ok(Some(Type::Any))
+    } else {
+        Err(issues)
+    }
 }
 
 fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {

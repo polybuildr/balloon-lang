@@ -114,6 +114,13 @@ pub enum Expr {
     FunctionDefinition(Option<String>, Vec<String>, Box<StatementNode>),
     FunctionCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),
+    MemberAccessByIndex(Box<ExprNode>, Box<ExprNode>),
+}
+
+// Only for parser convenience
+pub enum ExprSuffix {
+    ExprListInParens(Vec<ExprNode>),
+    ExprInSquareBrackets(ExprNode),
 }
 
 #[derive(Debug, Clone)]

@@ -18,8 +18,9 @@ fn run_and_get_last_result(code: &str) -> StatementResult {
         Ok(ast) => {
             let mut ast_walk_interpreter = AstWalkInterpreter::new();
             let reference_val = ast_walk_interpreter.run_ast_as_program(&ast)
-                .unwrap().unwrap();
-            return reference_val
+                .unwrap()
+                .unwrap();
+            return reference_val;
             /*
              * Test plan forward once LLVM backend is written
             let mut llvm_interpreter = LLVMInterpreter::new()
@@ -196,6 +197,20 @@ fn add_tuples() {
 }
 
 #[test]
+fn index_tuple() {
+    assert_eq!(run_and_get_last_value("(1, 2, 3)[0];"),
+               Value::Number(Number::Integer(1)));
+}
+
+#[test]
+fn mix_call_and_index() {
+    assert_eq!(run_and_get_last_value("((fn() { return false; },), 2, 3)[0][0]();"),
+               Value::Bool(false));
+    assert_eq!(run_and_get_last_value("fn() { return fn() { return (1, 2, true); }; }()()[2];"),
+               Value::Bool(true));
+}
+
+#[test]
 fn if_expr_true() {
     assert_eq!(run_and_get_last_value("var x = 5; if 1 < 2 { x = 6; } else { x = 7; } x;"),
                Value::Number(Number::Integer(6)));
@@ -246,7 +261,7 @@ fn test_curried_add() {
     };
 }
 
-(addX(10))(20);
+addX(10)(20);
 ";
     assert_eq!(run_and_get_last_value(code),
                Value::Number(Number::Integer(30)));
@@ -264,7 +279,7 @@ fn factorialwrap(lazywrapfact) {
         if (i == 0) {
             return 1;
         } else {
-            return i * (lazywrapfact())(i - 1);
+            return i * lazywrapfact()(i - 1);
         }
     }
     return factorial;

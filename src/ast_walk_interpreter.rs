@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::usize;
 
 use ast::*;
 use value::*;
@@ -56,8 +57,7 @@ fn interpret_statement(s: &StatementNode,
             match lhs_expr.data {
                 LhsExpr::Identifier(ref id) => {
                     if !env.borrow_mut().set(id, val) {
-                        return Err((RuntimeError::UndeclaredAssignment(id.clone()),
-                                    lhs_expr.pos));
+                        return Err((RuntimeError::UndeclaredAssignment(id.clone()), lhs_expr.pos));
                     }
                 }
             };
@@ -227,6 +227,35 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
+        Expr::MemberAccessByIndex(ref object_expr, ref index_expr) => {
+            let possible_object = interpret_expr(object_expr, env.clone())?;
+            let object = check_val_for_none_error(&possible_object, object_expr)?;
+            let possible_index = interpret_expr(index_expr, env.clone())?;
+            let index = check_val_for_none_error(&possible_index, index_expr)?;
+            match object {
+                Value::Tuple(ref v) => {
+                    match index {
+                        Value::Number(Number::Integer(i)) => {
+                            if i < 0 || (i as usize) > usize::MAX {
+                                return Err((RuntimeError::IndexOutOfBounds(i), e.pos));
+                            }
+                            match v.get(i as usize) {
+                                Some(x) => Ok(Some(x.clone())),
+                                None => Err((RuntimeError::IndexOutOfBounds(i), e.pos)),
+                            }
+                        }
+                        non_int_index => {
+                            Err((RuntimeError::NonIntegralSubscript(non_int_index.get_type()),
+                                 index_expr.pos))
+                        }
+                    }
+                }
+                obj => {
+                    Err((RuntimeError::SubscriptOnNonSubscriptable(obj.get_type()),
+                         object_expr.pos))
+                }
+            }
+        }
         Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
             let func = Function::User {
                 // FIXME: returning is no longer always false
@@ -253,10 +282,10 @@ fn interpret_expr(e: &ExprNode,
                 v => {
                     if let Expr::Identifier(ref id) = expr.data {
                         return Err((RuntimeError::CallToNonFunction(Some(id.clone()),
-                                                                        v.get_type()),
-                                    e.pos));
+                                                                    v.get_type()),
+                                    expr.pos));
                     }
-                    return Err((RuntimeError::CallToNonFunction(None, v.get_type()), e.pos));
+                    return Err((RuntimeError::CallToNonFunction(None, v.get_type()), expr.pos));
                 }
             };
             let mut arg_vals = Vec::new();
@@ -272,15 +301,13 @@ fn interpret_expr(e: &ExprNode,
             let call_func_result = call_func(&func, &arg_vals);
             match call_func_result {
                 Ok(possible_val) => Ok(possible_val),
-                Err(runtime_error) => Err((runtime_error, e.pos))
+                Err(runtime_error) => Err((runtime_error, e.pos)),
             }
         }
     }
 }
 
-pub fn call_func(func: &Function,
-                 arg_vals: &Vec<Value>)
-                 -> Result<Option<Value>, RuntimeError> {
+pub fn call_func(func: &Function, arg_vals: &Vec<Value>) -> Result<Option<Value>, RuntimeError> {
     match *func {
         Function::NativeVoid(_, ref native_fn) => {
             native_fn(arg_vals.clone())?;
@@ -342,17 +369,15 @@ fn check_args_compat(arg_vals: &[Value],
 }
 
 impl Interpreter for AstWalkInterpreter {
-
-    fn run_ast_as_statements
-        (&mut self,
-         statements: &[StatementNode])
-         -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+    fn run_ast_as_statements(&mut self,
+                             statements: &[StatementNode])
+                             -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
         interpret_statements(statements, self.root_env.clone())
     }
 
     fn run_ast_as_program(&mut self,
-                              program: &[StatementNode])
-                              -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                          program: &[StatementNode])
+                          -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
         interpret_program(program, self.root_env.clone())
     }
 }

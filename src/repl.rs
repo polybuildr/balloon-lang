@@ -6,7 +6,7 @@ use error::*;
 use parser;
 use runtime::StatementResult;
 
-pub fn run_repl<T : Interpreter>(mut machine: T) {
+pub fn run_repl<T: Interpreter>(mut machine: T) {
     println!("Balloon REPL");
     let mut rl = Editor::<()>::new();
     // let mut machine = Interpreter::new();

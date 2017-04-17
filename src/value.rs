@@ -29,14 +29,18 @@ impl fmt::Debug for Value {
             Value::Function(_) => write!(f, "<Function>"),
             Value::String(ref s) => write!(f, "\"{}\"", s),
             Value::Tuple(ref t) => {
-                let mut output = "(".to_owned();
-                for elem in &t[0..t.len() - 1] {
-                    output.push_str(&format!("{:?}", elem));
-                    output.push_str(", ");
+                if t.is_empty() {
+                    write!(f, "()")
+                } else {
+                    let mut output = "(".to_owned();
+                    for elem in &t[0..t.len() - 1] {
+                        output.push_str(&format!("{:?}", elem));
+                        output.push_str(", ");
+                    }
+                    output.push_str(&format!("{:?}", &t[t.len() - 1]));
+                    output.push_str(")");
+                    write!(f, "{}", output)
                 }
-                output.push_str(&format!("{:?}", &t[t.len() - 1]));
-                output.push_str(")");
-                write!(f, "{}", output)
             }
         }
     }
@@ -47,14 +51,18 @@ impl fmt::Display for Value {
         match *self {
             Value::String(ref s) => write!(f, "{}", s),
             Value::Tuple(ref t) => {
-                let mut output = "(".to_owned();
-                for elem in &t[0..t.len() - 1] {
-                    output.push_str(&format!("{}", elem));
-                    output.push_str(", ");
+                if t.is_empty() {
+                    write!(f, "()")
+                } else {
+                    let mut output = "(".to_owned();
+                    for elem in &t[0..t.len() - 1] {
+                        output.push_str(&format!("{}", elem));
+                        output.push_str(", ");
+                    }
+                    output.push_str(&format!("{}", &t[t.len() - 1]));
+                    output.push_str(")");
+                    write!(f, "{}", output)
                 }
-                output.push_str(&format!("{}", &t[t.len() - 1]));
-                output.push_str(")");
-                write!(f, "{}", output)
             }
             ref value => write!(f, "{:?}", value),
         }

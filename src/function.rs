@@ -63,7 +63,10 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
 
     let handler_func = match *handler_val {
         Value::Function(ref f) => f,
-        _ => return Err(RuntimeError::GeneralRuntimeError("http_server: handler is not a Function".to_owned())),
+        _ => {
+            return Err(RuntimeError::GeneralRuntimeError("http_server: handler is not a Function"
+                .to_owned()))
+        }
     };
     let server = TcpListener::bind("0.0.0.0:8000").unwrap();
     for stream in server.incoming() {
@@ -72,7 +75,9 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
         let handler_response_value = if let Ok(Some(val)) = handler_response {
             val
         } else {
-            return Err(RuntimeError::GeneralRuntimeError("http_server: handler did not return a value".to_owned()));
+            return Err(RuntimeError::GeneralRuntimeError("http_server: handler did not return a \
+                                                          value"
+                .to_owned()));
         };
 
         match stream {
@@ -85,7 +90,10 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                 stream.shutdown(Shutdown::Both).unwrap();
             }
             Err(e) => {
-                return Err(RuntimeError::GeneralRuntimeError(format!("http_server: Error in TcpStream: {:?}", e).to_owned()));
+                return Err(RuntimeError::GeneralRuntimeError(format!("http_server: Error in \
+                                                                      TcpStream: {:?}",
+                                                                     e)
+                    .to_owned()));
             }
         }
     }

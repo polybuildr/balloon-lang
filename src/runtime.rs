@@ -16,6 +16,10 @@ pub enum RuntimeError {
     NoneError(Option<String>),
     /// When a call is made to a non-function value
     CallToNonFunction(Option<String>, Type),
+    /// When a subscript access obj[i] is made on a non-subscriptable object
+    SubscriptOnNonSubscriptable(Type),
+    NonIntegralSubscript(Type),
+    IndexOutOfBounds(i64),
     /// When the number of arguments don't match
     ArgumentLength(Option<String>),
     /// When nothing else suits
@@ -35,11 +39,10 @@ pub enum StatementResult {
 }
 
 pub trait Interpreter {
-    fn run_ast_as_statements
-        (&mut self,
-         statements: &[StatementNode])
-         -> Result<Option<StatementResult>, RuntimeErrorWithPosition>;
+    fn run_ast_as_statements(&mut self,
+                             statements: &[StatementNode])
+                             -> Result<Option<StatementResult>, RuntimeErrorWithPosition>;
     fn run_ast_as_program(&mut self,
-                              program: &[StatementNode])
-                              -> Result<Option<StatementResult>, RuntimeErrorWithPosition>;
+                          program: &[StatementNode])
+                          -> Result<Option<StatementResult>, RuntimeErrorWithPosition>;
 }

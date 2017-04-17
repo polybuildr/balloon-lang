@@ -212,6 +212,21 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                     println!("{}:", Red.bold().paint("error in function call"));
                     error_to_print_after_this = Some(error_with_position);
                 }
+                RuntimeError::IndexOutOfBounds(index) => {
+                    println!("{}: index `{}` is out of bounds of the tuple",
+                             Red.bold().paint("index of out bounds"),
+                             index);
+                }
+                RuntimeError::SubscriptOnNonSubscriptable(typ) => {
+                    println!("{}: cannot subscript type {}",
+                             Red.bold().paint("type error"),
+                             typ);
+                }
+                RuntimeError::NonIntegralSubscript(typ) => {
+                    println!("{}: cannot use non-integral {:?} as subscript",
+                             Red.bold().paint("non integral subscript"),
+                             typ);
+                }
             }
         }
         TypeCheckerIssue::MultipleTypesFromBranchWarning(id) => {
@@ -290,6 +305,9 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
     }
     if let Some(next_err) = error_to_print_after_this {
         let span = offset_span_to_source_span(next_err.1, &file_content);
-        print_typechecker_error_for_file(TypeCheckerIssue::RuntimeError(next_err.0), span, file_content, file_name);
+        print_typechecker_error_for_file(TypeCheckerIssue::RuntimeError(next_err.0),
+                                         span,
+                                         file_content,
+                                         file_name);
     }
 }
