@@ -141,6 +141,16 @@ impl TypeEnvironment {
                                    FunctionType::NativeVoid(CallSign {
                                        num_params: 0,
                                        variadic: true,
+                                   })),
+                                   ("len",
+                                   FunctionType::NativeReturning(CallSign {
+                                       num_params: 1,
+                                       variadic: false,
+                                   })),
+                                   ("run_http_server",
+                                   FunctionType::NativeVoid(CallSign {
+                                       num_params: 1,
+                                       variadic: false,
                                    }))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;

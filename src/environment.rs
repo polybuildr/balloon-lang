@@ -33,7 +33,13 @@ impl Environment {
                                                             num_params: 1,
                                                             variadic: false,
                                                         },
-                                                        native_run_http_server))];
+                                                        native_run_http_server)),
+                                  ("len",
+                                   Function::NativeReturning(CallSign {
+                                                            num_params: 1,
+                                                            variadic: false,
+                                                        },
+                                                        native_len))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
             env.declare(&name.to_string(), &Value::Function(func.clone()));

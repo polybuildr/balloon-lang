@@ -306,3 +306,8 @@ fn test_string_concat() {
     assert_eq!(run_and_get_last_value("false + \"abc\";"),
                Value::String("falseabc".to_owned()));
 }
+
+#[test]
+fn test_len() {
+    assert_eq!(run_and_get_last_value("len((1, 2, 3));"), Value::Number(Number::Integer(3)));
+}

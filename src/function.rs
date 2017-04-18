@@ -53,6 +53,15 @@ pub fn native_println(args: Vec<Value>) -> Result<(), RuntimeError> {
 }
 
 #[allow(needless_pass_by_value)]
+pub fn native_len(args: Vec<Value>) -> Result<Value, RuntimeError> {
+    let val = &args[0];
+    match *val {
+        Value::Tuple(ref v) => Ok(Value::Number(Number::Integer(v.len() as i64))),
+        ref non_tuple_val => Err(RuntimeError::GeneralRuntimeError(format!("cannot get len of {:?}", non_tuple_val.get_type()))),
+    }
+}
+
+#[allow(needless_pass_by_value)]
 pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
     use std::net::{TcpListener, Shutdown};
     // TODO: refactor this to not call into ast_walk_interpreter
