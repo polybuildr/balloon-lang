@@ -164,3 +164,44 @@ fn check_non_integral_subscript() {
                [(TypeCheckerIssue::RuntimeError(RuntimeError::NonIntegralSubscript(Type::Bool)),
                  (10, 14))]);
 }
+
+#[test]
+fn check_function_body_on_call() {
+    let code = "fn add(a, b) {
+    return a + b;
+}
+
+add(true, true);
+add(1, 1);
+add(true, 1);
+add(false, false);";
+
+    assert_eq!(check_and_get_result(code).unwrap_err(), [
+        (
+            TypeCheckerIssue::InsideFunctionCall(
+                Box::new(
+                    (
+                        TypeCheckerIssue::RuntimeError(
+                            RuntimeError::BinaryTypeError(BinaryOp::Add, Type::Bool, Type::Bool)
+                        ),
+                        (26, 31)
+                    )
+                )
+            ),
+            (36, 51)
+        ),
+        (
+            TypeCheckerIssue::InsideFunctionCall(
+                Box::new(
+                    (
+                        TypeCheckerIssue::RuntimeError(
+                            RuntimeError::BinaryTypeError(BinaryOp::Add, Type::Bool, Type::Number)
+                        ),
+                        (26, 31)
+                    )
+                )
+            ),
+            (64, 76)
+        ),
+    ]);
+}

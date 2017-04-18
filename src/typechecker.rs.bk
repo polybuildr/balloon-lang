@@ -707,9 +707,7 @@ fn check_expr_function_call(expr: &ExprNode,
             if let Some(id) = try_get_name_of_fn(&Box::new(f_expr.clone())) {
                 let mut new_checked_param_types = already_checked_param_types.clone();
                 new_checked_param_types.insert(constraint_types, ());
-                let new_func_type =
-                    get_function_type_with_updated_already_checked(&func_type,
-                                                                   new_checked_param_types);
+                let new_func_type = get_function_type_with_updated_already_checked(&func_type, new_checked_param_types);
                 env.borrow_mut().set(&id, Type::Function(Some(new_func_type)));
 
                 if let Err(errors) = check_statement(&body, inner_env) {
