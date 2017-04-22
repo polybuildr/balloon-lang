@@ -37,7 +37,7 @@ impl Function {
     }
 }
 
-#[allow(needless_pass_by_value)]
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn native_println(args: Vec<Value>) -> Result<(), RuntimeError> {
     if args.is_empty() {
         return Ok(());
@@ -54,7 +54,7 @@ pub fn native_println(args: Vec<Value>) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-#[allow(needless_pass_by_value)]
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn native_len(args: Vec<Value>) -> Result<Value, RuntimeError> {
     let val = &args[0];
     match *val {
@@ -66,7 +66,7 @@ pub fn native_len(args: Vec<Value>) -> Result<Value, RuntimeError> {
     }
 }
 
-#[allow(needless_pass_by_value)]
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
     use std::net::{TcpListener, Shutdown};
     // TODO: refactor this to not call into ast_walk_interpreter
