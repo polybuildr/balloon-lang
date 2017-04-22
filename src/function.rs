@@ -73,7 +73,7 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
     use ast_walk_interpreter::call_func;
     use std::io::Write;
 
-    let ref handler_val = args[0];
+    let handler_val = &args[0];
 
     let handler_func = match *handler_val {
         Value::Function(ref f) => f,
@@ -84,7 +84,7 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
     };
     let server = TcpListener::bind("0.0.0.0:8000").unwrap();
     for stream in server.incoming() {
-        let handler_response = call_func(handler_func, &vec![]);
+        let handler_response = call_func(handler_func, &[]);
 
         let handler_response_value = if let Ok(Some(val)) = handler_response {
             val

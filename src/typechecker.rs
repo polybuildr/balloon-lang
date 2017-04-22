@@ -844,7 +844,7 @@ fn check_expr_function_call(expr: &ExprNode,
                         in_func: true,
                         func_ret_type: ret_type.clone(),
                     };
-                    if let Err(errors) = check_statement(&body, inner_env, &mut context) {
+                    if let Err(errors) = check_statement(body, inner_env, &mut context) {
                         for error in errors {
                             issues.push((TypeCheckerIssue::InsideFunctionCall(Box::new(error)),
                                          expr.pos));
@@ -1043,12 +1043,12 @@ fn check_args_compat(arg_types: &[Type],
 }
 
 fn get_function_type_with_updated_already_checked(old_fn_type: &FunctionType, new_already_checked: LinearMap<Vec<ConstraintType>, ()>) -> FunctionType {
-    if let &FunctionType::User { ref param_names,
+    if let FunctionType::User { ref param_names,
                                  ref body,
                                  ref env,
                                  ref call_sign,
                                  ref ret_type,
-                                 .. } = old_fn_type {
+                                 .. } = *old_fn_type {
         FunctionType::User {
             param_names: param_names.clone(),
             body: body.clone(),

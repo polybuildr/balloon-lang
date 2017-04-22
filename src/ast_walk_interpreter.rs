@@ -237,7 +237,7 @@ fn interpret_expr(e: &ExprNode,
                 Value::Tuple(ref v) => {
                     match index {
                         Value::Number(Number::Integer(i)) => {
-                            if i < 0 || (i as usize) > usize::MAX {
+                            if i < 0 {
                                 return Err((RuntimeError::IndexOutOfBounds(i), e.pos));
                             }
                             match v.get(i as usize) {
@@ -310,13 +310,13 @@ fn interpret_expr(e: &ExprNode,
     }
 }
 
-pub fn call_func(func: &Function, arg_vals: &Vec<Value>) -> Result<Option<Value>, RuntimeError> {
+pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, RuntimeError> {
     match *func {
         Function::NativeVoid(_, ref native_fn) => {
-            native_fn(arg_vals.clone())?;
+            native_fn(arg_vals.to_vec())?;
             Ok(None)
         }
-        Function::NativeReturning(_, ref native_fn) => Ok(Some(native_fn(arg_vals.clone())?)),
+        Function::NativeReturning(_, ref native_fn) => Ok(Some(native_fn(arg_vals.to_vec())?)),
         Function::User { ref param_names, ref body, ref env, .. } => {
             // TODO: returning
             let function_env = Environment::create_child(env.clone());
@@ -324,7 +324,7 @@ pub fn call_func(func: &Function, arg_vals: &Vec<Value>) -> Result<Option<Value>
                 function_env.borrow_mut().declare(param, arg);
             }
             let inner_env = Environment::create_child(function_env);
-            let result = interpret_statement(&body, inner_env);
+            let result = interpret_statement(body, inner_env);
             match result {
                 Err(error_with_position) => {
                     Err(RuntimeError::InsideFunctionCall(Box::new(error_with_position)))

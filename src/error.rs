@@ -344,7 +344,7 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
         println!("{line_num:width$} |", line_num = "", width = max_idx_width);
     }
     if let Some(next_err) = error_to_print_after_this {
-        let span = offset_span_to_source_span(next_err.1, &file_content);
+        let span = offset_span_to_source_span(next_err.1, file_content);
         print_typechecker_error_for_file(next_err.0,
                                          span,
                                          file_content,
