@@ -47,7 +47,7 @@ impl Environment {
                                                              native_len))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
-            env.declare(&name.to_string(), &Value::Function(func.clone()));
+            env.declare(&name.to_string(), &Value::Function(Box::new(func.clone())));
         }
         Rc::new(RefCell::new(env))
     }

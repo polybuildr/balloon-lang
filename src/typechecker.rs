@@ -40,7 +40,7 @@ pub enum Type {
     Number,
     Bool,
     Any,
-    Function(Option<FunctionType>),
+    Function(Box<Option<FunctionType>>),
     Tuple,
     String,
 }
@@ -75,7 +75,7 @@ impl From<ConstraintType> for Type {
         match from {
             ConstraintType::Any => Type::Any,
             ConstraintType::Bool => Type::Bool,
-            ConstraintType::Function => Type::Function(None),
+            ConstraintType::Function => Type::Function(Box::new(None)),
             ConstraintType::Number => Type::Number,
             ConstraintType::String => Type::String,
             ConstraintType::Tuple => Type::Tuple,
@@ -202,7 +202,7 @@ impl TypeEnvironment {
                                    }))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
-            env.declare(&name.to_string(), &Type::Function(Some(func.clone())));
+            env.declare(&name.to_string(), &Type::Function(Box::new(Some(func.clone()))));
         }
         Rc::new(RefCell::new(env))
     }
@@ -788,8 +788,12 @@ fn check_expr_function_call(expr: &ExprNode,
     }
 
     let func_type = match checked_type {
-        Type::Function(None) => unreachable!(),
-        Type::Function(Some(func_type)) => func_type,
+        Type::Function(possible_func) => {
+            match *possible_func {
+                None => unreachable!(),
+                Some(func_type) => func_type,
+            }
+        }
         v => {
             if let Expr::Identifier(ref id) = expr.data {
                 issues.push((RuntimeError::CallToNonFunction(Some(id.clone()), v).into(),
@@ -833,7 +837,7 @@ fn check_expr_function_call(expr: &ExprNode,
                     let new_func_type =
                         get_function_type_with_updated_already_checked(&func_type,
                                                                        new_checked_param_types);
-                    env.borrow_mut().set(&id, Type::Function(Some(new_func_type)));
+                    env.borrow_mut().set(&id, Type::Function(Box::new(Some(new_func_type))));
 
                     let mut context = Context {
                         in_loop: false,
@@ -890,7 +894,7 @@ fn check_expr_function_definition(possible_id: &Option<String>,
         env: env.clone(),
         already_checked_param_types: linear_map_with_any_set,
     };
-    let func_type = Type::Function(Some(func));
+    let func_type = Type::Function(Box::new(Some(func)));
     if let Some(ref id) = *possible_id {
         env.borrow_mut().declare(id, &func_type);
     }

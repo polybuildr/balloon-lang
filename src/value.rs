@@ -10,7 +10,7 @@ use function::*;
 pub enum Value {
     Number(Number),
     Bool(bool),
-    Function(Function),
+    Function(Box<Function>),
     String(String),
     Tuple(Vec<Value>),
 }
@@ -191,7 +191,7 @@ impl Value {
         match *self {
             Value::Number(_) => Type::Number,
             Value::Bool(_) => Type::Bool,
-            Value::Function(_) => Type::Function(None),
+            Value::Function(_) => Type::Function(Box::new(None)),
             Value::String(_) => Type::String,
             Value::Tuple(_) => Type::Tuple,
         }

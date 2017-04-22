@@ -271,7 +271,7 @@ fn interpret_expr(e: &ExprNode,
                 body: body.clone(),
                 env: env.clone(),
             };
-            let func_val = Value::Function(func);
+            let func_val = Value::Function(Box::new(func));
             if let Some(ref id) = *possible_id {
                 env.borrow_mut().declare(id, &func_val);
             }
