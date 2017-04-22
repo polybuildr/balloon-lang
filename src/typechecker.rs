@@ -16,9 +16,9 @@ pub enum FunctionType {
     NativeVoid(CallSign),
     NativeReturning(CallSign),
     User {
-        returning: bool,
+        ret_type: Option<ConstraintType>,
         call_sign: CallSign,
-        param_list: Vec<String>,
+        param_names: Vec<String>,
         body: Box<ast::StatementNode>,
         env: Rc<RefCell<TypeEnvironment>>,
         already_checked_param_types: LinearMap<Vec<ConstraintType>, ()>,
@@ -53,6 +53,34 @@ pub enum ConstraintType {
     Function,
     Tuple,
     String,
+}
+
+impl ConstraintType {
+    fn compatible_with(&self, other: &ConstraintType) -> bool {
+        match (self, other) {
+            (&ConstraintType::Number, &ConstraintType::Number) |
+            (&ConstraintType::Bool, &ConstraintType::Bool) |
+            (&ConstraintType::Function, &ConstraintType::Function) |
+            (&ConstraintType::Tuple, &ConstraintType::Tuple) |
+            (&ConstraintType::String, &ConstraintType::String) |
+            (&ConstraintType::Any, _) |
+            (_, &ConstraintType::Any) => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<ConstraintType> for Type {
+    fn from(from: ConstraintType) -> Self {
+        match from {
+            ConstraintType::Any => Type::Any,
+            ConstraintType::Bool => Type::Bool,
+            ConstraintType::Function => Type::Function(None),
+            ConstraintType::Number => Type::Number,
+            ConstraintType::String => Type::String,
+            ConstraintType::Tuple => Type::Tuple,
+        }
+    }
 }
 
 impl Eq for ConstraintType {}
@@ -107,11 +135,28 @@ impl fmt::Display for Type {
     }
 }
 
+impl fmt::Display for ConstraintType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", Type::from(self.clone()))
+    }
+}
+
+#[derive(Clone)]
+pub struct Context {
+    pub in_loop: bool,
+    pub in_func: bool,
+    pub func_ret_type: Option<ConstraintType>,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum TypeCheckerIssue {
     RuntimeError(RuntimeError),
     MultipleTypesFromBranchWarning(String),
     InsideFunctionCall(Box<TypeCheckerIssueWithPosition>),
+    /// expected, actual
+    ReturnTypeMismatch(Option<ConstraintType>, Option<ConstraintType>),
+    /// expected, actual
+    ArgumentTypeMismatch(ConstraintType, ConstraintType),
 }
 
 pub type TypeCheckerIssueWithPosition = (TypeCheckerIssue, OffsetSpan);
@@ -141,16 +186,19 @@ impl TypeEnvironment {
                                    FunctionType::NativeVoid(CallSign {
                                        num_params: 0,
                                        variadic: true,
+                                       param_types: vec![],
                                    })),
-                                   ("len",
+                                  ("len",
                                    FunctionType::NativeReturning(CallSign {
                                        num_params: 1,
                                        variadic: false,
+                                       param_types: vec![None],
                                    })),
-                                   ("run_http_server",
+                                  ("run_http_server",
                                    FunctionType::NativeVoid(CallSign {
                                        num_params: 1,
                                        variadic: false,
+                                       param_types: vec![Some(ConstraintType::Function)],
                                    }))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
@@ -220,15 +268,21 @@ impl TypeEnvironment {
 
 pub fn check_program(ast: &[StatementNode]) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let root_env = TypeEnvironment::new_root();
-    check_statements(ast, root_env.clone())
+    let mut context = Context {
+        in_loop: false,
+        in_func: false,
+        func_ret_type: None,
+    };
+    check_statements(ast, root_env.clone(), &mut context)
 }
 
 pub fn check_statements(ast: &[StatementNode],
-                        env: Rc<RefCell<TypeEnvironment>>)
+                        env: Rc<RefCell<TypeEnvironment>>,
+                        context: &mut Context)
                         -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     for statement in ast.iter() {
-        if let Err(mut e) = check_statement(statement, env.clone()) {
+        if let Err(mut e) = check_statement(statement, env.clone(), context) {
             issues.append(&mut e);
         }
     }
@@ -240,7 +294,8 @@ pub fn check_statements(ast: &[StatementNode],
 }
 
 pub fn check_statement(s: &StatementNode,
-                       env: Rc<RefCell<TypeEnvironment>>)
+                       env: Rc<RefCell<TypeEnvironment>>,
+                       context: &mut Context)
                        -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match s.data {
@@ -252,7 +307,7 @@ pub fn check_statement(s: &StatementNode,
         }
         Statement::Block(ref statements) => {
             let child_env = TypeEnvironment::create_child(env);
-            if let Err(mut e) = check_statements(statements, child_env) {
+            if let Err(mut e) = check_statements(statements, child_env, context) {
                 issues.append(&mut e);
             }
         }
@@ -262,7 +317,7 @@ pub fn check_statement(s: &StatementNode,
             }
         }
         Statement::IfThen(ref if_expr, ref then_block) => {
-            check_statement_if_then(if_expr, then_block, env.clone(), &mut issues);
+            check_statement_if_then(if_expr, then_block, env.clone(), context, &mut issues);
         }
         Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             check_statement_if_then_else(s,
@@ -270,16 +325,25 @@ pub fn check_statement(s: &StatementNode,
                                          then_block,
                                          else_block,
                                          env.clone(),
+                                         context,
                                          &mut issues);
         }
         Statement::Loop(ref block) => {
-            if let Err(mut e) = check_statement(block, env.clone()) {
+            let old_in_loop_value = context.in_loop;
+            context.in_loop = true;
+            if let Err(mut e) = check_statement(block, env.clone(), context) {
                 issues.append(&mut e);
             }
+            context.in_loop = old_in_loop_value;
         }
-        Statement::Break | Statement::Empty => {}
+        Statement::Break => {
+            if context.in_loop != true {
+                issues.push((RuntimeError::BreakOutsideLoop.into(), s.pos));
+            }
+        }
+        Statement::Empty => {}
         Statement::Return(ref possible_expr) => {
-            check_statement_return(possible_expr, env.clone(), &mut issues);
+            check_statement_return(possible_expr, s, env.clone(), context, &mut issues);
         }
     };
     if issues.is_empty() {
@@ -314,8 +378,8 @@ fn check_expr(expr: &ExprNode,
         Expr::FunctionCall(ref f_expr, ref args) => {
             check_expr_function_call(expr, f_expr, args, env.clone())
         }
-        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
-            check_expr_function_definition(possible_id, param_list, body, env.clone())
+        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body, ref type_hint) => {
+            check_expr_function_definition(possible_id, param_list, body, type_hint, env.clone())
         }
         Expr::MemberAccessByIndex(ref expr, ref index_expr) => {
             check_expr_member_access_by_index(expr, index_expr, env.clone())
@@ -376,6 +440,7 @@ fn check_statement_assignment(lhs_expr: &LhsExprNode,
 fn check_statement_if_then(if_expr: &ExprNode,
                            then_block: &StatementNode,
                            env: Rc<RefCell<TypeEnvironment>>,
+                           context: &mut Context,
                            issues: &mut Vec<TypeCheckerIssueWithPosition>) {
     let if_expr_result = check_expr(if_expr, env.clone());
     match if_expr_result {
@@ -387,7 +452,7 @@ fn check_statement_if_then(if_expr: &ExprNode,
         }
         Ok(Some(_)) => {}
     }
-    if let Err(mut e) = check_statement(then_block, env.clone()) {
+    if let Err(mut e) = check_statement(then_block, env.clone(), context) {
         issues.append(&mut e);
     }
 }
@@ -397,6 +462,7 @@ fn check_statement_if_then_else(statement: &StatementNode,
                                 then_block: &StatementNode,
                                 else_block: &StatementNode,
                                 env: Rc<RefCell<TypeEnvironment>>,
+                                context: &mut Context,
                                 issues: &mut Vec<TypeCheckerIssueWithPosition>) {
     let then_env = TypeEnvironment::create_clone(env.clone());
     let else_env = TypeEnvironment::create_clone(env.clone());
@@ -413,13 +479,13 @@ fn check_statement_if_then_else(statement: &StatementNode,
         Ok(Some(_)) => {}
     }
 
-    if let Err(mut e) = check_statement(then_block, then_env.clone()) {
+    if let Err(mut e) = check_statement(then_block, then_env.clone(), context) {
         issues.append(&mut e);
     }
 
     let then_pairs = then_env.borrow().get_all_pairs();
 
-    if let Err(mut e) = check_statement(else_block, else_env.clone()) {
+    if let Err(mut e) = check_statement(else_block, else_env.clone(), context) {
         issues.append(&mut e);
     }
 
@@ -442,24 +508,62 @@ fn check_statement_if_then_else(statement: &StatementNode,
 }
 
 fn check_statement_return(possible_expr: &Option<ExprNode>,
+                          return_statement: &StatementNode,
                           env: Rc<RefCell<TypeEnvironment>>,
+                          context: &mut Context,
                           issues: &mut Vec<TypeCheckerIssueWithPosition>) {
-    if let Some(ref expr) = *possible_expr {
-        match check_expr(expr, env.clone()) {
-            Ok(None) => {
-                if let Expr::FunctionCall(ref id, _) = expr.data {
-                    issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
-                }
-                unreachable!();
-            }
-            Ok(Some(_)) => {
-                // TODO
-            }
-            Err(mut e) => {
-                issues.append(&mut e);
-            }
-        };
+    if context.in_func != true {
+        issues.push((RuntimeError::ReturnOutsideFunction.into(), return_statement.pos));
+        // if the return is outside a function, don't typecheck anything else wrt the return
+        return;
     }
+    match *possible_expr {
+        Some(ref expr) => {
+            match check_expr(expr, env.clone()) {
+                Ok(None) => {
+                    if let Expr::FunctionCall(ref id, _) = expr.data {
+                        issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
+                                     expr.pos));
+                    } else {
+                        unreachable!();
+                    }
+                }
+                Ok(Some(actual_typ)) => {
+                    let actual_return_constraint_type = ConstraintType::from(actual_typ);
+                    match context.func_ret_type {
+                        None => {
+                            issues.push((
+                                TypeCheckerIssue::ReturnTypeMismatch(
+                                    None, Some(actual_return_constraint_type)
+                                ),
+                                return_statement.pos
+                            ));
+                        }
+                        Some(ref expected_type) => {
+                            if !actual_return_constraint_type.compatible_with(expected_type) {
+                                issues.push((
+                                    TypeCheckerIssue::ReturnTypeMismatch(
+                                        Some(expected_type.clone()), Some(actual_return_constraint_type)
+                                    ),
+                                    return_statement.pos
+                                ));
+                            }
+                        }
+                    }
+                }
+                Err(mut e) => {
+                    issues.append(&mut e);
+                }
+            }
+        }
+        None => {
+            if !context.func_ret_type.is_none() {
+                issues.push((TypeCheckerIssue::ReturnTypeMismatch(context.clone().func_ret_type,
+                                                                  None),
+                             return_statement.pos));
+            }
+        }
+    };
 }
 
 fn check_expr_tuple(elems: &[ExprNode],
@@ -697,46 +801,66 @@ fn check_expr_function_call(expr: &ExprNode,
         }
     };
 
-    if let Err(e) = check_args_compat(&arg_types, &func_type.get_call_sign(), expr) {
-        issues.push(e);
-    }
-
-    if let FunctionType::User { ref param_list,
-                                ref body,
-                                ref env,
-                                ref already_checked_param_types,
-                                .. } = func_type {
-        let function_env = TypeEnvironment::create_child(env.clone());
-        for (param, arg) in param_list.iter().zip(arg_types.iter()) {
-            function_env.borrow_mut().declare(param, arg);
+    let func_call_sign = func_type.get_call_sign();
+    if !func_call_sign.variadic && arg_types.len() != func_type.get_call_sign().param_types.len() {
+        if let Expr::Identifier(ref id) = expr.data {
+            return Err(vec![(RuntimeError::ArgumentLength(Some(id.clone())).into(), expr.pos)]);
+        } else {
+            return Err(vec![(RuntimeError::ArgumentLength(None).into(), expr.pos)]);
         }
-        let inner_env = TypeEnvironment::create_child(function_env);
+    } else {
+        if let Err(mut e) = check_args_compat(&arg_types, args, &func_call_sign) {
+            issues.append(&mut e);
+        }
 
-        let constraint_types = arg_types.iter().map(|typ| typ.clone().into()).collect();
-        if !already_checked_param_types.contains_key(&constraint_types) {
-            if let Some(id) = try_get_name_of_fn(&Box::new(f_expr.clone())) {
-                let mut new_checked_param_types = already_checked_param_types.clone();
-                new_checked_param_types.insert(constraint_types, ());
-                let new_func_type =
-                    get_function_type_with_updated_already_checked(&func_type,
-                                                                   new_checked_param_types);
-                env.borrow_mut().set(&id, Type::Function(Some(new_func_type)));
+        if let FunctionType::User { ref param_names,
+                                    ref body,
+                                    ref env,
+                                    ref already_checked_param_types,
+                                    ref ret_type,
+                                    .. } = func_type {
+            let function_env = TypeEnvironment::create_child(env.clone());
+            for (param, arg) in param_names.iter().zip(arg_types.iter()) {
+                function_env.borrow_mut().declare(param, arg);
+            }
+            let inner_env = TypeEnvironment::create_child(function_env);
 
-                if let Err(errors) = check_statement(&body, inner_env) {
-                    for error in errors {
-                        issues.push((TypeCheckerIssue::InsideFunctionCall(Box::new(error)),
-                                     expr.pos));
+            let constraint_types = arg_types.iter().map(|typ| typ.clone().into()).collect();
+            if !already_checked_param_types.contains_key(&constraint_types) {
+                if let Some(id) = try_get_name_of_fn(&Box::new(f_expr.clone())) {
+                    let mut new_checked_param_types = already_checked_param_types.clone();
+                    new_checked_param_types.insert(constraint_types, ());
+                    let new_func_type =
+                        get_function_type_with_updated_already_checked(&func_type,
+                                                                       new_checked_param_types);
+                    env.borrow_mut().set(&id, Type::Function(Some(new_func_type)));
+
+                    let mut context = Context {
+                        in_loop: false,
+                        in_func: true,
+                        func_ret_type: ret_type.clone(),
+                    };
+                    if let Err(errors) = check_statement(&body, inner_env, &mut context) {
+                        for error in errors {
+                            issues.push((TypeCheckerIssue::InsideFunctionCall(Box::new(error)),
+                                         expr.pos));
+                        }
                     }
                 }
             }
-        }
-    };
+        };
+    }
 
     if issues.is_empty() {
         let ret_type = match func_type {
             FunctionType::NativeVoid(_) => None,
-            FunctionType::NativeReturning(_) |
-            FunctionType::User { .. } => Some(Type::Any),
+            FunctionType::NativeReturning(_) => Some(Type::Any),
+            FunctionType::User { ref ret_type, .. } => {
+                match *ret_type {
+                    None => None,
+                    Some(ref typ) => Some(typ.clone().into()),
+                }
+            }
         };
         Ok(ret_type)
     } else {
@@ -745,20 +869,23 @@ fn check_expr_function_call(expr: &ExprNode,
 }
 
 fn check_expr_function_definition(possible_id: &Option<String>,
-                                  param_list: &[String],
+                                  param_list: &[(String, Option<ConstraintType>)],
                                   body: &Box<StatementNode>,
+                                  type_hint: &Option<ConstraintType>,
                                   env: Rc<RefCell<TypeEnvironment>>)
                                   -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
+    let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
+        param_list.iter().cloned().unzip();
     let mut linear_map_with_any_set = LinearMap::new();
     linear_map_with_any_set.insert(vec![ConstraintType::Any; param_list.len()], ());
     let func = FunctionType::User {
-        // FIXME
-        returning: false,
+        ret_type: type_hint.clone(),
         call_sign: CallSign {
             num_params: param_list.len(),
             variadic: false,
+            param_types: param_types.clone(),
         },
-        param_list: param_list.to_vec(),
+        param_names: param_names.to_vec(),
         body: body.clone(),
         env: env.clone(),
         already_checked_param_types: linear_map_with_any_set,
@@ -769,11 +896,16 @@ fn check_expr_function_definition(possible_id: &Option<String>,
     }
     let function_env = TypeEnvironment::create_clone(env);
 
-    for param in param_list {
-        function_env.borrow_mut().declare(param, &Type::Any);
+    for param in param_names {
+        function_env.borrow_mut().declare(&param, &Type::Any);
     }
     let inner_env = TypeEnvironment::create_child(function_env);
-    if let Err(e) = check_statement(body, inner_env) {
+    let mut context = Context {
+        in_loop: false,
+        in_func: true,
+        func_ret_type: type_hint.clone(),
+    };
+    if let Err(e) = check_statement(body, inner_env, &mut context) {
         return Err(e);
     }
     Ok(Some(func_type))
@@ -879,32 +1011,47 @@ fn try_get_name_of_fn(expr: &Box<ExprNode>) -> Option<String> {
 }
 
 fn check_args_compat(arg_types: &[Type],
-                     call_sign: &CallSign,
-                     expr: &ExprNode)
-                     -> Result<(), TypeCheckerIssueWithPosition> {
-    if !call_sign.variadic && call_sign.num_params != arg_types.len() {
-        if let Expr::Identifier(ref id) = expr.data {
-            return Err((RuntimeError::ArgumentLength(Some(id.clone())).into(), expr.pos));
+                     arg_nodes: &[ExprNode],
+                     call_sign: &CallSign)
+                     -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
+    let mut issues = Vec::new();
+    let types_iter = arg_types.iter().zip(call_sign.clone().param_types);
+    for (arg_node, (arg_type, possible_expected_type)) in arg_nodes.iter().zip(types_iter) {
+        let arg_constraint_type = ConstraintType::from(arg_type.clone());
+        match possible_expected_type {
+            None => {
+                continue;
+            }
+            Some(ref expected_type) => {
+                if !arg_constraint_type.compatible_with(expected_type) {
+                    issues.push((TypeCheckerIssue::ArgumentTypeMismatch(expected_type.clone(),
+                                                                        arg_constraint_type),
+                                 arg_node.pos));
+                }
+            }
         }
-        return Err((RuntimeError::ArgumentLength(None).into(), expr.pos));
     }
-    Ok(())
+    if issues.is_empty() {
+        Ok(())
+    } else {
+        Err(issues)
+    }
 }
 
 fn get_function_type_with_updated_already_checked(old_fn_type: &FunctionType, new_already_checked: LinearMap<Vec<ConstraintType>, ()>) -> FunctionType {
-    if let &FunctionType::User { ref param_list,
+    if let &FunctionType::User { ref param_names,
                                  ref body,
                                  ref env,
                                  ref call_sign,
-                                 ref returning,
+                                 ref ret_type,
                                  .. } = old_fn_type {
         FunctionType::User {
-            param_list: param_list.clone(),
+            param_names: param_names.clone(),
             body: body.clone(),
             env: env.clone(),
             already_checked_param_types: new_already_checked,
             call_sign: call_sign.clone(),
-            returning: *returning,
+            ret_type: ret_type.clone(),
         }
     } else {
         panic!("Not a user function");

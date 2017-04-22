@@ -26,6 +26,8 @@ pub enum RuntimeError {
     GeneralRuntimeError(String),
     /// When a runtime error occurs inside a function call and is getting propagated as a plain RuntimeError
     InsideFunctionCall(Box<RuntimeErrorWithPosition>),
+    BreakOutsideLoop,
+    ReturnOutsideFunction,
 }
 
 pub type RuntimeErrorWithPosition = (RuntimeError, OffsetSpan);

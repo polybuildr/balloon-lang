@@ -5,6 +5,7 @@ use fnv::FnvHashMap;
 
 use value::*;
 use function::*;
+use typechecker::ConstraintType;
 
 #[derive(Debug)]
 pub struct Environment {
@@ -26,20 +27,24 @@ impl Environment {
                                    Function::NativeVoid(CallSign {
                                                             num_params: 0,
                                                             variadic: true,
+                                                            param_types: vec![],
                                                         },
                                                         native_println)),
                                   ("run_http_server",
                                    Function::NativeVoid(CallSign {
                                                             num_params: 1,
                                                             variadic: false,
+                                                            param_types:
+                                                                vec![Some(ConstraintType::Function)],
                                                         },
                                                         native_run_http_server)),
                                   ("len",
                                    Function::NativeReturning(CallSign {
-                                                            num_params: 1,
-                                                            variadic: false,
-                                                        },
-                                                        native_len))];
+                                                                 num_params: 1,
+                                                                 variadic: false,
+                                                                 param_types: vec![None],
+                                                             },
+                                                             native_len))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
             env.declare(&name.to_string(), &Value::Function(func.clone()));

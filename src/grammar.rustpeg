@@ -1,4 +1,5 @@
 use ast::*;
+use typechecker::ConstraintType;
 
 pub program -> Vec<StatementNode>
     = __ terminators? s:statements { s }
@@ -59,16 +60,39 @@ function_definition_node -> ExprNode
     = lpos:#position f:function_definition rpos:#position { ExprNode { pos: (lpos, rpos), data: f } }
 
 function_definition -> Expr
-    = FN i:identifier? OPEN_PAREN params:param_list COMMA? CLOSE_PAREN lpos:#position body:block rpos:#position {
+    = FN i:identifier? OPEN_PAREN params:param_list COMMA? CLOSE_PAREN maybe_ret_hint:return_type_hint? lpos:#position body:block rpos:#position {
+        let return_type = match maybe_ret_hint {
+            Some(ret_hint) => ret_hint,
+            None => Some(ConstraintType::Any),
+        };
         Expr::FunctionDefinition(
             i,
             params,
             Box::new(StatementNode { pos: (lpos, rpos), data: body } ),
+            return_type,
         )
     }
 
-param_list -> Vec<String>
-    = identifier ** COMMA
+param_list -> Vec<(String, Option<ConstraintType>)>
+    = identifier_with_possible_type ** COMMA
+
+identifier_with_possible_type -> (String, Option<ConstraintType>)
+    = id:identifier t:type_hint? { (id, t) }
+
+return_type_hint -> Option<ConstraintType>
+    = COLON VOID { None }
+    / COLON t:typ { Some(t) }
+
+type_hint -> ConstraintType
+    = COLON t:typ { t }
+
+typ -> ConstraintType
+    = NUMBER { ConstraintType::Number }
+    / BOOL { ConstraintType::Bool }
+    / STRING { ConstraintType::String }
+    / FUNCTION { ConstraintType::Function }
+    / TUPLE { ConstraintType::Tuple }
+    / ANY { ConstraintType::Any }
 
 expr_node -> ExprNode
     = e:binary_expr_node { e }
@@ -224,6 +248,7 @@ OPEN_SQUARE_BRACKET = "[" __
 CLOSE_SQUARE_BRACKET = "]" __
 
 COMMA = "," __
+COLON = ":" __
 
 reserved_identifier = VAR
                     / IF
@@ -250,3 +275,10 @@ LOOP = keyword<"loop">
 BREAK = keyword<"break">
 FN = keyword<"fn">
 RETURN = keyword<"return">
+NUMBER = keyword<"Number">
+BOOL = keyword<"Bool">
+STRING = keyword<"String">
+FUNCTION = keyword<"Function">
+TUPLE = keyword<"Tuple">
+ANY = keyword<"any">
+VOID = keyword<"void">

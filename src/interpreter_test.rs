@@ -249,8 +249,8 @@ fn test_factorial() {
                                        factorial(n - 1); } factorial(5); "),
                Value::Number(Number::Integer(120)));
     assert_eq!(run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * \
-                                       factorial(n - 1); } factorial(10); "),
-               Value::Number(Number::Integer(3628800)));
+                                       factorial(n - 1); } factorial(8); "),
+               Value::Number(Number::Integer(40320)));
 }
 
 #[test]
@@ -309,5 +309,6 @@ fn test_string_concat() {
 
 #[test]
 fn test_len() {
-    assert_eq!(run_and_get_last_value("len((1, 2, 3));"), Value::Number(Number::Integer(3)));
+    assert_eq!(run_and_get_last_value("len((1, 2, 3));"),
+               Value::Number(Number::Integer(3)));
 }

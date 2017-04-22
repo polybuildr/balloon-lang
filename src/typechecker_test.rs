@@ -2,7 +2,7 @@ use parser;
 use typechecker::check_program;
 use typechecker::{TypeCheckerIssue, TypeCheckerIssueWithPosition};
 use runtime::RuntimeError;
-use typechecker::Type;
+use typechecker::{Type, ConstraintType};
 use ast::*;
 
 fn check_and_get_result(code: &str) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
@@ -175,7 +175,6 @@ add(true, true);
 add(1, 1);
 add(true, 1);
 add(false, false);";
-
     assert_eq!(check_and_get_result(code).unwrap_err(), [
         (
             TypeCheckerIssue::InsideFunctionCall(
@@ -204,4 +203,29 @@ add(false, false);";
             (64, 76)
         ),
     ]);
+}
+
+#[test]
+fn check_return_type() {
+    let code = "fn add(a, b): Number {
+    return true;
+}";
+    assert_eq!(check_and_get_result(code).unwrap_err(),
+               [(TypeCheckerIssue::ReturnTypeMismatch(Some(ConstraintType::Number),
+                                                      Some(ConstraintType::Bool)),
+                 (27, 40))]);
+}
+
+#[test]
+fn check_inferred_return_type() {
+    let code = "fn bool_id(a): Bool {
+    return a;
+}
+
+bool_id(1);";
+    assert_eq!(check_and_get_result(code).unwrap_err(),
+        [(TypeCheckerIssue::InsideFunctionCall(
+            Box::new((TypeCheckerIssue::ReturnTypeMismatch(Some(ConstraintType::Bool), Some(ConstraintType::Number)), (26, 44)))
+        ), (47, 57))]
+    );
 }

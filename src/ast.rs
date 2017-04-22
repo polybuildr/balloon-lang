@@ -1,5 +1,7 @@
 use std::fmt;
 
+use typechecker::ConstraintType;
+
 pub type OffsetSpan = (usize, usize);
 
 #[derive(Debug, Clone, PartialEq)]
@@ -111,7 +113,11 @@ pub enum Expr {
     BinaryLogicalExpression(Box<ExprNode>, LogicalBinaryOp, Box<ExprNode>),
     UnaryExpression(UnaryOp, Box<ExprNode>),
     UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
-    FunctionDefinition(Option<String>, Vec<String>, Box<StatementNode>),
+    // optional name, list of params, body, optional return type
+    FunctionDefinition(Option<String>,
+                       Vec<(String, Option<ConstraintType>)>,
+                       Box<StatementNode>,
+                       Option<ConstraintType>),
     FunctionCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),
     MemberAccessByIndex(Box<ExprNode>, Box<ExprNode>),

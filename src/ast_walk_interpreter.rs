@@ -8,6 +8,7 @@ use operations;
 use environment::Environment;
 use function::*;
 use runtime::*;
+use typechecker::ConstraintType;
 
 pub struct AstWalkInterpreter {
     pub root_env: Rc<RefCell<Environment>>,
@@ -256,15 +257,17 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body) => {
+        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body, ref ret_type_hint) => {
+            let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
+                param_list.iter().cloned().unzip();
             let func = Function::User {
-                // FIXME: returning is no longer always false
-                returning: false,
+                ret_type: ret_type_hint.clone(),
                 call_sign: CallSign {
                     num_params: param_list.len(),
                     variadic: false,
+                    param_types: param_types,
                 },
-                param_list: param_list.clone(),
+                param_names: param_names.clone(),
                 body: body.clone(),
                 env: env.clone(),
             };
@@ -314,10 +317,10 @@ pub fn call_func(func: &Function, arg_vals: &Vec<Value>) -> Result<Option<Value>
             Ok(None)
         }
         Function::NativeReturning(_, ref native_fn) => Ok(Some(native_fn(arg_vals.clone())?)),
-        Function::User { ref param_list, ref body, ref env, .. } => {
+        Function::User { ref param_names, ref body, ref env, .. } => {
             // TODO: returning
             let function_env = Environment::create_child(env.clone());
-            for (param, arg) in param_list.iter().zip(arg_vals.iter()) {
+            for (param, arg) in param_names.iter().zip(arg_vals.iter()) {
                 function_env.borrow_mut().declare(param, arg);
             }
             let inner_env = Environment::create_child(function_env);

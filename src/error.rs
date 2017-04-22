@@ -230,6 +230,14 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                              Red.bold().paint("non integral subscript"),
                              typ);
                 }
+                RuntimeError::BreakOutsideLoop => {
+                    println!("{}: break statement appeared outside of a loop",
+                             Red.bold().paint("break outside loop"));
+                }
+                RuntimeError::ReturnOutsideFunction => {
+                    println!("{}: return statement appeared outside of a function",
+                             Red.bold().paint("return outside function"));
+                }
             }
         }
         TypeCheckerIssue::MultipleTypesFromBranchWarning(id) => {
@@ -240,6 +248,31 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
         TypeCheckerIssue::InsideFunctionCall(issue_with_position) => {
             println!("{}:", Red.bold().paint("issue in function call"));
             error_to_print_after_this = Some(*issue_with_position);
+        }
+        TypeCheckerIssue::ReturnTypeMismatch(expected_type, actual_type) => {
+            let expected_type_name = match expected_type {
+                None => "no return value".to_owned(),
+                Some(typ) => format!("type {}", typ),
+            };
+            match actual_type {
+                None => {
+                    println!("{}: function did not return a value, expected {}",
+                             Red.bold().paint("return type mismatch"),
+                             expected_type_name);
+                }
+                Some(typ) => {
+                    println!("{}: returned value is of type {}, expected {}",
+                             Red.bold().paint("return type mismatch"),
+                             typ,
+                             expected_type_name);
+                }
+            }
+        }
+        TypeCheckerIssue::ArgumentTypeMismatch(expected_type, actual_type) => {
+            println!("{}: expected type {} but found type {}",
+                     Red.bold().paint("argument type mismatch"),
+                     expected_type,
+                     actual_type);
         }
     }
 
@@ -312,6 +345,9 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
     }
     if let Some(next_err) = error_to_print_after_this {
         let span = offset_span_to_source_span(next_err.1, &file_content);
-        print_typechecker_error_for_file(next_err.0, span, file_content, &("function in ".to_owned() + file_name));
+        print_typechecker_error_for_file(next_err.0,
+                                         span,
+                                         file_content,
+                                         &("function in ".to_owned() + file_name));
     }
 }
