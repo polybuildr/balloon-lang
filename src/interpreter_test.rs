@@ -249,8 +249,8 @@ fn test_factorial() {
                                        factorial(n - 1); } factorial(5); "),
                Value::Number(Number::Integer(120)));
     assert_eq!(run_and_get_last_value("fn factorial(n) { if n < 2 { return 1; } return n * \
-                                       factorial(n - 1); } factorial(8); "),
-               Value::Number(Number::Integer(40320)));
+                                       factorial(n - 1); } factorial(15); "),
+               Value::Number(Number::Integer(1307674368000)));
 }
 
 #[test]
