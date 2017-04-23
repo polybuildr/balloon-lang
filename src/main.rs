@@ -11,6 +11,8 @@ extern crate rustyline;
 
 extern crate linear_map;
 
+extern crate hyper;
+
 // include output of rust-peg given grammar.rustpeg
 mod parser {
     include!(concat!(env!("OUT_DIR"), "/grammar.rs"));

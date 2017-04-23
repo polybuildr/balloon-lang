@@ -68,10 +68,14 @@ pub fn native_len(args: Vec<Value>) -> Result<Value, RuntimeError> {
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
-    use std::net::{TcpListener, Shutdown};
-    // TODO: refactor this to not call into ast_walk_interpreter
+    use hyper::server::{Server, Request, Response};
+    use hyper::header::ContentType;
+    use hyper::uri::RequestUri;
+    use std::sync::mpsc::channel;
+    use std::sync::Mutex;
+    use std::thread;
+
     use ast_walk_interpreter::call_func;
-    use std::io::Write;
 
     let handler_val = &args[0];
 
@@ -82,34 +86,77 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                 .to_owned()))
         }
     };
-    let server = TcpListener::bind("0.0.0.0:8000").unwrap();
-    for stream in server.incoming() {
-        let handler_response = call_func(handler_func, &[]);
 
-        let handler_response_value = if let Ok(Some(val)) = handler_response {
-            val
-        } else {
-            return Err(RuntimeError::GeneralRuntimeError("http_server: handler did not return a \
-                                                          value"
-                .to_owned()));
-        };
+    let maybe_hyper_server = Server::http("0.0.0.0:8000");
 
-        match stream {
-            Ok(mut stream) => {
-                let response =
-                    "HTTP/1.0 200 OK\r\nServer:Balloon\r\nContent-Type:text/html\r\n\r\n"
-                        .to_owned() + &handler_response_value.to_string();
-                stream.write_all(response.as_bytes()).unwrap();
-                stream.flush().unwrap();
-                stream.shutdown(Shutdown::Both).unwrap();
+    if let Err(e) = maybe_hyper_server {
+        return Err(RuntimeError::GeneralRuntimeError(format!("http_server: {}", e)));
+    }
+
+    let server = maybe_hyper_server.unwrap();
+    // channel from server to interpreter
+    let (sender, receiver) = channel();
+    let sender_mutex = Mutex::new(sender);
+    thread::spawn(|| {
+        println!("http_server: listening on 0.0.0.0:8000 on a new thread");
+        let handle_result = server.handle(move |req: Request, mut res: Response| {
+            let sender = match sender_mutex.lock() {
+                Ok(sender) => sender,
+                Err(_) => panic!("http_server: threading error (lock poisoned)"),
+            };
+            if let RequestUri::AbsolutePath(path) = req.uri {
+                // channel from interpreter to server
+                let (rev_sender, rev_receiver) = channel();
+                if let Err(_) = sender.send((path, rev_sender)) {
+                    panic!("http_server: threading error (could not send on reverse channel)");
+                }
+                let response_string: String = match rev_receiver.recv() {
+                    Ok(response_string) => response_string,
+                    Err(_) => {
+                        // assume some clean disconnect
+                        return;
+                    }
+                };
+                res.headers_mut().set(ContentType::html());
+                if let Err(_) = res.send(response_string.as_bytes()) {
+                    panic!("http_server: threading error (could not send on channel)");
+                }
+            } else {
+                panic!("http_server: unknown kind of request");
             }
-            Err(e) => {
-                return Err(RuntimeError::GeneralRuntimeError(format!("http_server: Error in \
-                                                                      TcpStream: {:?}",
-                                                                     e)
-                    .to_owned()));
+        });
+        if let Err(_) = handle_result {
+            panic!("http_server: could not handle requests");
+        }
+    });
+
+    loop {
+        match receiver.recv() {
+            Err(_) => {
+                // assume some clean disconnect
+                break;
+            }
+            Ok(msg) => {
+                let (path, sender) = msg;
+                let possible_response_value = call_func(handler_func, &[Value::String(path)])?;
+                let response_value = match possible_response_value {
+                    None => {
+                        return Err(RuntimeError::GeneralRuntimeError("http_server: handler \
+                                                                      function did not return a \
+                                                                      value"
+                            .to_owned()));
+                    }
+                    Some(val) => val,
+                };
+                if let Err(_) = sender.send(response_value.to_string()) {
+                    return Err(RuntimeError::GeneralRuntimeError("http_server: threading error \
+                                                                  (could not send on reverse \
+                                                                  channel)"
+                        .to_owned()));
+                }
             }
         }
     }
+
     Ok(())
 }
