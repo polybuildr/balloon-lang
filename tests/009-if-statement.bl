@@ -1,6 +1,0 @@
-if (1) {
-    var expr1 = true;
-}
-if (0) {
-    var expr2 = true;
-}
