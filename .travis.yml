@@ -1,8 +1,27 @@
 language: rust
+# 14.04 needed to install llvm-4.0
+dist: trusty
+
 rust:
   - stable
   - beta
   - nightly
+
+before_install:
+  - echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-4.0 main" | sudo tee -a /etc/apt/sources.list
+  - echo "deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-4.0 main" | sudo tee -a /etc/apt/sources.list
+
+  - wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libllvm4.0 llvm-4.0 llvm-4.0-dev llvm-4.0-runtime 
+  - sudo ln -s /usr/bin/llvm-config-4.0 /usr/local/bin/llvm-config
+  - export LD_LIBRARY_PATH=/usr/local/lib:/lib/:$LD_LIBRARY_PATH
+  - export PATH=/usr/local/bin:$PATH
+  - ls /usr/local/lib
+  - ls /usr/local/bin
+  
+
+
 matrix:
   allow_failures:
     - rust: nightly
