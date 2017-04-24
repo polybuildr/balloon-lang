@@ -197,8 +197,8 @@ fn box_type() -> LLVMTypeRef {
     let packed = false;
     unsafe {
         LLVMStructType(elem_types.as_mut_ptr(),
-                                       elem_types.len() as u32,
-                                       packed as i32)
+                       elem_types.len() as u32,
+                       packed as i32)
     }
 }
 
@@ -569,10 +569,10 @@ fn compile_expr(module: &mut Module,
             };
 
             LLVMBuildCall(builder.builder,
-                                         box_unbox_functions.box_i64,
-                                         [finalval].as_mut_ptr(),
-                                         1,
-                                         module.new_string_ptr("finalbox"))
+                          box_unbox_functions.box_i64,
+                          [finalval].as_mut_ptr(),
+                          1,
+                          module.new_string_ptr("finalbox"))
         },
         ref other => panic!("unknown compile_expr: {:?}", other),
 
@@ -702,6 +702,8 @@ struct LLVMBoxedStructRepr {
 }
 
 impl LLVMJIT {
+    //FIXME: not sure why this is seen as a "useless" transmute, I need to cast it to a void*
+    #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
     fn add_c_mappings(engine: *mut LLVMExecutionEngineRef, c_declarations: CDeclarations) {
         unsafe {
             LLVMAddGlobalMapping(*engine,
