@@ -55,9 +55,9 @@ fn raw_int_to_balloon_type_tag(raw: u64) -> BalloonTypeTag {
 
 fn balloon_type_tag_to_str<'a>(tag: BalloonTypeTag) -> &'a str {
     match tag {
-        BalloonTypeTag::Integer => return "balloon_int",
-        BalloonTypeTag::Float => return "balloon_float",
-        BalloonTypeTag::Boolean => return "balloon_boolean",
+        BalloonTypeTag::Integer => "balloon_int",
+        BalloonTypeTag::Float => "balloon_float",
+        BalloonTypeTag::Boolean => "balloon_boolean",
     }
 }
 
@@ -196,10 +196,9 @@ fn box_type() -> LLVMTypeRef {
     let mut elem_types = [tag_type(), int64_type()];
     let packed = false;
     unsafe {
-        let struct_ty = LLVMStructType(elem_types.as_mut_ptr(),
+        LLVMStructType(elem_types.as_mut_ptr(),
                                        elem_types.len() as u32,
-                                       packed as i32);
-        struct_ty
+                                       packed as i32)
     }
 }
 
@@ -212,7 +211,7 @@ fn add_function(module: &mut Module,
         let fn_type = LLVMFunctionType(ret_type, args.as_mut_ptr(), args.len() as u32, LLVM_FALSE);
         let llvmfn = LLVMAddFunction(module.module, module.new_string_ptr(fn_name), fn_type);
         LLVMSetFunctionCallConv(llvmfn, 0);
-        return llvmfn;
+        llvmfn
     }
 }
 
@@ -413,9 +412,9 @@ fn add_global_defn_for_tag(module: &mut Module, tag: BalloonTypeTag) -> LLVMValu
 fn gen_add_fn(mut module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) -> LLVMValueRef {
     let builder = Builder::new();
     unsafe {
-        let fnname = format!("balloon_add");
+        let fnname = "balloon_add";
         let addfn = add_function(module,
-                                 &fnname,
+                                 fnname,
                                  &mut [LLVMPointerType(box_type(), 0),
                                        LLVMPointerType(box_type(), 0)],
                                  LLVMPointerType(box_type(), 0));
@@ -499,21 +498,20 @@ fn compile_literal(mut module: &mut Module,
                    literal: &Literal)
                    -> LLVMValueRef {
     unsafe {
-        match literal {
-            &Literal::Integer(i64val) => {
+        match *literal {
+            Literal::Integer(i64val) => {
                 let builder = Builder::new();
                 builder.position_at_end(bb);
                 let i = LLVMConstInt(int64_type(), i64val as c_ulonglong, 1);
-                let box_intp = LLVMBuildCall(builder.builder,
-                                             box_unbox_functions.box_i64,
-                                             [i].as_mut_ptr(),
-                                             1,
-                                             module.new_string_ptr("valp"));
-                box_intp
+                LLVMBuildCall(builder.builder,
+                              box_unbox_functions.box_i64,
+                              [i].as_mut_ptr(),
+                              1,
+                              module.new_string_ptr("valp"))
             }
-            &Literal::Float(f64val) => LLVMConstReal(float64_type(), f64val),
-            &Literal::Bool(boolval) => LLVMConstInt(int1_type(), boolval as c_ulonglong, 1),
-            other => panic!("unknown literal expr: {:?}", other),
+            Literal::Float(f64val) => LLVMConstReal(float64_type(), f64val),
+            Literal::Bool(boolval) => LLVMConstInt(int1_type(), boolval as c_ulonglong, 1),
+            ref other => panic!("unknown literal expr: {:?}", other),
         }
     }
 }
@@ -522,9 +520,9 @@ fn compile_expr(module: &mut Module,
                 box_unbox_functions: &BoxUnboxFunctions,
                 expr: &Expr)
                 -> LLVMValueRef {
-    match expr {
-        &Expr::Literal(ref literal) => compile_literal(module, bb, box_unbox_functions, literal),
-        &Expr::Binary(ref leftexpr, ref op, ref rightexpr) => unsafe {
+    match *expr {
+        Expr::Literal(ref literal) => compile_literal(module, bb, box_unbox_functions, literal),
+        Expr::Binary(ref leftexpr, ref op, ref rightexpr) => unsafe {
             let builder = Builder::new();
             builder.position_at_end(bb);
 
@@ -542,26 +540,26 @@ fn compile_expr(module: &mut Module,
                                          1,
                                          module.new_string_ptr("rightval"));
 
-            let finalval = match op {
-                &BinOp::Add => {
+            let finalval = match *op {
+                BinOp::Add => {
                     LLVMBuildNSWAdd(builder.builder,
                                     leftval,
                                     rightval,
                                     module.new_string_ptr("addval"))
                 }
-                &BinOp::Sub => {
+                BinOp::Sub => {
                     LLVMBuildSub(builder.builder,
                                  leftval,
                                  rightval,
                                  module.new_string_ptr("subval"))
                 }
-                &BinOp::Mul => {
+                BinOp::Mul => {
                     LLVMBuildMul(builder.builder,
                                  leftval,
                                  rightval,
                                  module.new_string_ptr("mulval"))
                 }
-                &BinOp::Div => {
+                BinOp::Div => {
                     LLVMBuildSDiv(builder.builder,
                                   leftval,
                                   rightval,
@@ -570,14 +568,13 @@ fn compile_expr(module: &mut Module,
                 _ => panic!("unimplemented expr operator: {}", op),
             };
 
-            let finalbox = LLVMBuildCall(builder.builder,
+            LLVMBuildCall(builder.builder,
                                          box_unbox_functions.box_i64,
                                          [finalval].as_mut_ptr(),
                                          1,
-                                         module.new_string_ptr("finalbox"));
-            finalbox
+                                         module.new_string_ptr("finalbox"))
         },
-        other => panic!("unknown compile_expr: {:?}", other),
+        ref other => panic!("unknown compile_expr: {:?}", other),
 
     }
 }
@@ -587,9 +584,9 @@ fn compile_statement(mut module: &mut Module,
                      box_unbox_functions: &BoxUnboxFunctions,
                      statement: &Stmt)
                      -> LLVMValueRef {
-    match statement {
-        &Stmt::Expr(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
-        other => panic!("unknown compile: {:?}", other),
+    match *statement {
+        Stmt::Expr(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
+        ref other => panic!("unknown compile: {:?}", other),
     }
 }
 
@@ -678,7 +675,7 @@ fn interpret_statements(stmts: &[StmtNode],
         // LLVMBuildRet(builder.builder, int64(42));
         //LLVMBuildRet(builder.builder, final_value);
 
-        print!("@@@@@@ FINAL MODULE:\n");
+        println!("@@@@@@ FINAL MODULE:");
         print!("{}", module.to_cstring().to_string_lossy().into_owned());
 
         let mut jit = LLVMJIT {};
