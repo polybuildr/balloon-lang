@@ -6,19 +6,12 @@ use std::fmt;
 use std::mem;
 
 use ast::*;
-use value::*;
-use operations;
 use environment::Environment;
-use function::*;
 use runtime::*;
 
 
-// From BF
-
-use itertools::Itertools;
 use llvm_sys::core::*;
-use llvm_sys::{LLVMModule, LLVMIntPredicate, LLVMBuilder};
-use llvm_sys::transforms::pass_manager_builder::*;
+use llvm_sys::{LLVMModule, LLVMBuilder};
 use llvm_sys::prelude::*;
 use llvm_sys::analysis::*;
 use llvm_sys::target::*;
@@ -27,14 +20,9 @@ use llvm_sys::execution_engine::*;
 
 use std::os::raw::{c_ulonglong, c_uint};
 use std::ffi::{CString, CStr};
-use std::ptr::null_mut;
 use std::str;
 
 use libc;
-
-use std::collections::HashMap;
-use std::num::Wrapping;
-
 
 
 const LLVM_FALSE: LLVMBool = 0;
@@ -55,6 +43,7 @@ fn balloon_type_tag_to_int(tag: BalloonTypeTag) -> u64 {
     }
 }
 
+#[allow(dead_code)]
 fn raw_int_to_balloon_type_tag(raw: u64) -> BalloonTypeTag {
     match raw {
         0 => BalloonTypeTag::Integer,
@@ -159,15 +148,12 @@ impl Drop for Builder {
 
 /// Convert this integer to LLVM's representation of a constant
 /// integer.
-unsafe fn int8(val: c_ulonglong) -> LLVMValueRef {
-    LLVMConstInt(LLVMInt8Type(), val, LLVM_FALSE)
-}
-/// Convert this integer to LLVM's representation of a constant
-/// integer.
 // TODO: this should be a machine word size rather than hard-coding 32-bits.
 fn int32(val: c_ulonglong) -> LLVMValueRef {
     unsafe { LLVMConstInt(LLVMInt32Type(), val, LLVM_FALSE) }
 }
+
+#[allow(dead_code)]
 fn int64(val: c_ulonglong) -> LLVMValueRef {
     unsafe { LLVMConstInt(LLVMInt64Type(), val, LLVM_FALSE) }
 }
@@ -193,12 +179,9 @@ fn int8_ptr_type() -> LLVMTypeRef {
     unsafe { LLVMPointerType(LLVMInt8Type(), 0) }
 }
 
+#[allow(dead_code)]
 fn void_type() -> LLVMTypeRef {
     unsafe { LLVMVoidType() }
-}
-
-fn void_ptr_type() -> LLVMTypeRef {
-    unsafe { LLVMPointerType(void_type(), 0) }
 }
 
 fn float64_type() -> LLVMTypeRef {
@@ -232,6 +215,7 @@ fn add_function(module: &mut Module,
 
 struct CDeclarations {
     malloc: LLVMValueRef,
+    #[allow(dead_code)]
     free: LLVMValueRef
 }
 
@@ -281,57 +265,6 @@ unsafe fn add_function_call(module: &mut Module,
                   args.as_mut_ptr(),
                   args.len() as c_uint,
                   module.new_string_ptr(name))
-}
-
-struct TargetMachine {
-    tm: LLVMTargetMachineRef,
-}
-
-impl TargetMachine {
-    fn new(target_triple: *const i8) -> Result<Self, String> {
-        let mut target = null_mut();
-        let mut err_msg_ptr = null_mut();
-        unsafe {
-            LLVMGetTargetFromTriple(target_triple, &mut target, &mut err_msg_ptr);
-            if target.is_null() {
-                // LLVM couldn't find a target triple with this name,
-                // so it should have given us an error message.
-                assert!(!err_msg_ptr.is_null());
-
-                let err_msg_cstr = CStr::from_ptr(err_msg_ptr as *const _);
-                let err_msg = str::from_utf8(err_msg_cstr.to_bytes()).unwrap();
-                return Err(err_msg.to_owned());
-            }
-        }
-
-        // TODO: do these strings live long enough?
-        // cpu is documented: http://llvm.org/docs/CommandGuide/llc.html#cmdoption-mcpu
-        let cpu = CString::new("generic").unwrap();
-        // features are documented: http://llvm.org/docs/CommandGuide/llc.html#cmdoption-mattr
-        let features = CString::new("").unwrap();
-
-        let target_machine;
-        unsafe {
-            target_machine =
-                LLVMCreateTargetMachine(target,
-                                        target_triple,
-                                        cpu.as_ptr() as *const _,
-                                        features.as_ptr() as *const _,
-                                        LLVMCodeGenOptLevel::LLVMCodeGenLevelAggressive,
-                                        LLVMRelocMode::LLVMRelocDefault,
-                                        LLVMCodeModel::LLVMCodeModelDefault);
-        }
-
-        Ok(TargetMachine { tm: target_machine })
-    }
-}
-
-impl Drop for TargetMachine {
-    fn drop(&mut self) {
-        unsafe {
-            LLVMDisposeTargetMachine(self.tm);
-        }
-    }
 }
 
 pub struct LLVMInterpreter {
@@ -447,7 +380,7 @@ fn add_global_defn_for_tag(module: &mut Module, tag: BalloonTypeTag) -> LLVMValu
 }
 
 fn gen_add_fn(mut module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) -> LLVMValueRef {
-    let mut builder = Builder::new();
+    let builder = Builder::new();
     unsafe {
         let fnname = format!("balloon_add");
         let addfn = add_function(module, &fnname,
@@ -544,10 +477,10 @@ fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions:
                                          [rightbox].as_mut_ptr(), 1, module.new_string_ptr("rightval"));
 
             let finalval = match op {
-                Add => LLVMBuildNSWAdd(builder.builder, leftval, rightval, module.new_string_ptr("addval")),
-                Sub => LLVMBuildSub(builder.builder, leftval, rightval, module.new_string_ptr("subval")),
-                Mul => LLVMBuildMul(builder.builder, leftval, rightval, module.new_string_ptr("mulval")),
-                Div => LLVMBuildSDiv(builder.builder, leftval, rightval, module.new_string_ptr("divval")),
+               &BinaryOp::Add => LLVMBuildNSWAdd(builder.builder, leftval, rightval, module.new_string_ptr("addval")),
+               &BinaryOp::Sub => LLVMBuildSub(builder.builder, leftval, rightval, module.new_string_ptr("subval")),
+               &BinaryOp::Mul => LLVMBuildMul(builder.builder, leftval, rightval, module.new_string_ptr("mulval")),
+               &BinaryOp::Div => LLVMBuildSDiv(builder.builder, leftval, rightval, module.new_string_ptr("divval")),
                 _ => panic!("unimplemented expr operator: {}", op)
             };
 
@@ -585,7 +518,7 @@ fn create_module(module_name: &str, target_triple: Option<String>) -> Module {
     unsafe {
         llvm_module = LLVMModuleCreateWithName(module_name_char_ptr);
     }
-    let mut module = Module {
+    let module = Module {
         module: llvm_module,
         strings: vec![c_module_name],
     };
@@ -603,8 +536,6 @@ fn create_module(module_name: &str, target_triple: Option<String>) -> Module {
     }
     // TODO: add a function to the LLVM C API that gives us the
     // data layout from the target machine.
-
-    add_c_declarations(&mut module);
     module
 }
 
@@ -692,7 +623,7 @@ impl LLVMJIT {
             let err = CStr::from_ptr(error_c_string).to_string_lossy().into_owned();
             println!("@@@@@@ ERROR: {}", err);
 
-            let mut engine : *mut LLVMExecutionEngineRef = mem::uninitialized();;
+            let engine : *mut LLVMExecutionEngineRef = mem::uninitialized();;
 
             LLVM_InitializeNativeAsmPrinter();
             LLVM_InitializeNativeAsmParser();
@@ -703,7 +634,7 @@ impl LLVMJIT {
             // LLVMLinkInInterpreter();
             LLVM_InitializeNativeTarget();
             println!("@@@@@ Creating Execution Engine...");
-            if (LLVMCreateExecutionEngineForModule(engine, module.module, &mut error_c_string) != 0) {
+            if LLVMCreateExecutionEngineForModule(engine, module.module, &mut error_c_string) != 0 {
                 panic!("unable to create execution engine.")
             }
 
