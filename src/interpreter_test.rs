@@ -87,12 +87,6 @@ fn arithmetic_2() {
 
 #[test]
 fn arithmetic_3() {
-    assert_eq!(run_and_get_last_value("10 // 3 + 5 - 12;"),
-               Value::Number(Number::Integer(-4)));
-}
-
-#[test]
-fn arithmetic_4() {
     assert_eq!(run_and_get_last_value("-10 / 4 + -5 - 12;"),
                Value::Number(Number::Float(-19.5)));
 }

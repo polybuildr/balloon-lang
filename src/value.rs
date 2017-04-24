@@ -175,17 +175,6 @@ impl PartialOrd for Number {
     }
 }
 
-impl Number {
-    pub fn floor_div(&self, other: &Number) -> Number {
-        match (*self, *other) {
-            (Number::Integer(x), Number::Integer(y)) => Number::Integer(x / y),
-            (Number::Float(x), Number::Float(y)) => Number::Float((x / y).floor()),
-            (Number::Float(x), Number::Integer(y)) => Number::Float((x / (y as f64)).floor()),
-            (Number::Integer(x), Number::Float(y)) => Number::Float(((x as f64) / y).floor()),
-        }
-    }
-}
-
 impl Value {
     pub fn get_type(&self) -> Type {
         match *self {

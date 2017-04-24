@@ -44,15 +44,6 @@ pub fn divide(a: Value, b: Value) -> Result<Value, RuntimeError> {
     }
 }
 
-pub fn floor_divide(a: Value, b: Value) -> Result<Value, RuntimeError> {
-    match (a, b) {
-        (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a.floor_div(&b))),
-        (a, b) => {
-            Err(RuntimeError::BinaryTypeError(BinaryOp::FloorDiv, a.get_type(), b.get_type()))
-        }
-    }
-}
-
 pub fn less_than(a: Value, b: Value) -> Result<Value, RuntimeError> {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),

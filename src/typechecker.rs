@@ -679,8 +679,7 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
         Add => check_add_for_types(&checked_type_1, &checked_type_2),
         ref op @ Sub |
         ref op @ Mul |
-        ref op @ Div |
-        ref op @ FloorDiv => {
+        ref op @ Div => {
             check_binary_arithmetic_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
         ref op @ LessThan |
