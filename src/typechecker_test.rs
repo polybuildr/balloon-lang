@@ -224,8 +224,17 @@ fn check_inferred_return_type() {
 
 bool_id(1);";
     assert_eq!(check_and_get_result(code).unwrap_err(),
-        [(TypeCheckerIssue::InsideFunctionCall(
-            Box::new((TypeCheckerIssue::ReturnTypeMismatch(Some(ConstraintType::Bool), Some(ConstraintType::Number)), (26, 36)))
-        ), (39, 49))]
+        [(
+            TypeCheckerIssue::InsideFunctionCall(
+                Box::new(
+                    (
+                        TypeCheckerIssue::ReturnTypeMismatch(
+                            Some(ConstraintType::Bool), Some(ConstraintType::Number)
+                        ),
+                        (26, 36))
+                )
+            ),
+            (39, 49)
+        )]
     );
 }

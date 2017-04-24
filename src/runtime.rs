@@ -24,7 +24,8 @@ pub enum RuntimeError {
     ArgumentLength(Option<String>),
     /// When nothing else suits
     GeneralRuntimeError(String),
-    /// When a runtime error occurs inside a function call and is getting propagated as a plain RuntimeError
+    /// When a runtime error occurs inside a function call
+    /// and is getting propagated as a plain RuntimeError
     InsideFunctionCall(Box<RuntimeErrorWithPosition>),
     BreakOutsideLoop,
     ReturnOutsideFunction,

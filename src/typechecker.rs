@@ -542,7 +542,8 @@ fn check_statement_return(possible_expr: &Option<ExprNode>,
                             if !actual_return_constraint_type.compatible_with(expected_type) {
                                 issues.push((
                                     TypeCheckerIssue::ReturnTypeMismatch(
-                                        Some(expected_type.clone()), Some(actual_return_constraint_type)
+                                        Some(expected_type.clone()),
+                                        Some(actual_return_constraint_type)
                                     ),
                                     return_statement.pos
                                 ));
@@ -1034,7 +1035,11 @@ fn check_args_compat(arg_types: &[Type],
     }
 }
 
-fn get_function_type_with_updated_already_checked(old_fn_type: &FunctionType, new_already_checked: LinearMap<Vec<ConstraintType>, ()>) -> FunctionType {
+fn get_function_type_with_updated_already_checked(
+    old_fn_type: &FunctionType,
+    new_already_checked: LinearMap<Vec<ConstraintType>,()>)
+    -> FunctionType {
+
     if let FunctionType::User { ref param_names,
                                 ref body,
                                 ref env,
