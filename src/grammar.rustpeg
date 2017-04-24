@@ -131,13 +131,13 @@ expr_with_suffix -> ExprNode
             let mut expr = e;
             for suffix in suffixes {
                 match suffix {
-                    ExprSuffix::ExprInSquareBrackets(idx_expr) => {
+                    ExprSuffix::InSquareBrackets(idx_expr) => {
                         expr = ExprNode {
                             pos: (lpos, rpos),
                             data: Expr::MemberByIdx(Box::new(expr), Box::new(idx_expr)),
                         }
                     }
-                    ExprSuffix::ExprListInParens(args_list) => {
+                    ExprSuffix::ListInParens(args_list) => {
                         expr = ExprNode {
                             pos: (lpos, rpos),
                             data: Expr::FnCall(Box::new(expr), args_list),
@@ -154,10 +154,10 @@ expr_suffix -> ExprSuffix
     / function_call_suffix
 
 member_access_suffix -> ExprSuffix
-    = OPEN_SQUARE_BRACKET idx:expr_node CLOSE_SQUARE_BRACKET { ExprSuffix::ExprInSquareBrackets(idx) }
+    = OPEN_SQUARE_BRACKET idx:expr_node CLOSE_SQUARE_BRACKET { ExprSuffix::InSquareBrackets(idx) }
 
 function_call_suffix -> ExprSuffix
-    = OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN { ExprSuffix::ExprListInParens(args) }
+    = OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN { ExprSuffix::ListInParens(args) }
 
 simple_expr_node -> ExprNode
     = lpos:#position e:simple_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e } }

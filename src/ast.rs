@@ -123,8 +123,8 @@ pub enum Expr {
 
 // Only for parser convenience
 pub enum ExprSuffix {
-    ExprListInParens(Vec<ExprNode>),
-    ExprInSquareBrackets(ExprNode),
+    ListInParens(Vec<ExprNode>),
+    InSquareBrackets(ExprNode),
 }
 
 #[derive(Debug, Clone)]
