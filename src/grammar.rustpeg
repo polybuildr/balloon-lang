@@ -163,8 +163,8 @@ simple_expr_node -> ExprNode
     = lpos:#position e:simple_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e } }
 
 simple_expr -> Expr
-    = OP_MINUS e:single_expr_node { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
-    / NOT e:expr_node { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
+    = OP_MINUS e:single_expr_node { Expr::UnaryExpression(UnOp::Minus, Box::new(e)) }
+    / NOT e:expr_node { Expr::UnaryLogicalExpression(LogicalUnOp::Not, Box::new(e)) }
     / t:tuple { t }
     / f:function_definition { f }
     / l:literal { Expr::Literal(l) }

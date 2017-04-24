@@ -11,7 +11,7 @@ pub enum RuntimeError {
     /// When a binary op cannot be performed on the given types
     BinaryTypeError(BinOp, Type, Type),
     /// When a unary op cannot be performed on the given type
-    UnaryTypeError(UnaryOp, Type),
+    UnaryTypeError(UnOp, Type),
     /// When a non-returning function's return value is used
     NoneError(Option<String>),
     /// When a call is made to a non-function value

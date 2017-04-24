@@ -594,7 +594,7 @@ fn check_expr_tuple(elems: &[ExprNode],
     }
 }
 
-fn check_expr_unary_op(op: &UnaryOp,
+fn check_expr_unary_op(op: &UnOp,
                        expr: &ExprNode,
                        env: Rc<RefCell<TypeEnvironment>>)
                        -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
@@ -608,7 +608,7 @@ fn check_expr_unary_op(op: &UnaryOp,
         }
         Ok(Some(typ)) => {
             match *op {
-                UnaryOp::Minus => {
+                UnOp::Minus => {
                     match check_unary_minus_for_type(typ) {
                         Ok(t) => Ok(Some(t)),
                         Err(e) => Err(vec![(e, expr.pos)]),
@@ -620,7 +620,7 @@ fn check_expr_unary_op(op: &UnaryOp,
     }
 }
 
-fn check_expr_unary_logical_op(op: &LogicalUnaryOp,
+fn check_expr_unary_logical_op(op: &LogicalUnOp,
                                expr: &ExprNode,
                                env: Rc<RefCell<TypeEnvironment>>)
                                -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
@@ -634,7 +634,7 @@ fn check_expr_unary_logical_op(op: &LogicalUnaryOp,
         }
         Ok(Some(_)) => {
             match *op {
-                LogicalUnaryOp::Not => Ok(Some(Type::Bool)),
+                LogicalUnOp::Not => Ok(Some(Type::Bool)),
             }
         }
         Err(e) => Err(e),
@@ -969,7 +969,7 @@ fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {
     match typ {
         Type::Number => Ok(Type::Number),
         Type::Any => Ok(Type::Any),
-        _ => Err(RuntimeError::UnaryTypeError(UnaryOp::Minus, typ).into()),
+        _ => Err(RuntimeError::UnaryTypeError(UnOp::Minus, typ).into()),
     }
 }
 

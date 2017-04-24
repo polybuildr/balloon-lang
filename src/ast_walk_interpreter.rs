@@ -167,7 +167,7 @@ fn interpret_expr(e: &ExprNode,
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
-                UnaryOp::Minus => {
+                UnOp::Minus => {
                     match operations::unary_minus(val) {
                         Ok(v) => Ok(Some(v)),
                         Err(err) => Err((err, e.pos)),
@@ -179,7 +179,7 @@ fn interpret_expr(e: &ExprNode,
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
-                LogicalUnaryOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
+                LogicalUnOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
             }
         }
         Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {

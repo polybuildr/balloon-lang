@@ -24,12 +24,12 @@ pub enum LogicalBinOp {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum UnaryOp {
+pub enum UnOp {
     Minus,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LogicalUnaryOp {
+pub enum LogicalUnOp {
     Not,
 }
 
@@ -58,18 +58,18 @@ impl fmt::Display for LogicalBinOp {
     }
 }
 
-impl fmt::Display for UnaryOp {
+impl fmt::Display for UnOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            UnaryOp::Minus => write!(f, "-"),
+            UnOp::Minus => write!(f, "-"),
         }
     }
 }
 
-impl fmt::Display for LogicalUnaryOp {
+impl fmt::Display for LogicalUnOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            LogicalUnaryOp::Not => write!(f, "not"),
+            LogicalUnOp::Not => write!(f, "not"),
         }
     }
 }
@@ -109,8 +109,8 @@ pub enum Expr {
     Identifier(String),
     BinaryExpression(Box<ExprNode>, BinOp, Box<ExprNode>),
     BinaryLogicalExpression(Box<ExprNode>, LogicalBinOp, Box<ExprNode>),
-    UnaryExpression(UnaryOp, Box<ExprNode>),
-    UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
+    UnaryExpression(UnOp, Box<ExprNode>),
+    UnaryLogicalExpression(LogicalUnOp, Box<ExprNode>),
     // optional name, list of params, body, optional return type
     FunctionDefinition(Option<String>,
                        Vec<(String, Option<ConstraintType>)>,
