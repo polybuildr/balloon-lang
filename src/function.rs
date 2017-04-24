@@ -74,6 +74,7 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
     use std::sync::mpsc::channel;
     use std::sync::Mutex;
     use std::thread;
+    use std::sync::PoisonError;
 
     use ast_walk_interpreter::call_func;
 
@@ -102,12 +103,12 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
         let handle_result = server.handle(move |req: Request, mut res: Response| {
             let sender = match sender_mutex.lock() {
                 Ok(sender) => sender,
-                Err(_) => panic!("http_server: threading error (lock poisoned)"),
+                Err(PoisonError { .. }) => panic!("http_server: threading error (lock poisoned)"),
             };
             if let RequestUri::AbsolutePath(path) = req.uri {
                 // channel from interpreter to server
                 let (rev_sender, rev_receiver) = channel();
-                if let Err(_) = sender.send((path, rev_sender)) {
+                if sender.send((path, rev_sender)).is_err() {
                     panic!("http_server: threading error (could not send on reverse channel)");
                 }
                 let response_string: String = match rev_receiver.recv() {
@@ -118,14 +119,14 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                     }
                 };
                 res.headers_mut().set(ContentType::html());
-                if let Err(_) = res.send(response_string.as_bytes()) {
-                    panic!("http_server: threading error (could not send on channel)");
+                if res.send(response_string.as_bytes()).is_err() {
+                    panic!("http_server: could not send response");
                 }
             } else {
                 panic!("http_server: unknown kind of request");
             }
         });
-        if let Err(_) = handle_result {
+        if handle_result.is_err() {
             panic!("http_server: could not handle requests");
         }
     });
@@ -148,7 +149,7 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                     }
                     Some(val) => val,
                 };
-                if let Err(_) = sender.send(response_value.to_string()) {
+                if sender.send(response_value.to_string()).is_err() {
                     return Err(RuntimeError::GeneralRuntimeError("http_server: threading error \
                                                                   (could not send on reverse \
                                                                   channel)"
