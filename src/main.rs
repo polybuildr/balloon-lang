@@ -13,6 +13,12 @@ extern crate linear_map;
 
 extern crate hyper;
 
+extern crate llvm_sys;
+
+extern crate itertools;
+
+extern crate libc;
+
 // include output of rust-peg given grammar.rustpeg
 mod parser {
     include!(concat!(env!("OUT_DIR"), "/grammar.rs"));
@@ -21,6 +27,7 @@ mod parser {
 mod ast;
 mod runtime;
 mod ast_walk_interpreter;
+mod llvm_interpreter;
 mod value;
 mod operations;
 mod environment;
@@ -36,7 +43,8 @@ mod interpreter_test;
 mod typechecker_test;
 
 use runtime::*;
-use ast_walk_interpreter::*;
+use ast_walk_interpreter::AstWalkInterpreter;
+use llvm_interpreter::LLVMInterpreter;
 
 use error::*;
 
@@ -60,8 +68,8 @@ fn main() {
         1 => repl::run_repl(AstWalkInterpreter::new()),
         2 => {
             match args[1].as_str() {
-                "--repl-llvm" => panic!("unimplemented LLVM backend"),
-                filepath => run_file(filepath, AstWalkInterpreter::new()),
+                "--repl-llvm" => repl::run_repl(LLVMInterpreter::new()),
+                filepath => run_file(filepath, AstWalkInterpreter::new())
             }
         }
         3 => {

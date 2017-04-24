@@ -1,7 +1,10 @@
 [package]
 name = "balloon"
 version = "0.1.0"
-authors = ["Vivek Ghaisas <v.a.ghaisas@gmail.com>"]
+authors = [
+  "Vivek Ghaisas <v.a.ghaisas@gmail.com>",
+  "Siddharth Bhat <siddu.druid@gmail.com>" # LLVM JITing
+]
 build = "build.rs"
 
 [build-dependencies]
@@ -13,3 +16,6 @@ rustyline = "1.0.0"
 fnv = "1.0.5"
 linear-map = "1.1.0"
 hyper = "0.10"
+llvm-sys = "40.0.0"
+itertools = "0.6.0"
+libc = "0.2"
