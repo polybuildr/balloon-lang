@@ -21,16 +21,16 @@ impl AstWalkInterpreter {
     }
 }
 
-fn interpret_program(program: &[StatementNode],
+fn interpret_program(program: &[StmtNode],
                      env: Rc<RefCell<Environment>>)
-                     -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                     -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let result = interpret_statements(program, env.clone())?;
     Ok(result)
 }
 
-fn interpret_statements(statements: &[StatementNode],
+fn interpret_statements(statements: &[StmtNode],
                         env: Rc<RefCell<Environment>>)
-                        -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                        -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let mut last_result = None;
     for statement in statements.iter() {
         last_result = Some(interpret_statement(statement, env.clone())?);
@@ -38,11 +38,11 @@ fn interpret_statements(statements: &[StatementNode],
     Ok(last_result)
 }
 
-fn interpret_statement(s: &StatementNode,
+fn interpret_statement(s: &StmtNode,
                        env: Rc<RefCell<Environment>>)
-                       -> Result<StatementResult, RuntimeErrorWithPosition> {
+                       -> Result<StmtResult, RuntimeErrorWithPosition> {
     match s.data {
-        Statement::VariableDeclaration(ref variable, ref expr) => {
+        Stmt::VariableDeclaration(ref variable, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *variable {
@@ -50,9 +50,9 @@ fn interpret_statement(s: &StatementNode,
                     env.borrow_mut().declare(name, &val);
                 }
             };
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Assignment(ref lhs_expr, ref expr) => {
+        Stmt::Assignment(ref lhs_expr, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match lhs_expr.data {
@@ -62,85 +62,85 @@ fn interpret_statement(s: &StatementNode,
                     }
                 }
             };
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Block(ref statements) => {
+        Stmt::Block(ref statements) => {
             let child_env = Environment::create_child(env.clone());
-            let mut last_result = StatementResult::None;
+            let mut last_result = StmtResult::None;
             for statement in statements.iter() {
                 last_result = interpret_statement(statement, child_env.clone())?;
-                if let StatementResult::Break = last_result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = last_result {
+                if let StmtResult::Break = last_result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = last_result {
                     return Ok(last_result);
                 }
             }
             Ok(last_result)
         }
-        Statement::Expression(ref expr) => {
+        Stmt::Expression(ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
             match val {
-                None => Ok(StatementResult::None),
-                Some(x) => Ok(StatementResult::Value(x)),
+                None => Ok(StmtResult::None),
+                Some(x) => Ok(StmtResult::Value(x)),
             }
         }
-        Statement::IfThen(ref if_expr, ref then_block) => {
+        Stmt::IfThen(ref if_expr, ref then_block) => {
             let possible_val = interpret_expr(if_expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, if_expr)?;
             if val.is_truthy() {
                 let result = interpret_statement(then_block, env.clone())?;
-                if let StatementResult::Break = result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = result {
+                if let StmtResult::Break = result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             }
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
+        Stmt::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let possible_val = interpret_expr(if_expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, if_expr)?;
             if val.is_truthy() {
                 let result = interpret_statement(then_block, env.clone())?;
-                if let StatementResult::Break = result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = result {
+                if let StmtResult::Break = result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             } else {
                 let result = interpret_statement(else_block, env.clone())?;
-                if let StatementResult::Break = result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = result {
+                if let StmtResult::Break = result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             }
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Loop(ref block) => {
+        Stmt::Loop(ref block) => {
             let child_env = Environment::create_child(env.clone());
             loop {
                 let result = interpret_statement(block, child_env.clone())?;
-                if let StatementResult::Break = result {
+                if let StmtResult::Break = result {
                     break;
-                } else if let StatementResult::Return(_) = result {
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             }
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Return(ref possible_expr) => {
+        Stmt::Return(ref possible_expr) => {
             match *possible_expr {
                 Some(ref expr) => {
                     let possible_val = interpret_expr(expr, env.clone())?;
                     let val = check_val_for_none_error(&possible_val, expr)?;
-                    Ok(StatementResult::Return(Some(val)))
+                    Ok(StmtResult::Return(Some(val)))
                 }
-                None => Ok(StatementResult::Return(None)),
+                None => Ok(StmtResult::Return(None)),
             }
         }
-        Statement::Break => Ok(StatementResult::Break),
-        Statement::Empty => Ok(StatementResult::None),
+        Stmt::Break => Ok(StmtResult::Break),
+        Stmt::Empty => Ok(StmtResult::None),
     }
 }
 fn interpret_expr(e: &ExprNode,
@@ -329,7 +329,7 @@ pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, R
                     Err(RuntimeError::InsideFunctionCall(Box::new(error_with_position)))
                 }
                 Ok(statement_result) => {
-                    if let StatementResult::Return(possible_val) = statement_result {
+                    if let StmtResult::Return(possible_val) = statement_result {
                         match possible_val {
                             Some(val) => Ok(Some(val)),
                             None => Ok(None),
@@ -372,14 +372,14 @@ fn check_args_compat(arg_vals: &[Value],
 
 impl Interpreter for AstWalkInterpreter {
     fn run_ast_as_statements(&mut self,
-                             statements: &[StatementNode])
-                             -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                             statements: &[StmtNode])
+                             -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_statements(statements, self.root_env.clone())
     }
 
     fn run_ast_as_program(&mut self,
-                          program: &[StatementNode])
-                          -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                          program: &[StmtNode])
+                          -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_program(program, self.root_env.clone())
     }
 }

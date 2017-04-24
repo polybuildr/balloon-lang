@@ -492,9 +492,9 @@ fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions:
     }
 }
 
-fn compile_statement(mut module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions: &BoxUnboxFunctions, statement: &Statement) -> LLVMValueRef {
+fn compile_statement(mut module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions: &BoxUnboxFunctions, statement: &Stmt) -> LLVMValueRef {
     match statement {
-        &Statement::Expression(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
+        &Stmt::Expression(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
         other => panic!("unknown compile: {:?}", other)
     }
 }
@@ -539,9 +539,9 @@ fn create_module(module_name: &str, target_triple: Option<String>) -> Module {
     module
 }
 
-fn interpret_statements(stmts: &[StatementNode],
+fn interpret_statements(stmts: &[StmtNode],
                         _: Rc<RefCell<Environment>>)
-                        -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                        -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let target_triple : Option<String> = None;
     let mut module = create_module("ModuleName", target_triple);
 
@@ -660,9 +660,9 @@ impl LLVMJIT {
 
 }
 
-fn interpret_program(program: &[StatementNode],
+fn interpret_program(program: &[StmtNode],
                      env: Rc<RefCell<Environment>>)
-                     -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                     -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let result = interpret_statements(program, env.clone())?;
     Ok(result)
 }
@@ -671,14 +671,14 @@ impl Interpreter for LLVMInterpreter {
 
     fn run_ast_as_statements
         (&mut self,
-         statements: &[StatementNode])
-         -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+         statements: &[StmtNode])
+         -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_statements(statements, self.root_env.clone())
     }
 
     fn run_ast_as_program(&mut self,
-                              program: &[StatementNode])
-                              -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                              program: &[StmtNode])
+                              -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_program(program, self.root_env.clone())
     }
 }

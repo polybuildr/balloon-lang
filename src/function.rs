@@ -22,7 +22,7 @@ pub enum Function {
         ret_type: Option<ConstraintType>,
         call_sign: CallSign,
         param_names: Vec<String>,
-        body: Box<ast::StatementNode>,
+        body: Box<ast::StmtNode>,
         env: Rc<RefCell<Environment>>,
     },
 }

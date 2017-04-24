@@ -114,7 +114,7 @@ pub enum Expr {
     // optional name, list of params, body, optional return type
     FnDef(Option<String>,
                        Vec<(String, Option<ConstraintType>)>,
-                       Box<StatementNode>,
+                       Box<StmtNode>,
                        Option<ConstraintType>),
     FnCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),
@@ -134,21 +134,21 @@ pub struct ExprNode {
 }
 
 #[derive(Debug, Clone)]
-pub enum Statement {
+pub enum Stmt {
     Assignment(LhsExprNode, ExprNode),
     VariableDeclaration(Variable, ExprNode),
     Expression(ExprNode),
-    Block(Vec<StatementNode>),
-    IfThen(ExprNode, Box<StatementNode>),
-    IfThenElse(ExprNode, Box<StatementNode>, Box<StatementNode>),
-    Loop(Box<StatementNode>),
+    Block(Vec<StmtNode>),
+    IfThen(ExprNode, Box<StmtNode>),
+    IfThenElse(ExprNode, Box<StmtNode>, Box<StmtNode>),
+    Loop(Box<StmtNode>),
     Return(Option<ExprNode>),
     Break,
     Empty,
 }
 
 #[derive(Debug, Clone)]
-pub struct StatementNode {
+pub struct StmtNode {
     pub pos: OffsetSpan,
-    pub data: Statement,
+    pub data: Stmt,
 }

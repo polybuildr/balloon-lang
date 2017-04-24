@@ -1,35 +1,35 @@
 use ast::*;
 use typechecker::ConstraintType;
 
-pub program -> Vec<StatementNode>
+pub program -> Vec<StmtNode>
     = __ terminators? s:statements { s }
 
-pub statements -> Vec<StatementNode>
+pub statements -> Vec<StmtNode>
     = statement_node*
 
-statement_node -> StatementNode
-    = lpos:#position s:statement rpos:#position { StatementNode { pos: (lpos, rpos), data: s } }
+statement_node -> StmtNode
+    = lpos:#position s:statement rpos:#position { StmtNode { pos: (lpos, rpos), data: s } }
 
-statement -> Statement
+statement -> Stmt
     = s:if_statement { s }
     / l:loop_statement { l }
-    / BREAK TERMINATOR { Statement::Break }
-    / RETURN e:expr_node? TERMINATOR { Statement::Return(e) }
+    / BREAK TERMINATOR { Stmt::Break }
+    / RETURN e:expr_node? TERMINATOR { Stmt::Return(e) }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
-    / e:expr_node TERMINATOR { Statement::Expression(e) }
-    / f:function_definition_node { Statement::Expression(f) }
+    / e:expr_node TERMINATOR { Stmt::Expression(e) }
+    / f:function_definition_node { Stmt::Expression(f) }
     / b:block { b }
-    / TERMINATOR { Statement::Empty }
+    / TERMINATOR { Stmt::Empty }
 
-assignment_statement -> Statement
+assignment_statement -> Stmt
     = lpos:#position i:identifier rpos:#position EQUALS e:expr_node TERMINATOR {
-        Statement::Assignment(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
+        Stmt::Assignment(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
     }
 
-variable_declaration -> Statement
+variable_declaration -> Stmt
     = b:binding_type i:identifier EQUALS e:expr_node TERMINATOR {
-        Statement::VariableDeclaration(
+        Stmt::VariableDeclaration(
             Variable::Identifier(b, i), e
         )
      }
@@ -37,24 +37,24 @@ variable_declaration -> Statement
 binding_type -> BindingType
     = VAR { BindingType::Mutable }
 
-loop_statement -> Statement
-    = LOOP lpos:#position b:block rpos:#position { Statement::Loop(Box::new(StatementNode { pos: (lpos, rpos), data: b })) }
+loop_statement -> Stmt
+    = LOOP lpos:#position b:block rpos:#position { Stmt::Loop(Box::new(StmtNode { pos: (lpos, rpos), data: b })) }
 
-if_statement -> Statement
+if_statement -> Stmt
     = IF e:expr_node lpos1:#position b1:block rpos1:#position ELSE lpos2:#position b2:block rpos2:#position {
-        Statement::IfThenElse(
+        Stmt::IfThenElse(
             e,
-            Box::new(StatementNode { pos: (lpos1, rpos1), data: b1 }),
-            Box::new(StatementNode { pos: (lpos2, rpos2), data: b2 }),
+            Box::new(StmtNode { pos: (lpos1, rpos1), data: b1 }),
+            Box::new(StmtNode { pos: (lpos2, rpos2), data: b2 }),
         )
     }
-    / IF e:expr_node lpos:#position b:block rpos:#position { Statement::IfThen(e, Box::new(StatementNode { pos: (lpos, rpos), data: b })) }
+    / IF e:expr_node lpos:#position b:block rpos:#position { Stmt::IfThen(e, Box::new(StmtNode { pos: (lpos, rpos), data: b })) }
 
-block -> Statement
+block -> Stmt
     = #quiet<_block> / #expected("block")
 
-_block -> Statement
-    = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
+_block -> Stmt
+    = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Stmt::Block(s) }
 
 function_definition_node -> ExprNode
     = lpos:#position f:function_definition rpos:#position { ExprNode { pos: (lpos, rpos), data: f } }
@@ -68,7 +68,7 @@ function_definition -> Expr
         Expr::FnDef(
             i,
             params,
-            Box::new(StatementNode { pos: (lpos, rpos), data: body } ),
+            Box::new(StmtNode { pos: (lpos, rpos), data: body } ),
             return_type,
         )
     }

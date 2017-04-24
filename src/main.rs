@@ -88,7 +88,7 @@ fn main() {
     };
 }
 
-fn parse_file(file_name: &str) -> Option<Vec<ast::StatementNode>> {
+fn parse_file(file_name: &str) -> Option<Vec<ast::StmtNode>> {
     match try_parse_file(file_name) {
         Err(err) => {
             match err {
@@ -110,7 +110,7 @@ fn parse_file(file_name: &str) -> Option<Vec<ast::StatementNode>> {
     }
 }
 
-fn try_parse_file(file_name: &str) -> Result<Vec<ast::StatementNode>, ProcessingError> {
+fn try_parse_file(file_name: &str) -> Result<Vec<ast::StmtNode>, ProcessingError> {
     let mut input_file = File::open(file_name)?;
     let mut input = String::new();
     input_file.read_to_string(&mut input)?;

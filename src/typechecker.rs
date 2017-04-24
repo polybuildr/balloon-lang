@@ -19,7 +19,7 @@ pub enum FunctionType {
         ret_type: Option<ConstraintType>,
         call_sign: CallSign,
         param_names: Vec<String>,
-        body: Box<ast::StatementNode>,
+        body: Box<ast::StmtNode>,
         env: Rc<RefCell<TypeEnvironment>>,
         already_checked_param_types: LinearMap<Vec<ConstraintType>, ()>,
     },
@@ -266,7 +266,7 @@ impl TypeEnvironment {
     }
 }
 
-pub fn check_program(ast: &[StatementNode]) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
+pub fn check_program(ast: &[StmtNode]) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let root_env = TypeEnvironment::new_root();
     let mut context = Context {
         in_loop: false,
@@ -276,7 +276,7 @@ pub fn check_program(ast: &[StatementNode]) -> Result<(), Vec<TypeCheckerIssueWi
     check_statements(ast, root_env.clone(), &mut context)
 }
 
-pub fn check_statements(ast: &[StatementNode],
+pub fn check_statements(ast: &[StmtNode],
                         env: Rc<RefCell<TypeEnvironment>>,
                         context: &mut Context)
                         -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
@@ -293,33 +293,33 @@ pub fn check_statements(ast: &[StatementNode],
     }
 }
 
-pub fn check_statement(s: &StatementNode,
+pub fn check_statement(s: &StmtNode,
                        env: Rc<RefCell<TypeEnvironment>>,
                        context: &mut Context)
                        -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match s.data {
-        Statement::VariableDeclaration(ref variable, ref expr) => {
+        Stmt::VariableDeclaration(ref variable, ref expr) => {
             check_statement_variable_declaration(variable, expr, env.clone(), &mut issues);
         }
-        Statement::Assignment(ref lhs_expr, ref expr) => {
+        Stmt::Assignment(ref lhs_expr, ref expr) => {
             check_statement_assignment(lhs_expr, expr, env.clone(), &mut issues);
         }
-        Statement::Block(ref statements) => {
+        Stmt::Block(ref statements) => {
             let child_env = TypeEnvironment::create_child(env);
             if let Err(mut e) = check_statements(statements, child_env, context) {
                 issues.append(&mut e);
             }
         }
-        Statement::Expression(ref expr) => {
+        Stmt::Expression(ref expr) => {
             if let Err(mut e) = check_expr(expr, env.clone()) {
                 issues.append(&mut e);
             }
         }
-        Statement::IfThen(ref if_expr, ref then_block) => {
+        Stmt::IfThen(ref if_expr, ref then_block) => {
             check_statement_if_then(if_expr, then_block, env.clone(), context, &mut issues);
         }
-        Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
+        Stmt::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             check_statement_if_then_else(s,
                                          if_expr,
                                          then_block,
@@ -328,7 +328,7 @@ pub fn check_statement(s: &StatementNode,
                                          context,
                                          &mut issues);
         }
-        Statement::Loop(ref block) => {
+        Stmt::Loop(ref block) => {
             let old_in_loop_value = context.in_loop;
             context.in_loop = true;
             if let Err(mut e) = check_statement(block, env.clone(), context) {
@@ -336,13 +336,13 @@ pub fn check_statement(s: &StatementNode,
             }
             context.in_loop = old_in_loop_value;
         }
-        Statement::Break => {
+        Stmt::Break => {
             if context.in_loop != true {
                 issues.push((RuntimeError::BreakOutsideLoop.into(), s.pos));
             }
         }
-        Statement::Empty => {}
-        Statement::Return(ref possible_expr) => {
+        Stmt::Empty => {}
+        Stmt::Return(ref possible_expr) => {
             check_statement_return(possible_expr, s, env.clone(), context, &mut issues);
         }
     };
@@ -438,7 +438,7 @@ fn check_statement_assignment(lhs_expr: &LhsExprNode,
 }
 
 fn check_statement_if_then(if_expr: &ExprNode,
-                           then_block: &StatementNode,
+                           then_block: &StmtNode,
                            env: Rc<RefCell<TypeEnvironment>>,
                            context: &mut Context,
                            issues: &mut Vec<TypeCheckerIssueWithPosition>) {
@@ -457,10 +457,10 @@ fn check_statement_if_then(if_expr: &ExprNode,
     }
 }
 
-fn check_statement_if_then_else(statement: &StatementNode,
+fn check_statement_if_then_else(statement: &StmtNode,
                                 if_expr: &ExprNode,
-                                then_block: &StatementNode,
-                                else_block: &StatementNode,
+                                then_block: &StmtNode,
+                                else_block: &StmtNode,
                                 env: Rc<RefCell<TypeEnvironment>>,
                                 context: &mut Context,
                                 issues: &mut Vec<TypeCheckerIssueWithPosition>) {
@@ -508,7 +508,7 @@ fn check_statement_if_then_else(statement: &StatementNode,
 }
 
 fn check_statement_return(possible_expr: &Option<ExprNode>,
-                          return_statement: &StatementNode,
+                          return_statement: &StmtNode,
                           env: Rc<RefCell<TypeEnvironment>>,
                           context: &mut Context,
                           issues: &mut Vec<TypeCheckerIssueWithPosition>) {
@@ -873,7 +873,7 @@ fn check_expr_function_call(expr: &ExprNode,
 
 fn check_expr_function_definition(possible_id: &Option<String>,
                                   param_list: &[(String, Option<ConstraintType>)],
-                                  body: &Box<StatementNode>,
+                                  body: &Box<StmtNode>,
                                   type_hint: &Option<ConstraintType>,
                                   env: Rc<RefCell<TypeEnvironment>>)
                                   -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {

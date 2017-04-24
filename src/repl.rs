@@ -4,7 +4,7 @@ use rustyline::Editor;
 use runtime::*;
 use error::*;
 use parser;
-use runtime::StatementResult;
+use runtime::StmtResult;
 
 pub fn run_repl<T: Interpreter>(mut machine: T) {
     println!("Balloon REPL");
@@ -34,7 +34,7 @@ pub fn run_repl<T: Interpreter>(mut machine: T) {
                             }
                             Ok(possible_result) => {
                                 if let Some(result) = possible_result {
-                                    if let StatementResult::Value(v) = result {
+                                    if let StmtResult::Value(v) = result {
                                         println!("{:?}", v);
                                     }
                                 }
