@@ -48,7 +48,7 @@ pub fn less_than(a: Value, b: Value) -> Result<Value, RuntimeError> {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),
         (a, b) => {
-            Err(RuntimeError::BinaryTypeError(BinOp::LessThan, a.get_type(), b.get_type()))
+            Err(RuntimeError::BinaryTypeError(BinOp::Lt, a.get_type(), b.get_type()))
         }
     }
 }
@@ -57,7 +57,7 @@ pub fn less_than_or_equal(a: Value, b: Value) -> Result<Value, RuntimeError> {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a <= b)),
         (a, b) => {
-            Err(RuntimeError::BinaryTypeError(BinOp::LessThanOrEqual,
+            Err(RuntimeError::BinaryTypeError(BinOp::Lte,
                                               a.get_type(),
                                               b.get_type()))
         }
@@ -67,7 +67,7 @@ pub fn greater_than(a: Value, b: Value) -> Result<Value, RuntimeError> {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a > b)),
         (a, b) => {
-            Err(RuntimeError::BinaryTypeError(BinOp::GreaterThan, a.get_type(), b.get_type()))
+            Err(RuntimeError::BinaryTypeError(BinOp::Gt, a.get_type(), b.get_type()))
         }
     }
 }
@@ -76,7 +76,7 @@ pub fn greater_than_or_equal(a: Value, b: Value) -> Result<Value, RuntimeError> 
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a >= b)),
         (a, b) => {
-            Err(RuntimeError::BinaryTypeError(BinOp::GreaterThanOrEqual,
+            Err(RuntimeError::BinaryTypeError(BinOp::Gte,
                                               a.get_type(),
                                               b.get_type()))
         }

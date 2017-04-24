@@ -682,10 +682,10 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
         ref op @ Div => {
             check_binary_arithmetic_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
-        ref op @ LessThan |
-        ref op @ LessThanOrEqual |
-        ref op @ GreaterThan |
-        ref op @ GreaterThanOrEqual => {
+        ref op @ Lt |
+        ref op @ Lte |
+        ref op @ Gt |
+        ref op @ Gte => {
             check_binary_comparison_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
         StrictEquals => Ok(Type::Bool),

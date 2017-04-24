@@ -10,10 +10,10 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
     StrictEquals,
 }
 
@@ -40,10 +40,10 @@ impl fmt::Display for BinOp {
             BinOp::Sub => write!(f, "-"),
             BinOp::Mul => write!(f, "*"),
             BinOp::Div => write!(f, "/"),
-            BinOp::LessThan => write!(f, "<"),
-            BinOp::LessThanOrEqual => write!(f, "<="),
-            BinOp::GreaterThan => write!(f, ">"),
-            BinOp::GreaterThanOrEqual => write!(f, ">="),
+            BinOp::Lt => write!(f, "<"),
+            BinOp::Lte => write!(f, "<="),
+            BinOp::Gt => write!(f, ">"),
+            BinOp::Gte => write!(f, ">="),
             BinOp::StrictEquals => write!(f, "=="),
         }
     }
