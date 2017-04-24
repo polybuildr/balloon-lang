@@ -1,7 +1,10 @@
 [package]
 name = "balloon"
 version = "0.1.0"
-authors = ["Vivek Ghaisas <v.a.ghaisas@gmail.com>"]
+authors = [
+  "Vivek Ghaisas <v.a.ghaisas@gmail.com>",
+  "Siddharth Bhat <siddu.druid@gmail.com>" # LLVM JITing
+]
 build = "build.rs"
 
 [build-dependencies]
