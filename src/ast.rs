@@ -5,7 +5,7 @@ use typechecker::ConstraintType;
 pub type OffsetSpan = (usize, usize);
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BinaryOp {
+pub enum BinOp {
     Add,
     Sub,
     Mul,
@@ -18,7 +18,7 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LogicalBinaryOp {
+pub enum LogicalBinOp {
     LogicalAnd,
     LogicalOr,
 }
@@ -33,27 +33,27 @@ pub enum LogicalUnaryOp {
     Not,
 }
 
-impl fmt::Display for BinaryOp {
+impl fmt::Display for BinOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            BinaryOp::Add => write!(f, "+"),
-            BinaryOp::Sub => write!(f, "-"),
-            BinaryOp::Mul => write!(f, "*"),
-            BinaryOp::Div => write!(f, "/"),
-            BinaryOp::LessThan => write!(f, "<"),
-            BinaryOp::LessThanOrEqual => write!(f, "<="),
-            BinaryOp::GreaterThan => write!(f, ">"),
-            BinaryOp::GreaterThanOrEqual => write!(f, ">="),
-            BinaryOp::StrictEquals => write!(f, "=="),
+            BinOp::Add => write!(f, "+"),
+            BinOp::Sub => write!(f, "-"),
+            BinOp::Mul => write!(f, "*"),
+            BinOp::Div => write!(f, "/"),
+            BinOp::LessThan => write!(f, "<"),
+            BinOp::LessThanOrEqual => write!(f, "<="),
+            BinOp::GreaterThan => write!(f, ">"),
+            BinOp::GreaterThanOrEqual => write!(f, ">="),
+            BinOp::StrictEquals => write!(f, "=="),
         }
     }
 }
 
-impl fmt::Display for LogicalBinaryOp {
+impl fmt::Display for LogicalBinOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            LogicalBinaryOp::LogicalAnd => write!(f, "and"),
-            LogicalBinaryOp::LogicalOr => write!(f, "or"),
+            LogicalBinOp::LogicalAnd => write!(f, "and"),
+            LogicalBinOp::LogicalOr => write!(f, "or"),
         }
     }
 }
@@ -107,8 +107,8 @@ pub enum BindingType {
 pub enum Expr {
     Literal(Literal),
     Identifier(String),
-    BinaryExpression(Box<ExprNode>, BinaryOp, Box<ExprNode>),
-    BinaryLogicalExpression(Box<ExprNode>, LogicalBinaryOp, Box<ExprNode>),
+    BinaryExpression(Box<ExprNode>, BinOp, Box<ExprNode>),
+    BinaryLogicalExpression(Box<ExprNode>, LogicalBinOp, Box<ExprNode>),
     UnaryExpression(UnaryOp, Box<ExprNode>),
     UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
     // optional name, list of params, body, optional return type

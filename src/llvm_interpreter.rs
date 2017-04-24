@@ -477,10 +477,10 @@ fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions:
                                          [rightbox].as_mut_ptr(), 1, module.new_string_ptr("rightval"));
 
             let finalval = match op {
-               &BinaryOp::Add => LLVMBuildNSWAdd(builder.builder, leftval, rightval, module.new_string_ptr("addval")),
-               &BinaryOp::Sub => LLVMBuildSub(builder.builder, leftval, rightval, module.new_string_ptr("subval")),
-               &BinaryOp::Mul => LLVMBuildMul(builder.builder, leftval, rightval, module.new_string_ptr("mulval")),
-               &BinaryOp::Div => LLVMBuildSDiv(builder.builder, leftval, rightval, module.new_string_ptr("divval")),
+               &BinOp::Add => LLVMBuildNSWAdd(builder.builder, leftval, rightval, module.new_string_ptr("addval")),
+               &BinOp::Sub => LLVMBuildSub(builder.builder, leftval, rightval, module.new_string_ptr("subval")),
+               &BinOp::Mul => LLVMBuildMul(builder.builder, leftval, rightval, module.new_string_ptr("mulval")),
+               &BinOp::Div => LLVMBuildSDiv(builder.builder, leftval, rightval, module.new_string_ptr("divval")),
                 _ => panic!("unimplemented expr operator: {}", op)
             };
 

@@ -188,15 +188,15 @@ fn interpret_expr(e: &ExprNode,
             let possible_val_2 = interpret_expr(expr2, env.clone())?;
             let val2 = check_val_for_none_error(&possible_val_2, expr2)?;
             let retval = match *op {
-                BinaryOp::Add => operations::add(val1, val2),
-                BinaryOp::Sub => operations::subtract(val1, val2),
-                BinaryOp::Mul => operations::multiply(val1, val2),
-                BinaryOp::Div => operations::divide(val1, val2),
-                BinaryOp::LessThan => operations::less_than(val1, val2),
-                BinaryOp::LessThanOrEqual => operations::less_than_or_equal(val1, val2),
-                BinaryOp::GreaterThan => operations::greater_than(val1, val2),
-                BinaryOp::GreaterThanOrEqual => operations::greater_than_or_equal(val1, val2),
-                BinaryOp::StrictEquals => Ok(Value::Bool(val1 == val2)),
+                BinOp::Add => operations::add(val1, val2),
+                BinOp::Sub => operations::subtract(val1, val2),
+                BinOp::Mul => operations::multiply(val1, val2),
+                BinOp::Div => operations::divide(val1, val2),
+                BinOp::LessThan => operations::less_than(val1, val2),
+                BinOp::LessThanOrEqual => operations::less_than_or_equal(val1, val2),
+                BinOp::GreaterThan => operations::greater_than(val1, val2),
+                BinOp::GreaterThanOrEqual => operations::greater_than_or_equal(val1, val2),
+                BinOp::StrictEquals => Ok(Value::Bool(val1 == val2)),
             };
             match retval {
                 Ok(v) => Ok(Some(v)),
@@ -205,7 +205,7 @@ fn interpret_expr(e: &ExprNode,
         }
         Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
             match *op {
-                LogicalBinaryOp::LogicalAnd => {
+                LogicalBinOp::LogicalAnd => {
                     let possible_val_1 = interpret_expr(expr1, env.clone())?;
                     let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
                     if !val1.is_truthy() {
@@ -215,7 +215,7 @@ fn interpret_expr(e: &ExprNode,
                     let val2 = check_val_for_none_error(&possible_val_2, expr2)?;
                     Ok(Some(Value::Bool(val2.is_truthy())))
                 }
-                LogicalBinaryOp::LogicalOr => {
+                LogicalBinOp::LogicalOr => {
                     let possible_val_1 = interpret_expr(expr1, env.clone())?;
                     let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
                     if val1.is_truthy() {

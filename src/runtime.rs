@@ -9,7 +9,7 @@ pub enum RuntimeError {
     /// When an undeclared identifier is assigned to
     UndeclaredAssignment(String),
     /// When a binary op cannot be performed on the given types
-    BinaryTypeError(BinaryOp, Type, Type),
+    BinaryTypeError(BinOp, Type, Type),
     /// When a unary op cannot be performed on the given type
     UnaryTypeError(UnaryOp, Type),
     /// When a non-returning function's return value is used

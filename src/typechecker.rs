@@ -643,7 +643,7 @@ fn check_expr_unary_logical_op(op: &LogicalUnaryOp,
 
 fn check_expr_binary_expr(binary_expr: &ExprNode,
                           expr1: &ExprNode,
-                          op: &BinaryOp,
+                          op: &BinOp,
                           expr2: &ExprNode,
                           env: Rc<RefCell<TypeEnvironment>>)
                           -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
@@ -674,7 +674,7 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
             Type::Any
         }
     };
-    use ast::BinaryOp::*;
+    use ast::BinOp::*;
     let result = match *op {
         Add => check_add_for_types(&checked_type_1, &checked_type_2),
         ref op @ Sub |
@@ -706,14 +706,14 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
 }
 
 fn check_expr_binary_logical_expr(expr1: &ExprNode,
-                                  op: &LogicalBinaryOp,
+                                  op: &LogicalBinOp,
                                   expr2: &ExprNode,
                                   env: Rc<RefCell<TypeEnvironment>>)
                                   -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match *op {
-        LogicalBinaryOp::LogicalAnd |
-        LogicalBinaryOp::LogicalOr => {
+        LogicalBinOp::LogicalAnd |
+        LogicalBinOp::LogicalOr => {
             match check_expr(expr1, env.clone()) {
                 Err(mut e) => {
                     issues.append(&mut e);
@@ -979,11 +979,11 @@ fn check_add_for_types(t1: &Type, t2: &Type) -> Result<Type, TypeCheckerIssue> {
         (&Type::String, _) |
         (_, &Type::String) => Ok(Type::String),
         (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
-        _ => Err(RuntimeError::BinaryTypeError(BinaryOp::Add, t1.clone(), t2.clone()).into()),
+        _ => Err(RuntimeError::BinaryTypeError(BinOp::Add, t1.clone(), t2.clone()).into()),
     }
 }
 
-fn check_binary_arithmetic_for_types(op: BinaryOp,
+fn check_binary_arithmetic_for_types(op: BinOp,
                                      t1: &Type,
                                      t2: &Type)
                                      -> Result<Type, TypeCheckerIssue> {
@@ -994,7 +994,7 @@ fn check_binary_arithmetic_for_types(op: BinaryOp,
     }
 }
 
-fn check_binary_comparison_for_types(op: BinaryOp,
+fn check_binary_comparison_for_types(op: BinOp,
                                      t1: &Type,
                                      t2: &Type)
                                      -> Result<Type, TypeCheckerIssue> {
