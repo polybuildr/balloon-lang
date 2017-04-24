@@ -608,7 +608,7 @@ fn check_expr_unary_op(op: &UnOp,
         }
         Ok(Some(typ)) => {
             match *op {
-                UnOp::Minus => {
+                UnOp::Neg => {
                     match check_unary_minus_for_type(typ) {
                         Ok(t) => Ok(Some(t)),
                         Err(e) => Err(vec![(e, expr.pos)]),
@@ -688,7 +688,7 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
         ref op @ Gte => {
             check_binary_comparison_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
-        StrictEquals => Ok(Type::Bool),
+        Eq => Ok(Type::Bool),
     };
     match result {
         Err(e) => {
@@ -712,8 +712,8 @@ fn check_expr_binary_logical_expr(expr1: &ExprNode,
                                   -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match *op {
-        LogicalBinOp::LogicalAnd |
-        LogicalBinOp::LogicalOr => {
+        LogicalBinOp::And |
+        LogicalBinOp::Or => {
             match check_expr(expr1, env.clone()) {
                 Err(mut e) => {
                     issues.append(&mut e);
@@ -969,7 +969,7 @@ fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {
     match typ {
         Type::Number => Ok(Type::Number),
         Type::Any => Ok(Type::Any),
-        _ => Err(RuntimeError::UnaryTypeError(UnOp::Minus, typ).into()),
+        _ => Err(RuntimeError::UnaryTypeError(UnOp::Neg, typ).into()),
     }
 }
 

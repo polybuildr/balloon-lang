@@ -84,7 +84,7 @@ fn check_no_unary_minus_error() {
 fn check_unary_minus_error() {
     let result = check_and_get_result("-false;");
     assert_eq!(result.unwrap_err(),
-               [(TypeCheckerIssue::RuntimeError(RuntimeError::UnaryTypeError(UnOp::Minus,
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::UnaryTypeError(UnOp::Neg,
                                                                              Type::Bool)),
                  (1, 6))]);
 }

@@ -5,7 +5,7 @@ use runtime::RuntimeError;
 pub fn unary_minus(a: Value) -> Result<Value, RuntimeError> {
     match a {
         Value::Number(x) => Ok(Value::Number(-x)),
-        x => Err(RuntimeError::UnaryTypeError(UnOp::Minus, x.get_type())),
+        x => Err(RuntimeError::UnaryTypeError(UnOp::Neg, x.get_type())),
     }
 }
 

@@ -14,18 +14,18 @@ pub enum BinOp {
     Lte,
     Gt,
     Gte,
-    StrictEquals,
+    Eq,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogicalBinOp {
-    LogicalAnd,
-    LogicalOr,
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnOp {
-    Minus,
+    Neg,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +44,7 @@ impl fmt::Display for BinOp {
             BinOp::Lte => write!(f, "<="),
             BinOp::Gt => write!(f, ">"),
             BinOp::Gte => write!(f, ">="),
-            BinOp::StrictEquals => write!(f, "=="),
+            BinOp::Eq => write!(f, "=="),
         }
     }
 }
@@ -52,8 +52,8 @@ impl fmt::Display for BinOp {
 impl fmt::Display for LogicalBinOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            LogicalBinOp::LogicalAnd => write!(f, "and"),
-            LogicalBinOp::LogicalOr => write!(f, "or"),
+            LogicalBinOp::And => write!(f, "and"),
+            LogicalBinOp::Or => write!(f, "or"),
         }
     }
 }
@@ -61,7 +61,7 @@ impl fmt::Display for LogicalBinOp {
 impl fmt::Display for UnOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            UnOp::Minus => write!(f, "-"),
+            UnOp::Neg => write!(f, "-"),
         }
     }
 }
