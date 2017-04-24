@@ -19,7 +19,7 @@ before_install:
   - export PATH=/usr/local/bin:$PATH
 
 before_script:
-  - cargo install rustfmt
+  - cargo install --force rustfmt
   
 script:
   - cargo fmt -- --write-mode diff
