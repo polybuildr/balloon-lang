@@ -412,9 +412,9 @@ fn add_global_defn_for_tag(module: &mut Module, tag: BalloonTypeTag) -> LLVMValu
 fn gen_add_fn(mut module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) -> LLVMValueRef {
     let builder = Builder::new();
     unsafe {
-        let fnname = format!("balloon_add");
+        let fnname = "balloon_add";
         let addfn = add_function(module,
-                                 &fnname,
+                                 fnname,
                                  &mut [LLVMPointerType(box_type(), 0),
                                        LLVMPointerType(box_type(), 0)],
                                  LLVMPointerType(box_type(), 0));
@@ -498,8 +498,8 @@ fn compile_literal(mut module: &mut Module,
                    literal: &Literal)
                    -> LLVMValueRef {
     unsafe {
-        match literal {
-            &Literal::Integer(i64val) => {
+        match *literal {
+            Literal::Integer(i64val) => {
                 let builder = Builder::new();
                 builder.position_at_end(bb);
                 let i = LLVMConstInt(int64_type(), i64val as c_ulonglong, 1);
@@ -509,9 +509,9 @@ fn compile_literal(mut module: &mut Module,
                               1,
                               module.new_string_ptr("valp"))
             }
-            &Literal::Float(f64val) => LLVMConstReal(float64_type(), f64val),
-            &Literal::Bool(boolval) => LLVMConstInt(int1_type(), boolval as c_ulonglong, 1),
-            other => panic!("unknown literal expr: {:?}", other),
+            Literal::Float(f64val) => LLVMConstReal(float64_type(), f64val),
+            Literal::Bool(boolval) => LLVMConstInt(int1_type(), boolval as c_ulonglong, 1),
+            ref other => panic!("unknown literal expr: {:?}", other),
         }
     }
 }
@@ -520,9 +520,9 @@ fn compile_expr(module: &mut Module,
                 box_unbox_functions: &BoxUnboxFunctions,
                 expr: &Expr)
                 -> LLVMValueRef {
-    match expr {
-        &Expr::Literal(ref literal) => compile_literal(module, bb, box_unbox_functions, literal),
-        &Expr::Binary(ref leftexpr, ref op, ref rightexpr) => unsafe {
+    match *expr {
+        Expr::Literal(ref literal) => compile_literal(module, bb, box_unbox_functions, literal),
+        Expr::Binary(ref leftexpr, ref op, ref rightexpr) => unsafe {
             let builder = Builder::new();
             builder.position_at_end(bb);
 
@@ -574,7 +574,7 @@ fn compile_expr(module: &mut Module,
                           1,
                           module.new_string_ptr("finalbox"))
         },
-        other => panic!("unknown compile_expr: {:?}", other),
+        ref other => panic!("unknown compile_expr: {:?}", other),
 
     }
 }
@@ -584,9 +584,9 @@ fn compile_statement(mut module: &mut Module,
                      box_unbox_functions: &BoxUnboxFunctions,
                      statement: &Stmt)
                      -> LLVMValueRef {
-    match statement {
-        &Stmt::Expr(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
-        other => panic!("unknown compile: {:?}", other),
+    match *statement {
+        Stmt::Expr(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
+        ref other => panic!("unknown compile: {:?}", other),
     }
 }
 
@@ -706,7 +706,7 @@ impl LLVMJIT {
         unsafe {
             LLVMAddGlobalMapping(*engine,
                                  c_declarations.malloc,
-                                 mem::transmute(libc::malloc as usize));
+                                 libc::malloc as usize as *mut libc::c_void);
 
         }
     }
