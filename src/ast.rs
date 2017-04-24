@@ -135,9 +135,9 @@ pub struct ExprNode {
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
-    Assignment(LhsExprNode, ExprNode),
-    VariableDeclaration(Variable, ExprNode),
-    Expression(ExprNode),
+    Assign(LhsExprNode, ExprNode),
+    VarDecl(Variable, ExprNode),
+    Expr(ExprNode),
     Block(Vec<StmtNode>),
     IfThen(ExprNode, Box<StmtNode>),
     IfThenElse(ExprNode, Box<StmtNode>, Box<StmtNode>),

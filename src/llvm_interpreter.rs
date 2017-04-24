@@ -494,7 +494,7 @@ fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions:
 
 fn compile_statement(mut module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions: &BoxUnboxFunctions, statement: &Stmt) -> LLVMValueRef {
     match statement {
-        &Stmt::Expression(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
+        &Stmt::Expr(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
         other => panic!("unknown compile: {:?}", other)
     }
 }

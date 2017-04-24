@@ -42,7 +42,7 @@ fn interpret_statement(s: &StmtNode,
                        env: Rc<RefCell<Environment>>)
                        -> Result<StmtResult, RuntimeErrorWithPosition> {
     match s.data {
-        Stmt::VariableDeclaration(ref variable, ref expr) => {
+        Stmt::VarDecl(ref variable, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *variable {
@@ -52,7 +52,7 @@ fn interpret_statement(s: &StmtNode,
             };
             Ok(StmtResult::None)
         }
-        Stmt::Assignment(ref lhs_expr, ref expr) => {
+        Stmt::Assign(ref lhs_expr, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match lhs_expr.data {
@@ -77,7 +77,7 @@ fn interpret_statement(s: &StmtNode,
             }
             Ok(last_result)
         }
-        Stmt::Expression(ref expr) => {
+        Stmt::Expr(ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
             match val {
                 None => Ok(StmtResult::None),

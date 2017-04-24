@@ -17,19 +17,19 @@ statement -> Stmt
     / RETURN e:expr_node? TERMINATOR { Stmt::Return(e) }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
-    / e:expr_node TERMINATOR { Stmt::Expression(e) }
-    / f:function_definition_node { Stmt::Expression(f) }
+    / e:expr_node TERMINATOR { Stmt::Expr(e) }
+    / f:function_definition_node { Stmt::Expr(f) }
     / b:block { b }
     / TERMINATOR { Stmt::Empty }
 
 assignment_statement -> Stmt
     = lpos:#position i:identifier rpos:#position EQUALS e:expr_node TERMINATOR {
-        Stmt::Assignment(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
+        Stmt::Assign(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
     }
 
 variable_declaration -> Stmt
     = b:binding_type i:identifier EQUALS e:expr_node TERMINATOR {
-        Stmt::VariableDeclaration(
+        Stmt::VarDecl(
             Variable::Identifier(b, i), e
         )
      }

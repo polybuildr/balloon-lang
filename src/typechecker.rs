@@ -299,10 +299,10 @@ pub fn check_statement(s: &StmtNode,
                        -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match s.data {
-        Stmt::VariableDeclaration(ref variable, ref expr) => {
+        Stmt::VarDecl(ref variable, ref expr) => {
             check_statement_variable_declaration(variable, expr, env.clone(), &mut issues);
         }
-        Stmt::Assignment(ref lhs_expr, ref expr) => {
+        Stmt::Assign(ref lhs_expr, ref expr) => {
             check_statement_assignment(lhs_expr, expr, env.clone(), &mut issues);
         }
         Stmt::Block(ref statements) => {
@@ -311,7 +311,7 @@ pub fn check_statement(s: &StmtNode,
                 issues.append(&mut e);
             }
         }
-        Stmt::Expression(ref expr) => {
+        Stmt::Expr(ref expr) => {
             if let Err(mut e) = check_expr(expr, env.clone()) {
                 issues.append(&mut e);
             }
