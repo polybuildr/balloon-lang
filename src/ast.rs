@@ -113,9 +113,9 @@ pub enum Expr {
     UnaryLogical(LogicalUnOp, Box<ExprNode>),
     // optional name, list of params, body, optional return type
     FnDef(Option<String>,
-                       Vec<(String, Option<ConstraintType>)>,
-                       Box<StmtNode>,
-                       Option<ConstraintType>),
+          Vec<(String, Option<ConstraintType>)>,
+          Box<StmtNode>,
+          Option<ConstraintType>),
     FnCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),
     MemberByIdx(Box<ExprNode>, Box<ExprNode>),

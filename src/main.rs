@@ -69,7 +69,7 @@ fn main() {
         2 => {
             match args[1].as_str() {
                 "--repl-llvm" => repl::run_repl(LLVMInterpreter::new()),
-                filepath => run_file(filepath, AstWalkInterpreter::new())
+                filepath => run_file(filepath, AstWalkInterpreter::new()),
             }
         }
         3 => {

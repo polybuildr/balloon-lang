@@ -202,7 +202,8 @@ impl TypeEnvironment {
                                    }))];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
-            env.declare(&name.to_string(), &Type::Function(Box::new(Some(func.clone()))));
+            env.declare(&name.to_string(),
+                        &Type::Function(Box::new(Some(func.clone()))));
         }
         Rc::new(RefCell::new(env))
     }
@@ -366,9 +367,7 @@ fn check_expr(expr: &ExprNode,
         }
         Expr::Tuple(ref elems) => check_expr_tuple(elems, env.clone()),
         Expr::Unary(ref op, ref expr) => check_expr_unary_op(op, expr, env.clone()),
-        Expr::UnaryLogical(ref op, ref expr) => {
-            check_expr_unary_logical_op(op, expr, env.clone())
-        }
+        Expr::UnaryLogical(ref op, ref expr) => check_expr_unary_logical_op(op, expr, env.clone()),
         Expr::Binary(ref expr1, ref op, ref expr2) => {
             check_expr_binary_expr(expr, expr1, op, expr2, env.clone())
         }
@@ -677,15 +676,10 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
     use ast::BinOp::*;
     let result = match *op {
         Add => check_add_for_types(&checked_type_1, &checked_type_2),
-        ref op @ Sub |
-        ref op @ Mul |
-        ref op @ Div => {
+        ref op @ Sub | ref op @ Mul | ref op @ Div => {
             check_binary_arithmetic_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
-        ref op @ Lt |
-        ref op @ Lte |
-        ref op @ Gt |
-        ref op @ Gte => {
+        ref op @ Lt | ref op @ Lte | ref op @ Gt | ref op @ Gte => {
             check_binary_comparison_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
         Eq => Ok(Type::Bool),
@@ -712,8 +706,7 @@ fn check_expr_binary_logical_expr(expr1: &ExprNode,
                                   -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match *op {
-        LogicalBinOp::And |
-        LogicalBinOp::Or => {
+        LogicalBinOp::And | LogicalBinOp::Or => {
             match check_expr(expr1, env.clone()) {
                 Err(mut e) => {
                     issues.append(&mut e);
@@ -1043,11 +1036,11 @@ fn check_args_compat(arg_types: &[Type],
 
 fn get_function_type_with_updated_already_checked(old_fn_type: &FunctionType, new_already_checked: LinearMap<Vec<ConstraintType>, ()>) -> FunctionType {
     if let FunctionType::User { ref param_names,
-                                 ref body,
-                                 ref env,
-                                 ref call_sign,
-                                 ref ret_type,
-                                 .. } = *old_fn_type {
+                                ref body,
+                                ref env,
+                                ref call_sign,
+                                ref ret_type,
+                                .. } = *old_fn_type {
         FunctionType::User {
             param_names: param_names.clone(),
             body: body.clone(),
