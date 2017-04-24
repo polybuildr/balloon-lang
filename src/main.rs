@@ -21,6 +21,7 @@ extern crate libc;
 
 // include output of rust-peg given grammar.rustpeg
 mod parser {
+    #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
     include!(concat!(env!("OUT_DIR"), "/grammar.rs"));
 }
 
