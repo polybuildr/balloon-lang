@@ -18,6 +18,12 @@ before_install:
   - export LD_LIBRARY_PATH=/usr/local/lib:/lib/:$LD_LIBRARY_PATH
   - export PATH=/usr/local/bin:$PATH
 
+before_script:
+  - cargo install rustfmt
+  
+script:
+  - cargo fmt --write-mode diff
+
 matrix:
   allow_failures:
     - rust: nightly
