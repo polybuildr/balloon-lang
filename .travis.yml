@@ -22,7 +22,7 @@ before_script:
   - cargo install rustfmt
   
 script:
-  - cargo fmt --write-mode diff
+  - cargo fmt -- --write-mode diff
 
 matrix:
   allow_failures:
