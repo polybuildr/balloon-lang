@@ -702,13 +702,11 @@ struct LLVMBoxedStructRepr {
 }
 
 impl LLVMJIT {
-    //FIXME: not sure why this is seen as a "useless" transmute, I need to cast it to a void*
-    #[cfg_attr(feature = "cargo-clippy", allow(useless_transmute))]
     fn add_c_mappings(engine: *mut LLVMExecutionEngineRef, c_declarations: CDeclarations) {
         unsafe {
             LLVMAddGlobalMapping(*engine,
                                  c_declarations.malloc,
-                                 mem::transmute(libc::malloc as usize));
+                                 libc::malloc as usize as *mut libc::c_void);
 
         }
     }
