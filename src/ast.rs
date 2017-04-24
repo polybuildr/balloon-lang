@@ -107,18 +107,18 @@ pub enum BindingType {
 pub enum Expr {
     Literal(Literal),
     Identifier(String),
-    BinaryExpression(Box<ExprNode>, BinOp, Box<ExprNode>),
-    BinaryLogicalExpression(Box<ExprNode>, LogicalBinOp, Box<ExprNode>),
-    UnaryExpression(UnOp, Box<ExprNode>),
-    UnaryLogicalExpression(LogicalUnOp, Box<ExprNode>),
+    Binary(Box<ExprNode>, BinOp, Box<ExprNode>),
+    BinaryLogical(Box<ExprNode>, LogicalBinOp, Box<ExprNode>),
+    Unary(UnOp, Box<ExprNode>),
+    UnaryLogical(LogicalUnOp, Box<ExprNode>),
     // optional name, list of params, body, optional return type
-    FunctionDefinition(Option<String>,
+    FnDef(Option<String>,
                        Vec<(String, Option<ConstraintType>)>,
                        Box<StatementNode>,
                        Option<ConstraintType>),
-    FunctionCall(Box<ExprNode>, Vec<ExprNode>),
+    FnCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),
-    MemberAccessByIndex(Box<ExprNode>, Box<ExprNode>),
+    MemberByIdx(Box<ExprNode>, Box<ExprNode>),
 }
 
 // Only for parser convenience

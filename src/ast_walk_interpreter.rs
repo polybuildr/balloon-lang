@@ -163,7 +163,7 @@ fn interpret_expr(e: &ExprNode,
             }
             Ok(Some(Value::Tuple(values)))
         }
-        Expr::UnaryExpression(ref op, ref expr) => {
+        Expr::Unary(ref op, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
@@ -175,14 +175,14 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::UnaryLogicalExpression(ref op, ref expr) => {
+        Expr::UnaryLogical(ref op, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
                 LogicalUnOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
             }
         }
-        Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
+        Expr::Binary(ref expr1, ref op, ref expr2) => {
             let possible_val_1 = interpret_expr(expr1, env.clone())?;
             let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
             let possible_val_2 = interpret_expr(expr2, env.clone())?;
@@ -203,7 +203,7 @@ fn interpret_expr(e: &ExprNode,
                 Err(err) => Err((err, e.pos)),
             }
         }
-        Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
+        Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
             match *op {
                 LogicalBinOp::LogicalAnd => {
                     let possible_val_1 = interpret_expr(expr1, env.clone())?;
@@ -227,7 +227,7 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::MemberAccessByIndex(ref object_expr, ref index_expr) => {
+        Expr::MemberByIdx(ref object_expr, ref index_expr) => {
             let possible_object = interpret_expr(object_expr, env.clone())?;
             let object = check_val_for_none_error(&possible_object, object_expr)?;
             let possible_index = interpret_expr(index_expr, env.clone())?;
@@ -256,7 +256,7 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body, ref ret_type_hint) => {
+        Expr::FnDef(ref possible_id, ref param_list, ref body, ref ret_type_hint) => {
             let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
                 param_list.iter().cloned().unzip();
             let func = Function::User {
@@ -276,7 +276,7 @@ fn interpret_expr(e: &ExprNode,
             }
             Ok(Some(func_val))
         }
-        Expr::FunctionCall(ref expr, ref args) => {
+        Expr::FnCall(ref expr, ref args) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             let func = match val {
@@ -347,7 +347,7 @@ fn check_val_for_none_error(val: &Option<Value>,
                             expr: &ExprNode)
                             -> Result<Value, RuntimeErrorWithPosition> {
     if val.is_none() {
-        if let Expr::FunctionCall(ref f_expr, _) = expr.data {
+        if let Expr::FnCall(ref f_expr, _) = expr.data {
             if let Expr::Identifier(ref id) = f_expr.data {
                 return Err((RuntimeError::NoneError(Some(id.clone())), expr.pos));
             }

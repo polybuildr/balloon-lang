@@ -465,7 +465,7 @@ fn compile_literal(mut module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_fun
 fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions: &BoxUnboxFunctions, expr: &Expr) -> LLVMValueRef {
     match expr {
         &Expr::Literal(ref literal) => compile_literal(module, bb, box_unbox_functions, literal),
-        &Expr::BinaryExpression(ref leftexpr, ref op, ref rightexpr) => unsafe {
+        &Expr::Binary(ref leftexpr, ref op, ref rightexpr) => unsafe {
             let builder = Builder::new(); builder.position_at_end(bb);
 
             let leftbox = compile_expr(module, bb, box_unbox_functions, &leftexpr.data);

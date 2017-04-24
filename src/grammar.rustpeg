@@ -65,7 +65,7 @@ function_definition -> Expr
             Some(ret_hint) => ret_hint,
             None => Some(ConstraintType::Any),
         };
-        Expr::FunctionDefinition(
+        Expr::FnDef(
             i,
             params,
             Box::new(StatementNode { pos: (lpos, rpos), data: body } ),
@@ -105,17 +105,17 @@ binary_expr_node -> ExprNode
     = lpos:#position e:binary_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e.data } }
 
 binary_expr -> ExprNode = #infix<single_expr_node> {
-    #L x AND y { ExprNode { pos: (0, 0), data: Expr::BinaryLogicalExpression(Box::new(x), LogicalBinOp::LogicalAnd, Box::new(y)) } }
-       x OR y { ExprNode { pos: (0, 0), data: Expr::BinaryLogicalExpression(Box::new(x), LogicalBinOp::LogicalOr, Box::new(y)) } }
-    #L x OP_STRICT_EQUALS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::StrictEquals, Box::new(y)) } }
-    #L x OP_LESS_THAN y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Lt, Box::new(y)) } }
-       x OP_LESS_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Lte, Box::new(y)) } }
-       x OP_GREATER_THAN y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Gt, Box::new(y)) } }
-       x OP_GREATER_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Gte, Box::new(y)) } }
-    #L x OP_PLUS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Add, Box::new(y)) } }
-       x OP_MINUS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Sub, Box::new(y)) } }
-    #L x OP_ASTERISK y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Mul, Box::new(y)) } }
-       x OP_SLASH y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinOp::Div, Box::new(y)) } }
+    #L x AND y { ExprNode { pos: (0, 0), data: Expr::BinaryLogical(Box::new(x), LogicalBinOp::LogicalAnd, Box::new(y)) } }
+       x OR y { ExprNode { pos: (0, 0), data: Expr::BinaryLogical(Box::new(x), LogicalBinOp::LogicalOr, Box::new(y)) } }
+    #L x OP_STRICT_EQUALS y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::StrictEquals, Box::new(y)) } }
+    #L x OP_LESS_THAN y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Lt, Box::new(y)) } }
+       x OP_LESS_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Lte, Box::new(y)) } }
+       x OP_GREATER_THAN y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Gt, Box::new(y)) } }
+       x OP_GREATER_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Gte, Box::new(y)) } }
+    #L x OP_PLUS y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Add, Box::new(y)) } }
+       x OP_MINUS y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Sub, Box::new(y)) } }
+    #L x OP_ASTERISK y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Mul, Box::new(y)) } }
+       x OP_SLASH y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Div, Box::new(y)) } }
 }
 
 single_expr_node -> ExprNode
@@ -134,13 +134,13 @@ expr_with_suffix -> ExprNode
                     ExprSuffix::ExprInSquareBrackets(idx_expr) => {
                         expr = ExprNode {
                             pos: (lpos, rpos),
-                            data: Expr::MemberAccessByIndex(Box::new(expr), Box::new(idx_expr)),
+                            data: Expr::MemberByIdx(Box::new(expr), Box::new(idx_expr)),
                         }
                     }
                     ExprSuffix::ExprListInParens(args_list) => {
                         expr = ExprNode {
                             pos: (lpos, rpos),
-                            data: Expr::FunctionCall(Box::new(expr), args_list),
+                            data: Expr::FnCall(Box::new(expr), args_list),
                         }
                     }
                 }
@@ -163,8 +163,8 @@ simple_expr_node -> ExprNode
     = lpos:#position e:simple_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e } }
 
 simple_expr -> Expr
-    = OP_MINUS e:single_expr_node { Expr::UnaryExpression(UnOp::Minus, Box::new(e)) }
-    / NOT e:expr_node { Expr::UnaryLogicalExpression(LogicalUnOp::Not, Box::new(e)) }
+    = OP_MINUS e:single_expr_node { Expr::Unary(UnOp::Minus, Box::new(e)) }
+    / NOT e:expr_node { Expr::UnaryLogical(LogicalUnOp::Not, Box::new(e)) }
     / t:tuple { t }
     / f:function_definition { f }
     / l:literal { Expr::Literal(l) }
