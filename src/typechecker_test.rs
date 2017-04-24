@@ -54,21 +54,21 @@ fn check_no_binary_type_error() {
 fn check_binary_type_error_add() {
     let result = check_and_get_result("1 + true;");
     assert_eq!(result.unwrap_err(),
-               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinaryOp::Add,
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
                                                                               Type::Number,
                                                                               Type::Bool)),
                  (0, 8))]);
 
     let result = check_and_get_result("true + 1;");
     assert_eq!(result.unwrap_err(),
-               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinaryOp::Add,
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
                                                                               Type::Bool,
                                                                               Type::Number)),
                  (0, 8))]);
 
     let result = check_and_get_result("false + true;");
     assert_eq!(result.unwrap_err(),
-               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinaryOp::Add,
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
                                                                               Type::Bool,
                                                                               Type::Bool)),
                  (0, 12))]);
@@ -84,7 +84,7 @@ fn check_no_unary_minus_error() {
 fn check_unary_minus_error() {
     let result = check_and_get_result("-false;");
     assert_eq!(result.unwrap_err(),
-               [(TypeCheckerIssue::RuntimeError(RuntimeError::UnaryTypeError(UnaryOp::Minus,
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::UnaryTypeError(UnOp::Neg,
                                                                              Type::Bool)),
                  (1, 6))]);
 }
@@ -122,7 +122,7 @@ fn check_arg_mismatch_pass() {
 fn check_type_error_in_fn() {
     let result = check_and_get_result("fn f() { true + 1; }");
     assert_eq!(result.unwrap_err(),
-               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinaryOp::Add,
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
                                                                               Type::Bool,
                                                                               Type::Number)),
                  (9, 17))]);
@@ -181,7 +181,7 @@ add(false, false);";
                 Box::new(
                     (
                         TypeCheckerIssue::RuntimeError(
-                            RuntimeError::BinaryTypeError(BinaryOp::Add, Type::Bool, Type::Bool)
+                            RuntimeError::BinaryTypeError(BinOp::Add, Type::Bool, Type::Bool)
                         ),
                         (26, 31)
                     )
@@ -194,7 +194,7 @@ add(false, false);";
                 Box::new(
                     (
                         TypeCheckerIssue::RuntimeError(
-                            RuntimeError::BinaryTypeError(BinaryOp::Add, Type::Bool, Type::Number)
+                            RuntimeError::BinaryTypeError(BinOp::Add, Type::Bool, Type::Number)
                         ),
                         (26, 31)
                     )

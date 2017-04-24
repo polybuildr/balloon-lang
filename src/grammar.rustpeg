@@ -1,35 +1,35 @@
 use ast::*;
 use typechecker::ConstraintType;
 
-pub program -> Vec<StatementNode>
+pub program -> Vec<StmtNode>
     = __ terminators? s:statements { s }
 
-pub statements -> Vec<StatementNode>
+pub statements -> Vec<StmtNode>
     = statement_node*
 
-statement_node -> StatementNode
-    = lpos:#position s:statement rpos:#position { StatementNode { pos: (lpos, rpos), data: s } }
+statement_node -> StmtNode
+    = lpos:#position s:statement rpos:#position { StmtNode { pos: (lpos, rpos), data: s } }
 
-statement -> Statement
+statement -> Stmt
     = s:if_statement { s }
     / l:loop_statement { l }
-    / BREAK TERMINATOR { Statement::Break }
-    / RETURN e:expr_node? TERMINATOR { Statement::Return(e) }
+    / BREAK TERMINATOR { Stmt::Break }
+    / RETURN e:expr_node? TERMINATOR { Stmt::Return(e) }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
-    / e:expr_node TERMINATOR { Statement::Expression(e) }
-    / f:function_definition_node { Statement::Expression(f) }
+    / e:expr_node TERMINATOR { Stmt::Expr(e) }
+    / f:function_definition_node { Stmt::Expr(f) }
     / b:block { b }
-    / TERMINATOR { Statement::Empty }
+    / TERMINATOR { Stmt::Empty }
 
-assignment_statement -> Statement
+assignment_statement -> Stmt
     = lpos:#position i:identifier rpos:#position EQUALS e:expr_node TERMINATOR {
-        Statement::Assignment(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
+        Stmt::Assign(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
     }
 
-variable_declaration -> Statement
+variable_declaration -> Stmt
     = b:binding_type i:identifier EQUALS e:expr_node TERMINATOR {
-        Statement::VariableDeclaration(
+        Stmt::VarDecl(
             Variable::Identifier(b, i), e
         )
      }
@@ -37,24 +37,24 @@ variable_declaration -> Statement
 binding_type -> BindingType
     = VAR { BindingType::Mutable }
 
-loop_statement -> Statement
-    = LOOP lpos:#position b:block rpos:#position { Statement::Loop(Box::new(StatementNode { pos: (lpos, rpos), data: b })) }
+loop_statement -> Stmt
+    = LOOP lpos:#position b:block rpos:#position { Stmt::Loop(Box::new(StmtNode { pos: (lpos, rpos), data: b })) }
 
-if_statement -> Statement
+if_statement -> Stmt
     = IF e:expr_node lpos1:#position b1:block rpos1:#position ELSE lpos2:#position b2:block rpos2:#position {
-        Statement::IfThenElse(
+        Stmt::IfThenElse(
             e,
-            Box::new(StatementNode { pos: (lpos1, rpos1), data: b1 }),
-            Box::new(StatementNode { pos: (lpos2, rpos2), data: b2 }),
+            Box::new(StmtNode { pos: (lpos1, rpos1), data: b1 }),
+            Box::new(StmtNode { pos: (lpos2, rpos2), data: b2 }),
         )
     }
-    / IF e:expr_node lpos:#position b:block rpos:#position { Statement::IfThen(e, Box::new(StatementNode { pos: (lpos, rpos), data: b })) }
+    / IF e:expr_node lpos:#position b:block rpos:#position { Stmt::IfThen(e, Box::new(StmtNode { pos: (lpos, rpos), data: b })) }
 
-block -> Statement
+block -> Stmt
     = #quiet<_block> / #expected("block")
 
-_block -> Statement
-    = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Statement::Block(s) }
+_block -> Stmt
+    = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Stmt::Block(s) }
 
 function_definition_node -> ExprNode
     = lpos:#position f:function_definition rpos:#position { ExprNode { pos: (lpos, rpos), data: f } }
@@ -65,10 +65,10 @@ function_definition -> Expr
             Some(ret_hint) => ret_hint,
             None => Some(ConstraintType::Any),
         };
-        Expr::FunctionDefinition(
+        Expr::FnDef(
             i,
             params,
-            Box::new(StatementNode { pos: (lpos, rpos), data: body } ),
+            Box::new(StmtNode { pos: (lpos, rpos), data: body } ),
             return_type,
         )
     }
@@ -105,17 +105,17 @@ binary_expr_node -> ExprNode
     = lpos:#position e:binary_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e.data } }
 
 binary_expr -> ExprNode = #infix<single_expr_node> {
-    #L x AND y { ExprNode { pos: (0, 0), data: Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalAnd, Box::new(y)) } }
-       x OR y { ExprNode { pos: (0, 0), data: Expr::BinaryLogicalExpression(Box::new(x), LogicalBinaryOp::LogicalOr, Box::new(y)) } }
-    #L x OP_STRICT_EQUALS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::StrictEquals, Box::new(y)) } }
-    #L x OP_LESS_THAN y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::LessThan, Box::new(y)) } }
-       x OP_LESS_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::LessThanOrEqual, Box::new(y)) } }
-       x OP_GREATER_THAN y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::GreaterThan, Box::new(y)) } }
-       x OP_GREATER_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::GreaterThanOrEqual, Box::new(y)) } }
-    #L x OP_PLUS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Add, Box::new(y)) } }
-       x OP_MINUS y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Sub, Box::new(y)) } }
-    #L x OP_ASTERISK y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Mul, Box::new(y)) } }
-       x OP_SLASH y { ExprNode { pos: (0, 0), data: Expr::BinaryExpression(Box::new(x), BinaryOp::Div, Box::new(y)) } }
+    #L x AND y { ExprNode { pos: (0, 0), data: Expr::BinaryLogical(Box::new(x), LogicalBinOp::And, Box::new(y)) } }
+       x OR y { ExprNode { pos: (0, 0), data: Expr::BinaryLogical(Box::new(x), LogicalBinOp::Or, Box::new(y)) } }
+    #L x OP_STRICT_EQUALS y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Eq, Box::new(y)) } }
+    #L x OP_LESS_THAN y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Lt, Box::new(y)) } }
+       x OP_LESS_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Lte, Box::new(y)) } }
+       x OP_GREATER_THAN y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Gt, Box::new(y)) } }
+       x OP_GREATER_THAN_OR_EQUAL y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Gte, Box::new(y)) } }
+    #L x OP_PLUS y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Add, Box::new(y)) } }
+       x OP_MINUS y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Sub, Box::new(y)) } }
+    #L x OP_ASTERISK y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Mul, Box::new(y)) } }
+       x OP_SLASH y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Div, Box::new(y)) } }
 }
 
 single_expr_node -> ExprNode
@@ -131,16 +131,16 @@ expr_with_suffix -> ExprNode
             let mut expr = e;
             for suffix in suffixes {
                 match suffix {
-                    ExprSuffix::ExprInSquareBrackets(idx_expr) => {
+                    ExprSuffix::InSquareBrackets(idx_expr) => {
                         expr = ExprNode {
                             pos: (lpos, rpos),
-                            data: Expr::MemberAccessByIndex(Box::new(expr), Box::new(idx_expr)),
+                            data: Expr::MemberByIdx(Box::new(expr), Box::new(idx_expr)),
                         }
                     }
-                    ExprSuffix::ExprListInParens(args_list) => {
+                    ExprSuffix::ListInParens(args_list) => {
                         expr = ExprNode {
                             pos: (lpos, rpos),
-                            data: Expr::FunctionCall(Box::new(expr), args_list),
+                            data: Expr::FnCall(Box::new(expr), args_list),
                         }
                     }
                 }
@@ -154,17 +154,17 @@ expr_suffix -> ExprSuffix
     / function_call_suffix
 
 member_access_suffix -> ExprSuffix
-    = OPEN_SQUARE_BRACKET idx:expr_node CLOSE_SQUARE_BRACKET { ExprSuffix::ExprInSquareBrackets(idx) }
+    = OPEN_SQUARE_BRACKET idx:expr_node CLOSE_SQUARE_BRACKET { ExprSuffix::InSquareBrackets(idx) }
 
 function_call_suffix -> ExprSuffix
-    = OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN { ExprSuffix::ExprListInParens(args) }
+    = OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN { ExprSuffix::ListInParens(args) }
 
 simple_expr_node -> ExprNode
     = lpos:#position e:simple_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e } }
 
 simple_expr -> Expr
-    = OP_MINUS e:single_expr_node { Expr::UnaryExpression(UnaryOp::Minus, Box::new(e)) }
-    / NOT e:expr_node { Expr::UnaryLogicalExpression(LogicalUnaryOp::Not, Box::new(e)) }
+    = OP_MINUS e:single_expr_node { Expr::Unary(UnOp::Neg, Box::new(e)) }
+    / NOT e:expr_node { Expr::UnaryLogical(LogicalUnOp::Not, Box::new(e)) }
     / t:tuple { t }
     / f:function_definition { f }
     / l:literal { Expr::Literal(l) }

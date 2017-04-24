@@ -19,7 +19,7 @@ pub enum FunctionType {
         ret_type: Option<ConstraintType>,
         call_sign: CallSign,
         param_names: Vec<String>,
-        body: Box<ast::StatementNode>,
+        body: Box<ast::StmtNode>,
         env: Rc<RefCell<TypeEnvironment>>,
         already_checked_param_types: LinearMap<Vec<ConstraintType>, ()>,
     },
@@ -266,7 +266,7 @@ impl TypeEnvironment {
     }
 }
 
-pub fn check_program(ast: &[StatementNode]) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
+pub fn check_program(ast: &[StmtNode]) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let root_env = TypeEnvironment::new_root();
     let mut context = Context {
         in_loop: false,
@@ -276,7 +276,7 @@ pub fn check_program(ast: &[StatementNode]) -> Result<(), Vec<TypeCheckerIssueWi
     check_statements(ast, root_env.clone(), &mut context)
 }
 
-pub fn check_statements(ast: &[StatementNode],
+pub fn check_statements(ast: &[StmtNode],
                         env: Rc<RefCell<TypeEnvironment>>,
                         context: &mut Context)
                         -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
@@ -293,33 +293,33 @@ pub fn check_statements(ast: &[StatementNode],
     }
 }
 
-pub fn check_statement(s: &StatementNode,
+pub fn check_statement(s: &StmtNode,
                        env: Rc<RefCell<TypeEnvironment>>,
                        context: &mut Context)
                        -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match s.data {
-        Statement::VariableDeclaration(ref variable, ref expr) => {
+        Stmt::VarDecl(ref variable, ref expr) => {
             check_statement_variable_declaration(variable, expr, env.clone(), &mut issues);
         }
-        Statement::Assignment(ref lhs_expr, ref expr) => {
+        Stmt::Assign(ref lhs_expr, ref expr) => {
             check_statement_assignment(lhs_expr, expr, env.clone(), &mut issues);
         }
-        Statement::Block(ref statements) => {
+        Stmt::Block(ref statements) => {
             let child_env = TypeEnvironment::create_child(env);
             if let Err(mut e) = check_statements(statements, child_env, context) {
                 issues.append(&mut e);
             }
         }
-        Statement::Expression(ref expr) => {
+        Stmt::Expr(ref expr) => {
             if let Err(mut e) = check_expr(expr, env.clone()) {
                 issues.append(&mut e);
             }
         }
-        Statement::IfThen(ref if_expr, ref then_block) => {
+        Stmt::IfThen(ref if_expr, ref then_block) => {
             check_statement_if_then(if_expr, then_block, env.clone(), context, &mut issues);
         }
-        Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
+        Stmt::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             check_statement_if_then_else(s,
                                          if_expr,
                                          then_block,
@@ -328,7 +328,7 @@ pub fn check_statement(s: &StatementNode,
                                          context,
                                          &mut issues);
         }
-        Statement::Loop(ref block) => {
+        Stmt::Loop(ref block) => {
             let old_in_loop_value = context.in_loop;
             context.in_loop = true;
             if let Err(mut e) = check_statement(block, env.clone(), context) {
@@ -336,13 +336,13 @@ pub fn check_statement(s: &StatementNode,
             }
             context.in_loop = old_in_loop_value;
         }
-        Statement::Break => {
+        Stmt::Break => {
             if context.in_loop != true {
                 issues.push((RuntimeError::BreakOutsideLoop.into(), s.pos));
             }
         }
-        Statement::Empty => {}
-        Statement::Return(ref possible_expr) => {
+        Stmt::Empty => {}
+        Stmt::Return(ref possible_expr) => {
             check_statement_return(possible_expr, s, env.clone(), context, &mut issues);
         }
     };
@@ -365,23 +365,23 @@ fn check_expr(expr: &ExprNode,
             }
         }
         Expr::Tuple(ref elems) => check_expr_tuple(elems, env.clone()),
-        Expr::UnaryExpression(ref op, ref expr) => check_expr_unary_op(op, expr, env.clone()),
-        Expr::UnaryLogicalExpression(ref op, ref expr) => {
+        Expr::Unary(ref op, ref expr) => check_expr_unary_op(op, expr, env.clone()),
+        Expr::UnaryLogical(ref op, ref expr) => {
             check_expr_unary_logical_op(op, expr, env.clone())
         }
-        Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
+        Expr::Binary(ref expr1, ref op, ref expr2) => {
             check_expr_binary_expr(expr, expr1, op, expr2, env.clone())
         }
-        Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
+        Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
             check_expr_binary_logical_expr(expr1, op, expr2, env.clone())
         }
-        Expr::FunctionCall(ref f_expr, ref args) => {
+        Expr::FnCall(ref f_expr, ref args) => {
             check_expr_function_call(expr, f_expr, args, env.clone())
         }
-        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body, ref type_hint) => {
+        Expr::FnDef(ref possible_id, ref param_list, ref body, ref type_hint) => {
             check_expr_function_definition(possible_id, param_list, body, type_hint, env.clone())
         }
-        Expr::MemberAccessByIndex(ref expr, ref index_expr) => {
+        Expr::MemberByIdx(ref expr, ref index_expr) => {
             check_expr_member_access_by_index(expr, index_expr, env.clone())
         }
     }
@@ -393,7 +393,7 @@ fn check_statement_variable_declaration(variable: &Variable,
                                         issues: &mut Vec<TypeCheckerIssueWithPosition>) {
     let checked_type = match check_expr(expr, env.clone()) {
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = expr.data {
+            if let Expr::FnCall(ref id, _) = expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
             }
             Type::Any
@@ -417,7 +417,7 @@ fn check_statement_assignment(lhs_expr: &LhsExprNode,
                               issues: &mut Vec<TypeCheckerIssueWithPosition>) {
     let checked_type = match check_expr(expr, env.clone()) {
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = expr.data {
+            if let Expr::FnCall(ref id, _) = expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
             }
             Type::Any
@@ -438,7 +438,7 @@ fn check_statement_assignment(lhs_expr: &LhsExprNode,
 }
 
 fn check_statement_if_then(if_expr: &ExprNode,
-                           then_block: &StatementNode,
+                           then_block: &StmtNode,
                            env: Rc<RefCell<TypeEnvironment>>,
                            context: &mut Context,
                            issues: &mut Vec<TypeCheckerIssueWithPosition>) {
@@ -446,7 +446,7 @@ fn check_statement_if_then(if_expr: &ExprNode,
     match if_expr_result {
         Err(mut e) => issues.append(&mut e),
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = if_expr.data {
+            if let Expr::FnCall(ref id, _) = if_expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), if_expr.pos));
             }
         }
@@ -457,10 +457,10 @@ fn check_statement_if_then(if_expr: &ExprNode,
     }
 }
 
-fn check_statement_if_then_else(statement: &StatementNode,
+fn check_statement_if_then_else(statement: &StmtNode,
                                 if_expr: &ExprNode,
-                                then_block: &StatementNode,
-                                else_block: &StatementNode,
+                                then_block: &StmtNode,
+                                else_block: &StmtNode,
                                 env: Rc<RefCell<TypeEnvironment>>,
                                 context: &mut Context,
                                 issues: &mut Vec<TypeCheckerIssueWithPosition>) {
@@ -472,7 +472,7 @@ fn check_statement_if_then_else(statement: &StatementNode,
             issues.append(&mut e);
         }
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = if_expr.data {
+            if let Expr::FnCall(ref id, _) = if_expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), if_expr.pos));
             }
         }
@@ -508,7 +508,7 @@ fn check_statement_if_then_else(statement: &StatementNode,
 }
 
 fn check_statement_return(possible_expr: &Option<ExprNode>,
-                          return_statement: &StatementNode,
+                          return_statement: &StmtNode,
                           env: Rc<RefCell<TypeEnvironment>>,
                           context: &mut Context,
                           issues: &mut Vec<TypeCheckerIssueWithPosition>) {
@@ -521,7 +521,7 @@ fn check_statement_return(possible_expr: &Option<ExprNode>,
         Some(ref expr) => {
             match check_expr(expr, env.clone()) {
                 Ok(None) => {
-                    if let Expr::FunctionCall(ref id, _) = expr.data {
+                    if let Expr::FnCall(ref id, _) = expr.data {
                         issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
                                      expr.pos));
                     } else {
@@ -573,7 +573,7 @@ fn check_expr_tuple(elems: &[ExprNode],
     for elem_expr in elems {
         match check_expr(elem_expr, env.clone()) {
             Ok(None) => {
-                if let Expr::FunctionCall(ref id, _) = elem_expr.data {
+                if let Expr::FnCall(ref id, _) = elem_expr.data {
                     issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
                                  elem_expr.pos));
                 }
@@ -594,13 +594,13 @@ fn check_expr_tuple(elems: &[ExprNode],
     }
 }
 
-fn check_expr_unary_op(op: &UnaryOp,
+fn check_expr_unary_op(op: &UnOp,
                        expr: &ExprNode,
                        env: Rc<RefCell<TypeEnvironment>>)
                        -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     match check_expr(expr, env.clone()) {
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = expr.data {
+            if let Expr::FnCall(ref id, _) = expr.data {
                 return Err(vec![(RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
                                  expr.pos)]);
             }
@@ -608,7 +608,7 @@ fn check_expr_unary_op(op: &UnaryOp,
         }
         Ok(Some(typ)) => {
             match *op {
-                UnaryOp::Minus => {
+                UnOp::Neg => {
                     match check_unary_minus_for_type(typ) {
                         Ok(t) => Ok(Some(t)),
                         Err(e) => Err(vec![(e, expr.pos)]),
@@ -620,13 +620,13 @@ fn check_expr_unary_op(op: &UnaryOp,
     }
 }
 
-fn check_expr_unary_logical_op(op: &LogicalUnaryOp,
+fn check_expr_unary_logical_op(op: &LogicalUnOp,
                                expr: &ExprNode,
                                env: Rc<RefCell<TypeEnvironment>>)
                                -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     match check_expr(expr, env.clone()) {
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = expr.data {
+            if let Expr::FnCall(ref id, _) = expr.data {
                 return Err(vec![(RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
                                  expr.pos)]);
             }
@@ -634,7 +634,7 @@ fn check_expr_unary_logical_op(op: &LogicalUnaryOp,
         }
         Ok(Some(_)) => {
             match *op {
-                LogicalUnaryOp::Not => Ok(Some(Type::Bool)),
+                LogicalUnOp::Not => Ok(Some(Type::Bool)),
             }
         }
         Err(e) => Err(e),
@@ -643,14 +643,14 @@ fn check_expr_unary_logical_op(op: &LogicalUnaryOp,
 
 fn check_expr_binary_expr(binary_expr: &ExprNode,
                           expr1: &ExprNode,
-                          op: &BinaryOp,
+                          op: &BinOp,
                           expr2: &ExprNode,
                           env: Rc<RefCell<TypeEnvironment>>)
                           -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     let checked_type_1 = match check_expr(expr1, env.clone()) {
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = expr1.data {
+            if let Expr::FnCall(ref id, _) = expr1.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr1.pos));
             }
             Type::Any
@@ -663,7 +663,7 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
     };
     let checked_type_2 = match check_expr(expr2, env.clone()) {
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = expr2.data {
+            if let Expr::FnCall(ref id, _) = expr2.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr2.pos));
             }
             Type::Any
@@ -674,7 +674,7 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
             Type::Any
         }
     };
-    use ast::BinaryOp::*;
+    use ast::BinOp::*;
     let result = match *op {
         Add => check_add_for_types(&checked_type_1, &checked_type_2),
         ref op @ Sub |
@@ -682,13 +682,13 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
         ref op @ Div => {
             check_binary_arithmetic_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
-        ref op @ LessThan |
-        ref op @ LessThanOrEqual |
-        ref op @ GreaterThan |
-        ref op @ GreaterThanOrEqual => {
+        ref op @ Lt |
+        ref op @ Lte |
+        ref op @ Gt |
+        ref op @ Gte => {
             check_binary_comparison_for_types(op.clone(), &checked_type_1, &checked_type_2)
         }
-        StrictEquals => Ok(Type::Bool),
+        Eq => Ok(Type::Bool),
     };
     match result {
         Err(e) => {
@@ -706,20 +706,20 @@ fn check_expr_binary_expr(binary_expr: &ExprNode,
 }
 
 fn check_expr_binary_logical_expr(expr1: &ExprNode,
-                                  op: &LogicalBinaryOp,
+                                  op: &LogicalBinOp,
                                   expr2: &ExprNode,
                                   env: Rc<RefCell<TypeEnvironment>>)
                                   -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     let mut issues = Vec::new();
     match *op {
-        LogicalBinaryOp::LogicalAnd |
-        LogicalBinaryOp::LogicalOr => {
+        LogicalBinOp::And |
+        LogicalBinOp::Or => {
             match check_expr(expr1, env.clone()) {
                 Err(mut e) => {
                     issues.append(&mut e);
                 }
                 Ok(None) => {
-                    if let Expr::FunctionCall(ref id, _) = expr1.data {
+                    if let Expr::FnCall(ref id, _) = expr1.data {
                         issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
                                      expr1.pos));
                     }
@@ -731,7 +731,7 @@ fn check_expr_binary_logical_expr(expr1: &ExprNode,
                     issues.append(&mut e);
                 }
                 Ok(None) => {
-                    if let Expr::FunctionCall(ref id, _) = expr2.data {
+                    if let Expr::FnCall(ref id, _) = expr2.data {
                         issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
                                      expr2.pos));
                     }
@@ -759,7 +759,7 @@ fn check_expr_function_call(expr: &ExprNode,
             Type::Any
         }
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = f_expr.data {
+            if let Expr::FnCall(ref id, _) = f_expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), f_expr.pos));
             }
             Type::Any
@@ -776,7 +776,7 @@ fn check_expr_function_call(expr: &ExprNode,
                 Type::Any
             }
             Ok(None) => {
-                if let Expr::FunctionCall(ref id, _) = arg.data {
+                if let Expr::FnCall(ref id, _) = arg.data {
                     issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), arg.pos));
                 }
                 Type::Any
@@ -873,7 +873,7 @@ fn check_expr_function_call(expr: &ExprNode,
 
 fn check_expr_function_definition(possible_id: &Option<String>,
                                   param_list: &[(String, Option<ConstraintType>)],
-                                  body: &Box<StatementNode>,
+                                  body: &Box<StmtNode>,
                                   type_hint: &Option<ConstraintType>,
                                   env: Rc<RefCell<TypeEnvironment>>)
                                   -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
@@ -925,7 +925,7 @@ fn check_expr_member_access_by_index(expr: &ExprNode,
             Type::Any
         }
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = expr.data {
+            if let Expr::FnCall(ref id, _) = expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
             }
             Type::Any
@@ -943,7 +943,7 @@ fn check_expr_member_access_by_index(expr: &ExprNode,
             issues.append(&mut e);
         }
         Ok(None) => {
-            if let Expr::FunctionCall(ref id, _) = index_expr.data {
+            if let Expr::FnCall(ref id, _) = index_expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
                                 index_expr.pos));
             }
@@ -969,7 +969,7 @@ fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {
     match typ {
         Type::Number => Ok(Type::Number),
         Type::Any => Ok(Type::Any),
-        _ => Err(RuntimeError::UnaryTypeError(UnaryOp::Minus, typ).into()),
+        _ => Err(RuntimeError::UnaryTypeError(UnOp::Neg, typ).into()),
     }
 }
 
@@ -979,11 +979,11 @@ fn check_add_for_types(t1: &Type, t2: &Type) -> Result<Type, TypeCheckerIssue> {
         (&Type::String, _) |
         (_, &Type::String) => Ok(Type::String),
         (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
-        _ => Err(RuntimeError::BinaryTypeError(BinaryOp::Add, t1.clone(), t2.clone()).into()),
+        _ => Err(RuntimeError::BinaryTypeError(BinOp::Add, t1.clone(), t2.clone()).into()),
     }
 }
 
-fn check_binary_arithmetic_for_types(op: BinaryOp,
+fn check_binary_arithmetic_for_types(op: BinOp,
                                      t1: &Type,
                                      t2: &Type)
                                      -> Result<Type, TypeCheckerIssue> {
@@ -994,7 +994,7 @@ fn check_binary_arithmetic_for_types(op: BinaryOp,
     }
 }
 
-fn check_binary_comparison_for_types(op: BinaryOp,
+fn check_binary_comparison_for_types(op: BinOp,
                                      t1: &Type,
                                      t2: &Type)
                                      -> Result<Type, TypeCheckerIssue> {

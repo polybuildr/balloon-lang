@@ -9,9 +9,9 @@ pub enum RuntimeError {
     /// When an undeclared identifier is assigned to
     UndeclaredAssignment(String),
     /// When a binary op cannot be performed on the given types
-    BinaryTypeError(BinaryOp, Type, Type),
+    BinaryTypeError(BinOp, Type, Type),
     /// When a unary op cannot be performed on the given type
-    UnaryTypeError(UnaryOp, Type),
+    UnaryTypeError(UnOp, Type),
     /// When a non-returning function's return value is used
     NoneError(Option<String>),
     /// When a call is made to a non-function value
@@ -33,7 +33,7 @@ pub enum RuntimeError {
 pub type RuntimeErrorWithPosition = (RuntimeError, OffsetSpan);
 
 #[derive(Debug, PartialEq)]
-pub enum StatementResult {
+pub enum StmtResult {
     None,
     Break,
     Value(Value),
@@ -42,9 +42,9 @@ pub enum StatementResult {
 
 pub trait Interpreter {
     fn run_ast_as_statements(&mut self,
-                             statements: &[StatementNode])
-                             -> Result<Option<StatementResult>, RuntimeErrorWithPosition>;
+                             statements: &[StmtNode])
+                             -> Result<Option<StmtResult>, RuntimeErrorWithPosition>;
     fn run_ast_as_program(&mut self,
-                          program: &[StatementNode])
-                          -> Result<Option<StatementResult>, RuntimeErrorWithPosition>;
+                          program: &[StmtNode])
+                          -> Result<Option<StmtResult>, RuntimeErrorWithPosition>;
 }

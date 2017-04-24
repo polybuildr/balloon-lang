@@ -5,71 +5,71 @@ use typechecker::ConstraintType;
 pub type OffsetSpan = (usize, usize);
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BinaryOp {
+pub enum BinOp {
     Add,
     Sub,
     Mul,
     Div,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    StrictEquals,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    Eq,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LogicalBinaryOp {
-    LogicalAnd,
-    LogicalOr,
+pub enum LogicalBinOp {
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum UnaryOp {
-    Minus,
+pub enum UnOp {
+    Neg,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LogicalUnaryOp {
+pub enum LogicalUnOp {
     Not,
 }
 
-impl fmt::Display for BinaryOp {
+impl fmt::Display for BinOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            BinaryOp::Add => write!(f, "+"),
-            BinaryOp::Sub => write!(f, "-"),
-            BinaryOp::Mul => write!(f, "*"),
-            BinaryOp::Div => write!(f, "/"),
-            BinaryOp::LessThan => write!(f, "<"),
-            BinaryOp::LessThanOrEqual => write!(f, "<="),
-            BinaryOp::GreaterThan => write!(f, ">"),
-            BinaryOp::GreaterThanOrEqual => write!(f, ">="),
-            BinaryOp::StrictEquals => write!(f, "=="),
+            BinOp::Add => write!(f, "+"),
+            BinOp::Sub => write!(f, "-"),
+            BinOp::Mul => write!(f, "*"),
+            BinOp::Div => write!(f, "/"),
+            BinOp::Lt => write!(f, "<"),
+            BinOp::Lte => write!(f, "<="),
+            BinOp::Gt => write!(f, ">"),
+            BinOp::Gte => write!(f, ">="),
+            BinOp::Eq => write!(f, "=="),
         }
     }
 }
 
-impl fmt::Display for LogicalBinaryOp {
+impl fmt::Display for LogicalBinOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            LogicalBinaryOp::LogicalAnd => write!(f, "and"),
-            LogicalBinaryOp::LogicalOr => write!(f, "or"),
+            LogicalBinOp::And => write!(f, "and"),
+            LogicalBinOp::Or => write!(f, "or"),
         }
     }
 }
 
-impl fmt::Display for UnaryOp {
+impl fmt::Display for UnOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            UnaryOp::Minus => write!(f, "-"),
+            UnOp::Neg => write!(f, "-"),
         }
     }
 }
 
-impl fmt::Display for LogicalUnaryOp {
+impl fmt::Display for LogicalUnOp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            LogicalUnaryOp::Not => write!(f, "not"),
+            LogicalUnOp::Not => write!(f, "not"),
         }
     }
 }
@@ -107,24 +107,24 @@ pub enum BindingType {
 pub enum Expr {
     Literal(Literal),
     Identifier(String),
-    BinaryExpression(Box<ExprNode>, BinaryOp, Box<ExprNode>),
-    BinaryLogicalExpression(Box<ExprNode>, LogicalBinaryOp, Box<ExprNode>),
-    UnaryExpression(UnaryOp, Box<ExprNode>),
-    UnaryLogicalExpression(LogicalUnaryOp, Box<ExprNode>),
+    Binary(Box<ExprNode>, BinOp, Box<ExprNode>),
+    BinaryLogical(Box<ExprNode>, LogicalBinOp, Box<ExprNode>),
+    Unary(UnOp, Box<ExprNode>),
+    UnaryLogical(LogicalUnOp, Box<ExprNode>),
     // optional name, list of params, body, optional return type
-    FunctionDefinition(Option<String>,
+    FnDef(Option<String>,
                        Vec<(String, Option<ConstraintType>)>,
-                       Box<StatementNode>,
+                       Box<StmtNode>,
                        Option<ConstraintType>),
-    FunctionCall(Box<ExprNode>, Vec<ExprNode>),
+    FnCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),
-    MemberAccessByIndex(Box<ExprNode>, Box<ExprNode>),
+    MemberByIdx(Box<ExprNode>, Box<ExprNode>),
 }
 
 // Only for parser convenience
 pub enum ExprSuffix {
-    ExprListInParens(Vec<ExprNode>),
-    ExprInSquareBrackets(ExprNode),
+    ListInParens(Vec<ExprNode>),
+    InSquareBrackets(ExprNode),
 }
 
 #[derive(Debug, Clone)]
@@ -134,21 +134,21 @@ pub struct ExprNode {
 }
 
 #[derive(Debug, Clone)]
-pub enum Statement {
-    Assignment(LhsExprNode, ExprNode),
-    VariableDeclaration(Variable, ExprNode),
-    Expression(ExprNode),
-    Block(Vec<StatementNode>),
-    IfThen(ExprNode, Box<StatementNode>),
-    IfThenElse(ExprNode, Box<StatementNode>, Box<StatementNode>),
-    Loop(Box<StatementNode>),
+pub enum Stmt {
+    Assign(LhsExprNode, ExprNode),
+    VarDecl(Variable, ExprNode),
+    Expr(ExprNode),
+    Block(Vec<StmtNode>),
+    IfThen(ExprNode, Box<StmtNode>),
+    IfThenElse(ExprNode, Box<StmtNode>, Box<StmtNode>),
+    Loop(Box<StmtNode>),
     Return(Option<ExprNode>),
     Break,
     Empty,
 }
 
 #[derive(Debug, Clone)]
-pub struct StatementNode {
+pub struct StmtNode {
     pub pos: OffsetSpan,
-    pub data: Statement,
+    pub data: Stmt,
 }

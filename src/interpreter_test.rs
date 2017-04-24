@@ -1,18 +1,18 @@
 use parser;
 use runtime::Interpreter;
-use runtime::StatementResult;
+use runtime::StmtResult;
 use ast_walk_interpreter::AstWalkInterpreter;
 use value::Value;
 use value::Number;
 
 fn run_and_get_last_value(code: &str) -> Value {
     match run_and_get_last_result(code) {
-        StatementResult::Value(ref v) => v.clone(),
+        StmtResult::Value(ref v) => v.clone(),
         _ => panic!("Cannot unwrap value"),
     }
 }
 
-fn run_and_get_last_result(code: &str) -> StatementResult {
+fn run_and_get_last_result(code: &str) -> StmtResult {
     let ast = parser::program(code);
     match ast {
         Ok(ast) => {
@@ -232,9 +232,9 @@ fn block_env() {
 
 #[test]
 fn test_println_runs() {
-    assert_eq!(run_and_get_last_result("println();"), StatementResult::None);
+    assert_eq!(run_and_get_last_result("println();"), StmtResult::None);
     assert_eq!(run_and_get_last_result("println(5, true,);"),
-               StatementResult::None);
+               StmtResult::None);
 }
 
 #[test]

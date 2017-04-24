@@ -21,16 +21,16 @@ impl AstWalkInterpreter {
     }
 }
 
-fn interpret_program(program: &[StatementNode],
+fn interpret_program(program: &[StmtNode],
                      env: Rc<RefCell<Environment>>)
-                     -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                     -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let result = interpret_statements(program, env.clone())?;
     Ok(result)
 }
 
-fn interpret_statements(statements: &[StatementNode],
+fn interpret_statements(statements: &[StmtNode],
                         env: Rc<RefCell<Environment>>)
-                        -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                        -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let mut last_result = None;
     for statement in statements.iter() {
         last_result = Some(interpret_statement(statement, env.clone())?);
@@ -38,11 +38,11 @@ fn interpret_statements(statements: &[StatementNode],
     Ok(last_result)
 }
 
-fn interpret_statement(s: &StatementNode,
+fn interpret_statement(s: &StmtNode,
                        env: Rc<RefCell<Environment>>)
-                       -> Result<StatementResult, RuntimeErrorWithPosition> {
+                       -> Result<StmtResult, RuntimeErrorWithPosition> {
     match s.data {
-        Statement::VariableDeclaration(ref variable, ref expr) => {
+        Stmt::VarDecl(ref variable, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *variable {
@@ -50,9 +50,9 @@ fn interpret_statement(s: &StatementNode,
                     env.borrow_mut().declare(name, &val);
                 }
             };
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Assignment(ref lhs_expr, ref expr) => {
+        Stmt::Assign(ref lhs_expr, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match lhs_expr.data {
@@ -62,85 +62,85 @@ fn interpret_statement(s: &StatementNode,
                     }
                 }
             };
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Block(ref statements) => {
+        Stmt::Block(ref statements) => {
             let child_env = Environment::create_child(env.clone());
-            let mut last_result = StatementResult::None;
+            let mut last_result = StmtResult::None;
             for statement in statements.iter() {
                 last_result = interpret_statement(statement, child_env.clone())?;
-                if let StatementResult::Break = last_result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = last_result {
+                if let StmtResult::Break = last_result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = last_result {
                     return Ok(last_result);
                 }
             }
             Ok(last_result)
         }
-        Statement::Expression(ref expr) => {
+        Stmt::Expr(ref expr) => {
             let val = interpret_expr(expr, env.clone())?;
             match val {
-                None => Ok(StatementResult::None),
-                Some(x) => Ok(StatementResult::Value(x)),
+                None => Ok(StmtResult::None),
+                Some(x) => Ok(StmtResult::Value(x)),
             }
         }
-        Statement::IfThen(ref if_expr, ref then_block) => {
+        Stmt::IfThen(ref if_expr, ref then_block) => {
             let possible_val = interpret_expr(if_expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, if_expr)?;
             if val.is_truthy() {
                 let result = interpret_statement(then_block, env.clone())?;
-                if let StatementResult::Break = result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = result {
+                if let StmtResult::Break = result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             }
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
+        Stmt::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
             let possible_val = interpret_expr(if_expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, if_expr)?;
             if val.is_truthy() {
                 let result = interpret_statement(then_block, env.clone())?;
-                if let StatementResult::Break = result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = result {
+                if let StmtResult::Break = result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             } else {
                 let result = interpret_statement(else_block, env.clone())?;
-                if let StatementResult::Break = result {
-                    return Ok(StatementResult::Break);
-                } else if let StatementResult::Return(_) = result {
+                if let StmtResult::Break = result {
+                    return Ok(StmtResult::Break);
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             }
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Loop(ref block) => {
+        Stmt::Loop(ref block) => {
             let child_env = Environment::create_child(env.clone());
             loop {
                 let result = interpret_statement(block, child_env.clone())?;
-                if let StatementResult::Break = result {
+                if let StmtResult::Break = result {
                     break;
-                } else if let StatementResult::Return(_) = result {
+                } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
             }
-            Ok(StatementResult::None)
+            Ok(StmtResult::None)
         }
-        Statement::Return(ref possible_expr) => {
+        Stmt::Return(ref possible_expr) => {
             match *possible_expr {
                 Some(ref expr) => {
                     let possible_val = interpret_expr(expr, env.clone())?;
                     let val = check_val_for_none_error(&possible_val, expr)?;
-                    Ok(StatementResult::Return(Some(val)))
+                    Ok(StmtResult::Return(Some(val)))
                 }
-                None => Ok(StatementResult::Return(None)),
+                None => Ok(StmtResult::Return(None)),
             }
         }
-        Statement::Break => Ok(StatementResult::Break),
-        Statement::Empty => Ok(StatementResult::None),
+        Stmt::Break => Ok(StmtResult::Break),
+        Stmt::Empty => Ok(StmtResult::None),
     }
 }
 fn interpret_expr(e: &ExprNode,
@@ -163,11 +163,11 @@ fn interpret_expr(e: &ExprNode,
             }
             Ok(Some(Value::Tuple(values)))
         }
-        Expr::UnaryExpression(ref op, ref expr) => {
+        Expr::Unary(ref op, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
-                UnaryOp::Minus => {
+                UnOp::Neg => {
                     match operations::unary_minus(val) {
                         Ok(v) => Ok(Some(v)),
                         Err(err) => Err((err, e.pos)),
@@ -175,37 +175,37 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::UnaryLogicalExpression(ref op, ref expr) => {
+        Expr::UnaryLogical(ref op, ref expr) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             match *op {
-                LogicalUnaryOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
+                LogicalUnOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
             }
         }
-        Expr::BinaryExpression(ref expr1, ref op, ref expr2) => {
+        Expr::Binary(ref expr1, ref op, ref expr2) => {
             let possible_val_1 = interpret_expr(expr1, env.clone())?;
             let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
             let possible_val_2 = interpret_expr(expr2, env.clone())?;
             let val2 = check_val_for_none_error(&possible_val_2, expr2)?;
             let retval = match *op {
-                BinaryOp::Add => operations::add(val1, val2),
-                BinaryOp::Sub => operations::subtract(val1, val2),
-                BinaryOp::Mul => operations::multiply(val1, val2),
-                BinaryOp::Div => operations::divide(val1, val2),
-                BinaryOp::LessThan => operations::less_than(val1, val2),
-                BinaryOp::LessThanOrEqual => operations::less_than_or_equal(val1, val2),
-                BinaryOp::GreaterThan => operations::greater_than(val1, val2),
-                BinaryOp::GreaterThanOrEqual => operations::greater_than_or_equal(val1, val2),
-                BinaryOp::StrictEquals => Ok(Value::Bool(val1 == val2)),
+                BinOp::Add => operations::add(val1, val2),
+                BinOp::Sub => operations::subtract(val1, val2),
+                BinOp::Mul => operations::multiply(val1, val2),
+                BinOp::Div => operations::divide(val1, val2),
+                BinOp::Lt => operations::less_than(val1, val2),
+                BinOp::Lte => operations::less_than_or_equal(val1, val2),
+                BinOp::Gt => operations::greater_than(val1, val2),
+                BinOp::Gte => operations::greater_than_or_equal(val1, val2),
+                BinOp::Eq => Ok(Value::Bool(val1 == val2)),
             };
             match retval {
                 Ok(v) => Ok(Some(v)),
                 Err(err) => Err((err, e.pos)),
             }
         }
-        Expr::BinaryLogicalExpression(ref expr1, ref op, ref expr2) => {
+        Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
             match *op {
-                LogicalBinaryOp::LogicalAnd => {
+                LogicalBinOp::And => {
                     let possible_val_1 = interpret_expr(expr1, env.clone())?;
                     let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
                     if !val1.is_truthy() {
@@ -215,7 +215,7 @@ fn interpret_expr(e: &ExprNode,
                     let val2 = check_val_for_none_error(&possible_val_2, expr2)?;
                     Ok(Some(Value::Bool(val2.is_truthy())))
                 }
-                LogicalBinaryOp::LogicalOr => {
+                LogicalBinOp::Or => {
                     let possible_val_1 = interpret_expr(expr1, env.clone())?;
                     let val1 = check_val_for_none_error(&possible_val_1, expr1)?;
                     if val1.is_truthy() {
@@ -227,7 +227,7 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::MemberAccessByIndex(ref object_expr, ref index_expr) => {
+        Expr::MemberByIdx(ref object_expr, ref index_expr) => {
             let possible_object = interpret_expr(object_expr, env.clone())?;
             let object = check_val_for_none_error(&possible_object, object_expr)?;
             let possible_index = interpret_expr(index_expr, env.clone())?;
@@ -256,7 +256,7 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::FunctionDefinition(ref possible_id, ref param_list, ref body, ref ret_type_hint) => {
+        Expr::FnDef(ref possible_id, ref param_list, ref body, ref ret_type_hint) => {
             let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
                 param_list.iter().cloned().unzip();
             let func = Function::User {
@@ -276,7 +276,7 @@ fn interpret_expr(e: &ExprNode,
             }
             Ok(Some(func_val))
         }
-        Expr::FunctionCall(ref expr, ref args) => {
+        Expr::FnCall(ref expr, ref args) => {
             let possible_val = interpret_expr(expr, env.clone())?;
             let val = check_val_for_none_error(&possible_val, expr)?;
             let func = match val {
@@ -329,7 +329,7 @@ pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, R
                     Err(RuntimeError::InsideFunctionCall(Box::new(error_with_position)))
                 }
                 Ok(statement_result) => {
-                    if let StatementResult::Return(possible_val) = statement_result {
+                    if let StmtResult::Return(possible_val) = statement_result {
                         match possible_val {
                             Some(val) => Ok(Some(val)),
                             None => Ok(None),
@@ -347,7 +347,7 @@ fn check_val_for_none_error(val: &Option<Value>,
                             expr: &ExprNode)
                             -> Result<Value, RuntimeErrorWithPosition> {
     if val.is_none() {
-        if let Expr::FunctionCall(ref f_expr, _) = expr.data {
+        if let Expr::FnCall(ref f_expr, _) = expr.data {
             if let Expr::Identifier(ref id) = f_expr.data {
                 return Err((RuntimeError::NoneError(Some(id.clone())), expr.pos));
             }
@@ -372,14 +372,14 @@ fn check_args_compat(arg_vals: &[Value],
 
 impl Interpreter for AstWalkInterpreter {
     fn run_ast_as_statements(&mut self,
-                             statements: &[StatementNode])
-                             -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                             statements: &[StmtNode])
+                             -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_statements(statements, self.root_env.clone())
     }
 
     fn run_ast_as_program(&mut self,
-                          program: &[StatementNode])
-                          -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                          program: &[StmtNode])
+                          -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_program(program, self.root_env.clone())
     }
 }

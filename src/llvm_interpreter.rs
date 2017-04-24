@@ -465,7 +465,7 @@ fn compile_literal(mut module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_fun
 fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions: &BoxUnboxFunctions, expr: &Expr) -> LLVMValueRef {
     match expr {
         &Expr::Literal(ref literal) => compile_literal(module, bb, box_unbox_functions, literal),
-        &Expr::BinaryExpression(ref leftexpr, ref op, ref rightexpr) => unsafe {
+        &Expr::Binary(ref leftexpr, ref op, ref rightexpr) => unsafe {
             let builder = Builder::new(); builder.position_at_end(bb);
 
             let leftbox = compile_expr(module, bb, box_unbox_functions, &leftexpr.data);
@@ -477,10 +477,10 @@ fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions:
                                          [rightbox].as_mut_ptr(), 1, module.new_string_ptr("rightval"));
 
             let finalval = match op {
-               &BinaryOp::Add => LLVMBuildNSWAdd(builder.builder, leftval, rightval, module.new_string_ptr("addval")),
-               &BinaryOp::Sub => LLVMBuildSub(builder.builder, leftval, rightval, module.new_string_ptr("subval")),
-               &BinaryOp::Mul => LLVMBuildMul(builder.builder, leftval, rightval, module.new_string_ptr("mulval")),
-               &BinaryOp::Div => LLVMBuildSDiv(builder.builder, leftval, rightval, module.new_string_ptr("divval")),
+               &BinOp::Add => LLVMBuildNSWAdd(builder.builder, leftval, rightval, module.new_string_ptr("addval")),
+               &BinOp::Sub => LLVMBuildSub(builder.builder, leftval, rightval, module.new_string_ptr("subval")),
+               &BinOp::Mul => LLVMBuildMul(builder.builder, leftval, rightval, module.new_string_ptr("mulval")),
+               &BinOp::Div => LLVMBuildSDiv(builder.builder, leftval, rightval, module.new_string_ptr("divval")),
                 _ => panic!("unimplemented expr operator: {}", op)
             };
 
@@ -492,9 +492,9 @@ fn compile_expr(module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions:
     }
 }
 
-fn compile_statement(mut module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions: &BoxUnboxFunctions, statement: &Statement) -> LLVMValueRef {
+fn compile_statement(mut module: &mut Module, bb: LLVMBasicBlockRef, box_unbox_functions: &BoxUnboxFunctions, statement: &Stmt) -> LLVMValueRef {
     match statement {
-        &Statement::Expression(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
+        &Stmt::Expr(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
         other => panic!("unknown compile: {:?}", other)
     }
 }
@@ -539,9 +539,9 @@ fn create_module(module_name: &str, target_triple: Option<String>) -> Module {
     module
 }
 
-fn interpret_statements(stmts: &[StatementNode],
+fn interpret_statements(stmts: &[StmtNode],
                         _: Rc<RefCell<Environment>>)
-                        -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                        -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let target_triple : Option<String> = None;
     let mut module = create_module("ModuleName", target_triple);
 
@@ -660,9 +660,9 @@ impl LLVMJIT {
 
 }
 
-fn interpret_program(program: &[StatementNode],
+fn interpret_program(program: &[StmtNode],
                      env: Rc<RefCell<Environment>>)
-                     -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                     -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
     let result = interpret_statements(program, env.clone())?;
     Ok(result)
 }
@@ -671,14 +671,14 @@ impl Interpreter for LLVMInterpreter {
 
     fn run_ast_as_statements
         (&mut self,
-         statements: &[StatementNode])
-         -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+         statements: &[StmtNode])
+         -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_statements(statements, self.root_env.clone())
     }
 
     fn run_ast_as_program(&mut self,
-                              program: &[StatementNode])
-                              -> Result<Option<StatementResult>, RuntimeErrorWithPosition> {
+                              program: &[StmtNode])
+                              -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         interpret_program(program, self.root_env.clone())
     }
 }
