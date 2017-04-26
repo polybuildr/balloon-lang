@@ -84,7 +84,7 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
         Value::Function(ref f) => f,
         _ => {
             return Err(RuntimeError::GeneralRuntimeError("http_server: handler is not a Function"
-                .to_owned()))
+                                                             .to_owned()))
         }
     };
 
@@ -145,7 +145,7 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                         return Err(RuntimeError::GeneralRuntimeError("http_server: handler \
                                                                       function did not return a \
                                                                       value"
-                            .to_owned()));
+                                                                             .to_owned()));
                     }
                     Some(val) => val,
                 };
@@ -153,7 +153,7 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                     return Err(RuntimeError::GeneralRuntimeError("http_server: threading error \
                                                                   (could not send on reverse \
                                                                   channel)"
-                        .to_owned()));
+                                                                         .to_owned()));
                 }
             }
         }

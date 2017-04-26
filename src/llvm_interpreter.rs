@@ -229,7 +229,13 @@ fn add_c_declarations(module: &mut Module) -> CDeclarations {
 
     add_function(module,
                  "llvm.memset.p0i8.i32",
-                 &mut [int8_ptr_type(), int8_type(), int32_type(), int32_type(), int1_type()],
+                 &mut [
+        int8_ptr_type(),
+        int8_type(),
+        int32_type(),
+        int32_type(),
+        int1_type(),
+    ],
                  void);
 
     let malloc = add_function(module, "malloc", &mut [int32_type()], int8_ptr_type());
@@ -415,8 +421,10 @@ fn gen_add_fn(mut module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) 
         let fnname = "balloon_add";
         let addfn = add_function(module,
                                  fnname,
-                                 &mut [LLVMPointerType(box_type(), 0),
-                                       LLVMPointerType(box_type(), 0)],
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
                                  LLVMPointerType(box_type(), 0));
         let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
         builder.position_at_end(bb);
@@ -720,7 +728,9 @@ impl LLVMJIT {
             LLVMVerifyModule(module.module,
                              LLVMVerifierFailureAction::LLVMAbortProcessAction,
                              &mut error_c_string);
-            let err = CStr::from_ptr(error_c_string).to_string_lossy().into_owned();
+            let err = CStr::from_ptr(error_c_string)
+                .to_string_lossy()
+                .into_owned();
             println!("@@@@@@ ERROR: {}", err);
 
             let engine: *mut LLVMExecutionEngineRef = mem::uninitialized();
