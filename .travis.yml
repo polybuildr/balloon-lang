@@ -4,7 +4,6 @@ dist: trusty
 
 rust:
   - stable
-  - beta
   - nightly
 
 cache: cargo
@@ -22,8 +21,4 @@ before_install:
 
 before_script:
   - cargo install --force rustfmt
-  - cargo install --force clippy
-
-matrix:
-  allow_failures:
-    - rust: nightly
+  - (test $TRAVIS_RUST_VERSION != "nightly" || cargo install --force clippy)
