@@ -316,12 +316,7 @@ pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, R
             Ok(None)
         }
         Function::NativeReturning(_, ref native_fn) => Ok(Some(native_fn(arg_vals.to_vec())?)),
-        Function::User {
-            ref param_names,
-            ref body,
-            ref env,
-            ..
-        } => {
+        Function::User { ref param_names, ref body, ref env, .. } => {
             // TODO: returning
             let function_env = Environment::create_child(env.clone());
             for (param, arg) in param_names.iter().zip(arg_vals.iter()) {

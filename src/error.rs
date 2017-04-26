@@ -105,8 +105,7 @@ fn adjust_source_span(span: &mut SourceSpan, file_content: &str) {
     }
     while (span.end_col == 0) && span.end_line > span.start_line {
         span.end_line -= 1;
-        span.end_col = file_content
-            .lines()
+        span.end_col = file_content.lines()
             .nth(span.end_line - 1)
             .unwrap()
             .len();
@@ -291,16 +290,14 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
             .unwrap();
         println!("{}{}", left_padding, Yellow.bold().paint(pointer_string));
     } else {
-        let first_line_start_bytes = file_content
-            .lines()
+        let first_line_start_bytes = file_content.lines()
             .nth(span.start_line - 1)
             .unwrap()
             .bytes()
             .take(span.start_col - 1)
             .collect::<Vec<u8>>();
         let first_line_start_string = str::from_utf8(&first_line_start_bytes).unwrap();
-        let first_line_rest_bytes = file_content
-            .lines()
+        let first_line_rest_bytes = file_content.lines()
             .nth(span.start_line - 1)
             .unwrap()
             .bytes()
@@ -327,16 +324,14 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
         }
 
         if span.end_col != 0 {
-            let last_line_start_bytes = file_content
-                .lines()
+            let last_line_start_bytes = file_content.lines()
                 .nth(span.end_line - 1)
                 .unwrap()
                 .bytes()
                 .take(span.end_col)
                 .collect::<Vec<u8>>();
             let last_line_start_string = str::from_utf8(&last_line_start_bytes).unwrap();
-            let last_line_rest_bytes = file_content
-                .lines()
+            let last_line_rest_bytes = file_content.lines()
                 .nth(span.end_line - 1)
                 .unwrap()
                 .bytes()
