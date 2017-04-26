@@ -22,7 +22,7 @@ addons:
 before_script:
   - mkdir -p .local/bin
   - ln -s /usr/bin/llvm-config-4.0 .local/bin/llvm-config
-  - export PATH=$PATH:$PWD/.local/bin/
+  - export PATH=$PWD/.local/bin/:$PATH
   - which rustfmt || cargo install rustfmt
   - bash lint.sh
 
