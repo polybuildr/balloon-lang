@@ -40,7 +40,7 @@ enum BalloonTypeTag {
 
 fn balloon_type_tag_to_int(tag: BalloonTypeTag) -> u64 {
     match tag {
-        BalloonTypeTag::Integer => 30,
+        BalloonTypeTag::Integer => 0,
         BalloonTypeTag::Float => 1,
         BalloonTypeTag::Boolean => 2,
     }
@@ -359,11 +359,10 @@ fn gen_unbox_tag(mut module: &mut Module) -> LLVMValueRef {
         let boxp = LLVMGetParam(unboxfn, 0);
         LLVMSetValueName(boxp, module.new_string_ptr("boxp"));
 
-        // LLVMBuildRet(builder.builder, int64(10));
-        let slotp = LLVMBuildStructGEP(builder.builder, boxp, 0, module.new_string_ptr("slotp"));
-        let tagval = LLVMBuildLoad(builder.builder, slotp, module.new_string_ptr("tag"));
+        let tagp = LLVMBuildStructGEP(builder.builder, boxp, 0, module.new_string_ptr("tagp"));
+        let tag = LLVMBuildLoad(builder.builder, tagp, module.new_string_ptr("tag"));
 
-        LLVMBuildRet(builder.builder, tagval);
+        LLVMBuildRet(builder.builder, tag);
         unboxfn
     }
 }
@@ -776,40 +775,18 @@ fn compile_expr(module: &mut Module,
             let leftbox = compile_expr(module, bb, box_unbox_functions, arith_functions, &leftexpr.data);
             let rightbox = compile_expr(module, bb, box_unbox_functions, arith_functions, &rightexpr.data);
 
+            print!("@@@@module at compile_expr:\n{:?}\n-----", module);
 
             let finalval = match *op {
                 BinOp::Add => {
                   LLVMBuildCall(builder.builder, arith_functions.add_box_box, [leftbox, rightbox].as_mut_ptr(), 2,
                                     module.new_string_ptr("sum"))
                 },
-                /*
-                BinOp::Sub => {
-                LLVMBuildSub(builder.builder,
-                leftval,
-                rightval,
-                module.new_string_ptr("subval"))
-            }
-                BinOp::Mul => {
-                LLVMBuildMul(builder.builder,
-                leftval,
-                rightval,
-                module.new_string_ptr("mulval"))
-            }
-                BinOp::Div => {
-                LLVMBuildSDiv(builder.builder,
-                leftval,
-                rightval,
-                module.new_string_ptr("divval"))
-            }
-                 */
                 _ => panic!("unimplemented expr operator: {}", op),
             };
 
-            LLVMBuildCall(builder.builder,
-                          box_unbox_functions.box_i64,
-                          [finalval].as_mut_ptr(),
-                          1,
-                          module.new_string_ptr("finalbox"))
+            finalval
+           
         },
         ref other => panic!("unknown compile_expr: {:?}", other),
 
