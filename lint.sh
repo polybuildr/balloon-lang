@@ -14,5 +14,6 @@ cargo fmt -- --write-mode diff
 RUSTFMT_EXIT_CODE=$?
 
 # Exit if either of the exit codes was non-zero
-if [[ $CLIPPY_EXIT_CODE -ne 0 ]]; then exit 1; fi
-if [[ $RUSTFMT_EXIT_CODE -ne 0 ]]; then exit 1; fi
+if [[ $CLIPPY_EXIT_CODE -ne 0 ]]; then echo "Error!"; exit 1; fi
+if [[ $RUSTFMT_EXIT_CODE -ne 0 ]]; then echo "Error!"; exit 1; fi
+echo "Done."
