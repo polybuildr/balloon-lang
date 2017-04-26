@@ -23,28 +23,29 @@ pub struct Environment {
 impl Environment {
     pub fn new_root() -> Rc<RefCell<Environment>> {
         let mut env = Environment::new();
-        let builtin_functions = &[("println",
-                                   Function::NativeVoid(CallSign {
-                                                            num_params: 0,
-                                                            variadic: true,
-                                                            param_types: vec![],
-                                                        },
-                                                        native_println)),
-                                  ("run_http_server",
-                                   Function::NativeVoid(CallSign {
-                                                            num_params: 1,
-                                                            variadic: false,
-                                                            param_types:
-                                                                vec![Some(ConstraintType::Function)],
-                                                        },
-                                                        native_run_http_server)),
-                                  ("len",
-                                   Function::NativeReturning(CallSign {
-                                                                 num_params: 1,
-                                                                 variadic: false,
-                                                                 param_types: vec![None],
-                                                             },
-                                                             native_len))];
+        let builtin_functions = &[
+            ("println",
+             Function::NativeVoid(CallSign {
+                                      num_params: 0,
+                                      variadic: true,
+                                      param_types: vec![],
+                                  },
+                                  native_println)),
+            ("run_http_server",
+             Function::NativeVoid(CallSign {
+                                      num_params: 1,
+                                      variadic: false,
+                                      param_types: vec![Some(ConstraintType::Function)],
+                                  },
+                                  native_run_http_server)),
+            ("len",
+             Function::NativeReturning(CallSign {
+                                           num_params: 1,
+                                           variadic: false,
+                                           param_types: vec![None],
+                                       },
+                                       native_len)),
+        ];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
             env.declare(&name.to_string(), &Value::Function(Box::new(func.clone())));
@@ -68,7 +69,8 @@ impl Environment {
     }
 
     pub fn declare(&mut self, identifier: &str, value: &Value) {
-        self.symbol_table.insert(identifier.to_owned(), value.clone());
+        self.symbol_table
+            .insert(identifier.to_owned(), value.clone());
     }
 
     pub fn set(&mut self, identifier: &str, value: Value) -> bool {

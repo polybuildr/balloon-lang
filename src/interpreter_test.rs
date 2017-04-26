@@ -17,7 +17,8 @@ fn run_and_get_last_result(code: &str) -> StmtResult {
     match ast {
         Ok(ast) => {
             let mut ast_walk_interpreter = AstWalkInterpreter::new();
-            let reference_val = ast_walk_interpreter.run_ast_as_program(&ast)
+            let reference_val = ast_walk_interpreter
+                .run_ast_as_program(&ast)
                 .unwrap()
                 .unwrap();
             return reference_val;
@@ -179,9 +180,11 @@ fn id_in_expr() {
 #[test]
 fn create_tuple() {
     assert_eq!(run_and_get_last_value("(1, 2, 3);"),
-               Value::Tuple(vec![Value::Number(Number::Integer(1)),
-                                 Value::Number(Number::Integer(2)),
-                                 Value::Number(Number::Integer(3))]));
+               Value::Tuple(vec![
+        Value::Number(Number::Integer(1)),
+        Value::Number(Number::Integer(2)),
+        Value::Number(Number::Integer(3)),
+    ]));
 }
 
 #[test]

@@ -182,24 +182,26 @@ impl fmt::Debug for TypeEnvironment {
 impl TypeEnvironment {
     pub fn new_root() -> Rc<RefCell<TypeEnvironment>> {
         let mut env = TypeEnvironment::new();
-        let builtin_functions = &[("println",
-                                   FunctionType::NativeVoid(CallSign {
-                                       num_params: 0,
-                                       variadic: true,
-                                       param_types: vec![],
-                                   })),
-                                  ("len",
-                                   FunctionType::NativeReturning(CallSign {
-                                       num_params: 1,
-                                       variadic: false,
-                                       param_types: vec![None],
-                                   })),
-                                  ("run_http_server",
-                                   FunctionType::NativeVoid(CallSign {
-                                       num_params: 1,
-                                       variadic: false,
-                                       param_types: vec![Some(ConstraintType::Function)],
-                                   }))];
+        let builtin_functions = &[
+            ("println",
+             FunctionType::NativeVoid(CallSign {
+                                          num_params: 0,
+                                          variadic: true,
+                                          param_types: vec![],
+                                      })),
+            ("len",
+             FunctionType::NativeReturning(CallSign {
+                                               num_params: 1,
+                                               variadic: false,
+                                               param_types: vec![None],
+                                           })),
+            ("run_http_server",
+             FunctionType::NativeVoid(CallSign {
+                                          num_params: 1,
+                                          variadic: false,
+                                          param_types: vec![Some(ConstraintType::Function)],
+                                      })),
+        ];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
             env.declare(&name.to_string(),
@@ -601,8 +603,9 @@ fn check_expr_unary_op(op: &UnOp,
     match check_expr(expr, env.clone()) {
         Ok(None) => {
             if let Expr::FnCall(ref id, _) = expr.data {
-                return Err(vec![(RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                 expr.pos)]);
+                return Err(vec![
+                    (RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos),
+                ]);
             }
             unreachable!();
         }
@@ -627,8 +630,9 @@ fn check_expr_unary_logical_op(op: &LogicalUnOp,
     match check_expr(expr, env.clone()) {
         Ok(None) => {
             if let Expr::FnCall(ref id, _) = expr.data {
-                return Err(vec![(RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                 expr.pos)]);
+                return Err(vec![
+                    (RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos),
+                ]);
             }
             unreachable!();
         }
@@ -801,7 +805,9 @@ fn check_expr_function_call(expr: &ExprNode,
     let func_call_sign = func_type.get_call_sign();
     if !func_call_sign.variadic && arg_types.len() != func_type.get_call_sign().param_types.len() {
         if let Expr::Identifier(ref id) = expr.data {
-            return Err(vec![(RuntimeError::ArgumentLength(Some(id.clone())).into(), expr.pos)]);
+            return Err(vec![
+                (RuntimeError::ArgumentLength(Some(id.clone())).into(), expr.pos),
+            ]);
         } else {
             return Err(vec![(RuntimeError::ArgumentLength(None).into(), expr.pos)]);
         }
@@ -810,12 +816,14 @@ fn check_expr_function_call(expr: &ExprNode,
             issues.append(&mut e);
         }
 
-        if let FunctionType::User { ref param_names,
-                                    ref body,
-                                    ref env,
-                                    ref already_checked_param_types,
-                                    ref ret_type,
-                                    .. } = func_type {
+        if let FunctionType::User {
+                   ref param_names,
+                   ref body,
+                   ref env,
+                   ref already_checked_param_types,
+                   ref ret_type,
+                   ..
+               } = func_type {
             let function_env = TypeEnvironment::create_child(env.clone());
             for (param, arg) in param_names.iter().zip(arg_types.iter()) {
                 function_env.borrow_mut().declare(param, arg);
@@ -830,7 +838,8 @@ fn check_expr_function_call(expr: &ExprNode,
                     let new_func_type =
                         get_function_type_with_updated_already_checked(&func_type,
                                                                        new_checked_param_types);
-                    env.borrow_mut().set(&id, Type::Function(Box::new(Some(new_func_type))));
+                    env.borrow_mut()
+                        .set(&id, Type::Function(Box::new(Some(new_func_type))));
 
                     let mut context = Context {
                         in_loop: false,
@@ -939,7 +948,7 @@ fn check_expr_member_access_by_index(expr: &ExprNode,
         Ok(None) => {
             if let Expr::FnCall(ref id, _) = index_expr.data {
                 issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                index_expr.pos));
+                             index_expr.pos));
             }
         }
         Ok(Some(typ)) => {
@@ -1038,14 +1047,16 @@ fn check_args_compat(arg_types: &[Type],
 fn get_function_type_with_updated_already_checked(
     old_fn_type: &FunctionType,
     new_already_checked: LinearMap<Vec<ConstraintType>,()>)
-    -> FunctionType {
+-> FunctionType{
 
-    if let FunctionType::User { ref param_names,
-                                ref body,
-                                ref env,
-                                ref call_sign,
-                                ref ret_type,
-                                .. } = *old_fn_type {
+    if let FunctionType::User {
+               ref param_names,
+               ref body,
+               ref env,
+               ref call_sign,
+               ref ret_type,
+               ..
+           } = *old_fn_type {
         FunctionType::User {
             param_names: param_names.clone(),
             body: body.clone(),
