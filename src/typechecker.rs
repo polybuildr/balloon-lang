@@ -360,7 +360,7 @@ fn check_expr(expr: &ExprNode,
               env: Rc<RefCell<TypeEnvironment>>)
               -> Result<Option<Type>, Vec<TypeCheckerIssueWithPosition>> {
     match expr.data {
-        Expr::Literal(ref x) => Ok(Some(Type::from(x.clone()))),
+        Expr::Literal(ref x) => Ok(Some(Type::from(x.data.clone()))),
         Expr::Identifier(ref id) => {
             match env.borrow().get_type(id) {
                 Some(t) => Ok(Some(t)),

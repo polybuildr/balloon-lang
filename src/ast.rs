@@ -5,6 +5,12 @@ use typechecker::ConstraintType;
 pub type OffsetSpan = (usize, usize);
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Spanned<T> {
+    pub pos: OffsetSpan,
+    pub data: T,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum BinOp {
     Add,
     Sub,
@@ -82,16 +88,14 @@ pub enum Literal {
     String(String),
 }
 
+pub type LiteralNode = Spanned<Literal>;
+
 #[derive(Debug, Clone)]
 pub enum LhsExpr {
     Identifier(String),
 }
 
-#[derive(Debug, Clone)]
-pub struct LhsExprNode {
-    pub pos: OffsetSpan,
-    pub data: LhsExpr,
-}
+pub type LhsExprNode = Spanned<LhsExpr>;
 
 #[derive(Debug, Clone)]
 pub enum Variable {
@@ -105,7 +109,7 @@ pub enum BindingType {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Literal(Literal),
+    Literal(LiteralNode),
     Identifier(String),
     Binary(Box<ExprNode>, BinOp, Box<ExprNode>),
     BinaryLogical(Box<ExprNode>, LogicalBinOp, Box<ExprNode>),
@@ -127,11 +131,7 @@ pub enum ExprSuffix {
     InSquareBrackets(ExprNode),
 }
 
-#[derive(Debug, Clone)]
-pub struct ExprNode {
-    pub pos: OffsetSpan,
-    pub data: Expr,
-}
+pub type ExprNode = Spanned<Expr>;
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -147,8 +147,4 @@ pub enum Stmt {
     Empty,
 }
 
-#[derive(Debug, Clone)]
-pub struct StmtNode {
-    pub pos: OffsetSpan,
-    pub data: Stmt,
-}
+pub type StmtNode = Spanned<Stmt>;

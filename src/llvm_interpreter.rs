@@ -529,7 +529,9 @@ fn compile_expr(module: &mut Module,
                 expr: &Expr)
                 -> LLVMValueRef {
     match *expr {
-        Expr::Literal(ref literal) => compile_literal(module, bb, box_unbox_functions, literal),
+        Expr::Literal(ref literal) => {
+            compile_literal(module, bb, box_unbox_functions, &literal.data)
+        }
         Expr::Binary(ref leftexpr, ref op, ref rightexpr) => unsafe {
             let builder = Builder::new();
             builder.position_at_end(bb);

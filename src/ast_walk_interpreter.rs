@@ -147,7 +147,7 @@ fn interpret_expr(e: &ExprNode,
                   env: Rc<RefCell<Environment>>)
                   -> Result<Option<Value>, RuntimeErrorWithPosition> {
     match e.data {
-        Expr::Literal(ref x) => Ok(Some(Value::from(x.clone()))),
+        Expr::Literal(ref x) => Ok(Some(Value::from(x.data.clone()))),
         Expr::Identifier(ref id) => {
             match env.borrow_mut().get_value(id) {
                 Some(v) => Ok(Some(v)),

@@ -167,8 +167,13 @@ simple_expr -> Expr
     / NOT e:expr_node { Expr::UnaryLogical(LogicalUnOp::Not, Box::new(e)) }
     / t:tuple { t }
     / f:function_definition { f }
-    / l:literal { Expr::Literal(l) }
+    / l:literal_node { Expr::Literal(l) }
     / i:identifier { Expr::Identifier(i) }
+
+literal_node -> LiteralNode
+    = lpos:#position l:literal rpos:#position {
+        LiteralNode { pos: (lpos, rpos), data: l }
+    }
 
 literal -> Literal
     = f:float { Literal::Float(f) }
