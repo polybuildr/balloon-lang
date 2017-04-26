@@ -4,9 +4,10 @@ dist: trusty
 
 rust:
   - stable
-  - beta
   - nightly
+
 cache: cargo
+
 before_install:
   - echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-4.0 main" | sudo tee -a /etc/apt/sources.list
   - echo "deb-src http://apt.llvm.org/trusty/ llvm-toolchain-trusty-4.0 main" | sudo tee -a /etc/apt/sources.list
@@ -18,6 +19,9 @@ before_install:
   - export LD_LIBRARY_PATH=/usr/local/lib:/lib/:$LD_LIBRARY_PATH
   - export PATH=/usr/local/bin:$PATH
 
-matrix:
-  allow_failures:
-    - rust: nightly
+before_script:
+  - which rustfmt || cargo install rustfmt
+  - bash lint.sh
+
+script:
+  - cargo test
