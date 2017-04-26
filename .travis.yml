@@ -22,3 +22,4 @@ before_install:
 before_script:
   - cargo install --force rustfmt
   - (test $TRAVIS_RUST_VERSION != "nightly" || cargo install --force clippy)
+  - bash lint.sh
