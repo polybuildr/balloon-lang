@@ -20,6 +20,8 @@ before_install:
   - export PATH=/usr/local/bin:$PATH
 
 before_script:
-  - cargo install --force rustfmt
-  - (test $TRAVIS_RUST_VERSION != "nightly" || cargo install --force clippy)
+  - which rustfmt || cargo install rustfmt
   - bash lint.sh
+
+script:
+  - cargo test
