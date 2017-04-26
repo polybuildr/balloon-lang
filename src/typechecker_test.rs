@@ -42,7 +42,7 @@ fn check_no_undeclared_assignment() {
 fn check_undeclared_assignment_error() {
     let result = check_and_get_result("x = 5;");
     assert_eq!(result.unwrap_err(), [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::UndeclaredAssignment("x".to_owned())), (0, 2))
+        (TypeCheckerIssue::RuntimeError(RuntimeError::UndeclaredAssignment("x".to_owned())), (0, 1))
     ]);
 }
 
@@ -236,7 +236,7 @@ fn check_return_type() {
                [
         (TypeCheckerIssue::ReturnTypeMismatch(Some(ConstraintType::Number),
                                               Some(ConstraintType::Bool)),
-         (27, 40)),
+         (27, 39)),
     ]);
 }
 
@@ -255,7 +255,7 @@ bool_id(1);";
                         TypeCheckerIssue::ReturnTypeMismatch(
                             Some(ConstraintType::Bool), Some(ConstraintType::Number)
                         ),
-                        (26, 36))
+                        (26, 35))
                 )
             ),
             (39, 49)

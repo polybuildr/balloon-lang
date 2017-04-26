@@ -8,27 +8,27 @@ pub statements -> Vec<StmtNode>
     = statement_node*
 
 statement_node -> StmtNode
-    = lpos:#position s:statement rpos:#position { StmtNode { pos: (lpos, rpos), data: s } }
+    = __ lpos:#position s:statement rpos:#position __ { StmtNode { pos: (lpos, rpos), data: s } }
 
 statement -> Stmt
     = s:if_statement { s }
     / l:loop_statement { l }
-    / BREAK TERMINATOR { Stmt::Break }
-    / RETURN e:expr_node? TERMINATOR { Stmt::Return(e) }
+    / BREAK __ TERMINATOR { Stmt::Break }
+    / RETURN __ e:expr_node? __ TERMINATOR { Stmt::Return(e) }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
-    / e:expr_node TERMINATOR { Stmt::Expr(e) }
+    / e:expr_node __ TERMINATOR { Stmt::Expr(e) }
     / f:function_definition_node { Stmt::Expr(f) }
     / b:block { b }
     / TERMINATOR { Stmt::Empty }
 
 assignment_statement -> Stmt
-    = lpos:#position i:identifier rpos:#position EQUALS e:expr_node TERMINATOR {
+    = lpos:#position i:identifier rpos:#position __ EQUALS __ e:expr_node __ TERMINATOR {
         Stmt::Assign(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
     }
 
 variable_declaration -> Stmt
-    = b:binding_type i:identifier EQUALS e:expr_node TERMINATOR {
+    = b:binding_type __ i:identifier __ EQUALS __ e:expr_node __ TERMINATOR {
         Stmt::VarDecl(
             Variable::Identifier(b, i), e
         )
@@ -38,10 +38,10 @@ binding_type -> BindingType
     = VAR { BindingType::Mutable }
 
 loop_statement -> Stmt
-    = LOOP lpos:#position b:block rpos:#position { Stmt::Loop(Box::new(StmtNode { pos: (lpos, rpos), data: b })) }
+    = LOOP __ lpos:#position b:block rpos:#position __ { Stmt::Loop(Box::new(StmtNode { pos: (lpos, rpos), data: b })) }
 
 if_statement -> Stmt
-    = IF e:expr_node lpos1:#position b1:block rpos1:#position ELSE lpos2:#position b2:block rpos2:#position {
+    = IF __ e:expr_node __ lpos1:#position b1:block rpos1:#position __ ELSE __ lpos2:#position b2:block rpos2:#position __ {
         Stmt::IfThenElse(
             e,
             Box::new(StmtNode { pos: (lpos1, rpos1), data: b1 }),
@@ -54,13 +54,13 @@ block -> Stmt
     = #quiet<_block> / #expected("block")
 
 _block -> Stmt
-    = OPENING_BRACE terminators? s:statements terminators? CLOSING_BRACE { Stmt::Block(s) }
+    = OPENING_BRACE __ terminators? __ s:statements __ terminators? __ CLOSING_BRACE { Stmt::Block(s) }
 
 function_definition_node -> ExprNode
-    = lpos:#position f:function_definition rpos:#position { ExprNode { pos: (lpos, rpos), data: f } }
+    = __ lpos:#position f:function_definition rpos:#position __ { ExprNode { pos: (lpos, rpos), data: f } }
 
 function_definition -> Expr
-    = FN i:identifier? OPEN_PAREN params:param_list COMMA? CLOSE_PAREN maybe_ret_hint:return_type_hint? lpos:#position body:block rpos:#position {
+    = FN __ i:identifier? __ OPEN_PAREN __ params:param_list __ COMMA? __ CLOSE_PAREN __ maybe_ret_hint:return_type_hint? __ lpos:#position body:block rpos:#position __ {
         let return_type = match maybe_ret_hint {
             Some(ret_hint) => ret_hint,
             None => Some(ConstraintType::Any),
@@ -77,14 +77,14 @@ param_list -> Vec<(String, Option<ConstraintType>)>
     = identifier_with_possible_type ** COMMA
 
 identifier_with_possible_type -> (String, Option<ConstraintType>)
-    = id:identifier t:type_hint? { (id, t) }
+    = __ id:identifier __ t:type_hint? __ { (id, t) }
 
 return_type_hint -> Option<ConstraintType>
-    = COLON VOID { None }
-    / COLON t:typ { Some(t) }
+    = COLON __ VOID { None }
+    / COLON __ t:typ { Some(t) }
 
 type_hint -> ConstraintType
-    = COLON t:typ { t }
+    = COLON __ t:typ { t }
 
 typ -> ConstraintType
     = NUMBER { ConstraintType::Number }
@@ -102,7 +102,7 @@ comma_args -> Vec<ExprNode>
     = expr_node ** COMMA
 
 binary_expr_node -> ExprNode
-    = lpos:#position e:binary_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e.data } }
+    = __ lpos:#position e:binary_expr rpos:#position __ { ExprNode { pos: (lpos, rpos), data: e.data } }
 
 binary_expr -> ExprNode = #infix<single_expr_node> {
     #L x AND y { ExprNode { pos: (0, 0), data: Expr::BinaryLogical(Box::new(x), LogicalBinOp::And, Box::new(y)) } }
@@ -119,12 +119,12 @@ binary_expr -> ExprNode = #infix<single_expr_node> {
 }
 
 single_expr_node -> ExprNode
-    = OPEN_PAREN e:expr_node CLOSE_PAREN { e }
+    = __ OPEN_PAREN e:expr_node CLOSE_PAREN __ { e }
     / e:expr_with_suffix { e }
 
 expr_with_suffix -> ExprNode
     // TODO: This sort of messes up position annotation for the ExprNode
-    = lpos:#position e:simple_expr_node suffixes:expr_suffix* rpos:#position {
+    = __ lpos:#position e:simple_expr_node suffixes:expr_suffix* rpos:#position __ {
         if suffixes.is_empty() {
             e
         } else {
@@ -157,21 +157,26 @@ member_access_suffix -> ExprSuffix
     = OPEN_SQUARE_BRACKET idx:expr_node CLOSE_SQUARE_BRACKET { ExprSuffix::InSquareBrackets(idx) }
 
 function_call_suffix -> ExprSuffix
-    = OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN { ExprSuffix::ListInParens(args) }
+    = OPEN_PAREN __ args:comma_args __ COMMA? __ CLOSE_PAREN { ExprSuffix::ListInParens(args) }
+
+_tuple -> Expr
+    = OPEN_PAREN __ args:comma_args __ COMMA? __ CLOSE_PAREN {
+        Expr::Tuple(args)
+    }
 
 simple_expr_node -> ExprNode
-    = lpos:#position e:simple_expr rpos:#position { ExprNode { pos: (lpos, rpos), data: e } }
+    = __ lpos:#position e:simple_expr rpos:#position __ { ExprNode { pos: (lpos, rpos), data: e } }
 
 simple_expr -> Expr
-    = OP_MINUS e:single_expr_node { Expr::Unary(UnOp::Neg, Box::new(e)) }
-    / NOT e:expr_node { Expr::UnaryLogical(LogicalUnOp::Not, Box::new(e)) }
+    = OP_MINUS __ e:single_expr_node { Expr::Unary(UnOp::Neg, Box::new(e)) }
+    / NOT __ e:expr_node { Expr::UnaryLogical(LogicalUnOp::Not, Box::new(e)) }
     / t:tuple { t }
     / f:function_definition { f }
     / l:literal_node { Expr::Literal(l) }
     / i:identifier { Expr::Identifier(i) }
 
 literal_node -> LiteralNode
-    = lpos:#position l:literal rpos:#position {
+    = __ lpos:#position l:literal rpos:#position __ {
         LiteralNode { pos: (lpos, rpos), data: l }
     }
 
@@ -184,74 +189,69 @@ literal -> Literal
 tuple -> Expr
     = #quiet<_tuple> / #expected("tuple")
 
-_tuple -> Expr
-    = OPEN_PAREN args:comma_args COMMA? CLOSE_PAREN {
-        Expr::Tuple(args)
-    }
-
 doubleQuotedString -> String
     = #quiet<_doubleQuotedString> / #expected("string")
 
 _doubleQuotedString -> String
-    = '"' s:$([^"]*) '"' __ { s.to_owned() }
+    = '"' s:$([^"]*) '"' { s.to_owned() }
 
 integer -> i64
     = #quiet<_integer> / #expected("number")
 
 _integer -> i64
-    = n:$([+-]?[0-9]+) __ { n.parse().unwrap() }
+    = n:$([+-]?[0-9]+) { n.parse().unwrap() }
 
 float -> f64
     = #quiet<_float> / #expected("number")
 
 _float -> f64
-    = f:$([+-]?[0-9]+"."[0-9]+) __ { f.parse().unwrap() }
+    = f:$([+-]?[0-9]+"."[0-9]+) { f.parse().unwrap() }
 
 boolean -> bool
     = #quiet<_boolean> / #expected("bool")
 
 _boolean -> bool
-    = "true" __ { true }
-    / "false" __ { false }
+    = "true" { true }
+    / "false" { false }
 
 identifier -> String
     = #quiet<_identifier> / #expected("identifier")
 
 _identifier -> String
-    = !reserved_identifier i:$([a-zA-Z_][a-zA-Z0-9_]*[!?]?) __ { i.to_string() }
+    = !reserved_identifier i:$([a-zA-Z_][a-zA-Z0-9_]*[!?]?) { i.to_string() }
 
 __ = whitespace*
 
 whitespace = #quiet<[ \t\n]>
 
-EQUALS = #quiet<"=" __> / #expected("equals")
+EQUALS = #quiet<"="> / #expected("equals")
 
 terminators = TERMINATOR+
 
 TERMINATOR -> ()
-    = ";" __
+    = ";"
 
-OP_PLUS = "+" __
-OP_MINUS = "-" __
-OP_ASTERISK = "*" __
-OP_SLASH = "/" __
-OP_COLON = ":" __
-OP_LESS_THAN = "<" __
-OP_GREATER_THAN = ">" __
-OP_LESS_THAN_OR_EQUAL = "<=" __
-OP_GREATER_THAN_OR_EQUAL = ">=" __
+OP_PLUS = "+"
+OP_MINUS = "-"
+OP_ASTERISK = "*"
+OP_SLASH = "/"
+OP_COLON = ":"
+OP_LESS_THAN = "<"
+OP_GREATER_THAN = ">"
+OP_LESS_THAN_OR_EQUAL = "<="
+OP_GREATER_THAN_OR_EQUAL = ">="
 
-OP_STRICT_EQUALS = "==" __
+OP_STRICT_EQUALS = "=="
 
-OPENING_BRACE = "{" __
-CLOSING_BRACE = "}" __
-OPEN_PAREN = "(" __
-CLOSE_PAREN = ")" __
-OPEN_SQUARE_BRACKET = "[" __
-CLOSE_SQUARE_BRACKET = "]" __
+OPENING_BRACE = "{"
+CLOSING_BRACE = "}"
+OPEN_PAREN = "("
+CLOSE_PAREN = ")"
+OPEN_SQUARE_BRACKET = "["
+CLOSE_SQUARE_BRACKET = "]"
 
-COMMA = "," __
-COLON = ":" __
+COMMA = ","
+COLON = ":"
 
 reserved_identifier = VAR
                     / IF
@@ -266,7 +266,7 @@ reserved_identifier = VAR
                     / FN
                     / RETURN;
 
-keyword<E> = E __
+keyword<E> = E
 
 VAR = keyword<"var">
 IF = keyword<"if">
