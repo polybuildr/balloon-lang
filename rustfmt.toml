@@ -1,0 +1,4 @@
+array_layout = "Block"
+
+# I'd like to have this, but right now it does weird things
+# fn_call_style = "Block"
