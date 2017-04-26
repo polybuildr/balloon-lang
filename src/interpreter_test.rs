@@ -22,19 +22,18 @@ fn run_and_get_last_result(code: &str) -> StmtResult {
                 .unwrap()
                 .unwrap();
             return reference_val;
-            /*
-             * Test plan forward once LLVM backend is written
-            let mut llvm_interpreter = LLVMInterpreter::new()
-            let llvm_val = llvm_interpreter.run_ast_as_program(&ast)
-                .unwrap().unwrap();
-
-            if (llvm_val == reference_val) {
-                reference_val
-            }
-            else {
-                panic!("LLVM value: {:?} does not agree with Reference Value {:?}"
-            }
-            */
+            // Test plan forward once LLVM backend is written
+            // let mut llvm_interpreter = LLVMInterpreter::new()
+            // let llvm_val = llvm_interpreter.run_ast_as_program(&ast)
+            // .unwrap().unwrap();
+            //
+            // if (llvm_val == reference_val) {
+            // reference_val
+            // }
+            // else {
+            // panic!("LLVM value: {:?} does not agree with Reference Value {:?}"
+            // }
+            //
         }
         Err(_) => panic!("{:?}", ast),
     }
