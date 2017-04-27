@@ -7,7 +7,7 @@ sudo: false
 
 rust:
   - stable
-  - nightly-2017-04-26
+  - nightly-2017-04-27
 
 cache: cargo
 
