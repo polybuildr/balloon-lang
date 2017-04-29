@@ -9,7 +9,7 @@ use ast::*;
 use environment::Environment;
 use runtime::*;
 
-use llvm_sys::LLVMIntPredicate;
+// use llvm_sys::LLVMIntPredicate;
 use llvm_sys::core::*;
 use llvm_sys::{LLVMModule, LLVMBuilder};
 use llvm_sys::prelude::*;
@@ -410,7 +410,10 @@ fn gen_box_fn_for_type<F>(mut module: &mut Module,
         LLVMBuildStore(builder.builder, tag, box_tag);
 
         LLVMBuildRet(builder.builder, boxp);
+
         boxfn
+
+        
     }
 }
 
@@ -531,10 +534,6 @@ fn gen_add_box_i64_box_f64(mut module: &mut Module,
                                  [b1].as_mut_ptr(),
                                  1,
                                  module.new_string_ptr("raw1"));
-        let float1 = LLVMBuildFPCast(builder.builder,
-                                     int1,
-                                     float64_type(),
-                                     module.new_string_ptr("raw1_float"));
 
         let float2 = LLVMBuildCall(builder.builder,
                                    box_unbox_functions.unbox_f64,
@@ -542,11 +541,21 @@ fn gen_add_box_i64_box_f64(mut module: &mut Module,
                                    1,
                                    module.new_string_ptr("raw2"));
 
+        println!("@@@@ module with int1, float2 load:\n{:?}\n-----\n", module);
+        let float1 = LLVMBuildSIToFP(builder.builder,
+                                     int1,
+                                     float64_type(),
+                                     module.new_string_ptr("raw1_float"));
+
+        println!("@@@@ module with int1 cast:\n{:?}\n-----\n", module);
+        
+
         let sum = LLVMBuildFAdd(builder.builder,
                                 float1,
                                 float2,
                                 module.new_string_ptr("sum"));
 
+        println!("@@@@ module with int + float sum built:\n{:?}\n-----\n", module);
         let boxed_sum = LLVMBuildCall(builder.builder,
                                       box_unbox_functions.box_f64,
                                       [sum].as_mut_ptr(),
@@ -606,7 +615,7 @@ fn gen_add_box_i64_box_i64(mut module: &mut Module,
 fn gen_add_box_box(module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) -> LLVMValueRef {
 
     let add_f64_f64 = gen_add_box_f64_box_f64(module, box_unbox_functions);
-    // let add_i64_f64 = gen_add_box_i64_box_i64(module, box_unbox_functions);
+    let add_i64_f64 = gen_add_box_i64_box_f64(module, box_unbox_functions);
     let add_i64_i64 = gen_add_box_i64_box_i64(module, box_unbox_functions);
 
     let builder = Builder::new();
@@ -630,58 +639,107 @@ fn gen_add_box_box(module: &mut Module, box_unbox_functions: &BoxUnboxFunctions)
         builder.position_at_end(bb);
 
         let tag1 = LLVMBuildCall(builder.builder,
-                                    box_unbox_functions.unbox_tag,
-                                    [b1].as_mut_ptr(),
-                                    1,
-                                    module.new_string_ptr("tag1"));
+                                 box_unbox_functions.unbox_tag,
+                                 [b1].as_mut_ptr(),
+                                 1,
+                                 module.new_string_ptr("tag1"));
         let tag2 = LLVMBuildCall(builder.builder,
-                                     box_unbox_functions.unbox_tag,
-                                     [b2].as_mut_ptr(),
-                                     1,
-                                     module.new_string_ptr("tag2"));
+                                 box_unbox_functions.unbox_tag,
+                                 [b2].as_mut_ptr(),
+                                 1,
+                                 module.new_string_ptr("tag2"));
 
 
 
-        let int_tagp = balloon_type_tag_to_llvm_value(module, BalloonTypeTag::Integer);
-        let int_tag = LLVMBuildLoad(builder.builder, int_tagp, module.new_string_ptr("int_tag_val"));
+        // FIXME: LLVM does not allow non-constants to be branches in switch-case. Very weird. Will need to
+        // variable alias or something? and not keep BalloonTypeTag as global
+        let int_tag = int32(balloon_type_tag_to_int(BalloonTypeTag::Integer) as c_ulonglong);
+        let float_tag = int32(balloon_type_tag_to_int(BalloonTypeTag::Float) as c_ulonglong);
 
-        let is_1_int = LLVMBuildICmp(builder.builder, LLVMIntPredicate::LLVMIntEQ, tag1, int_tag, module.new_string_ptr("is_1_int"));
-        let is_2_int = LLVMBuildICmp(builder.builder, LLVMIntPredicate::LLVMIntEQ, tag2, int_tag, module.new_string_ptr("is_2_int"));
-        let int_int_pred = LLVMBuildAnd(builder.builder, is_1_int, is_2_int, module.new_string_ptr("int_int_pred"));
+        let bb_err_unknown_add_types = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("unknown_add_types"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+            // TODO: replace this with some actual error thing
+            let error_val = int64((-42 as i64) as c_ulonglong);
+            let error_box = LLVMBuildCall(builder_inner.builder, box_unbox_functions.box_i64, [error_val].as_mut_ptr(), 1, module.new_string_ptr("errorbox"));
+            LLVMBuildRet(builder_inner.builder, error_box);
+            bb_inner
+        };
 
-        /*
-        //NOTE: enable this for floating point code
-        let float_tag = balloon_type_tag_to_llvm_value(module, BalloonTypeTag::Float);
-        let is_1_float = LLVMBuildICmp(builder.builder, LLVMIntPredicate::LLVMIntEQ, tag1, float_tag, module.new_string_ptr("is_1_float"));
-        let is_2_float = LLVMBuildICmp(builder.builder, LLVMIntPredicate::LLVMIntEQ, tag2, float_tag, module.new_string_ptr("is_2_float"));
-        let float_float_pred = LLVMBuildAnd(builder.builder, is_1_float, is_2_float, module.new_string_ptr("float_float_pred"));
-        */
-
-         //float + float
+        //float + float
         let bb_float_float = {
-          let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("float_float"));
-          let builder_inner = Builder::new();
-          builder_inner.position_at_end(bb_inner);
-        
-          let sum = LLVMBuildCall(builder_inner.builder, add_f64_f64, [b1, b2].as_mut_ptr(), 2, module.new_string_ptr("sum"));
-          LLVMBuildRet(builder_inner.builder, sum);
-          bb_inner
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("float_float"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+            
+            let sum = LLVMBuildCall(builder_inner.builder, add_f64_f64, [b1, b2].as_mut_ptr(), 2, module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
 
         };
-        
+
         //int + int
         let bb_int_int = {
-          let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("int_int"));
-          let builder_inner = Builder::new();
-          builder_inner.position_at_end(bb_inner);
-        
-          let sum = LLVMBuildCall(builder_inner.builder, add_i64_i64, [b1, b2].as_mut_ptr(), 2, module.new_string_ptr("sum"));
-          LLVMBuildRet(builder_inner.builder, sum);
-          bb_inner
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("int_int"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+            
+            let sum = LLVMBuildCall(builder_inner.builder, add_i64_i64, [b1, b2].as_mut_ptr(), 2, module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
 
         };
 
-        LLVMBuildCondBr(builder.builder, int_int_pred, bb_int_int, bb_float_float);
+        //float + int
+        let bb_float_int = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("float_int"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+            
+            let sum = LLVMBuildCall(builder_inner.builder, add_i64_f64, [b2, b1].as_mut_ptr(), 2, module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
+        };
+
+        //int + float
+        let bb_int_float = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("int_float"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+            
+            let sum = LLVMBuildCall(builder_inner.builder, add_i64_f64, [b1, b2].as_mut_ptr(), 2, module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
+                
+        };
+
+        let bb_i64_wildcard = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("int_wildcard"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let switch = LLVMBuildSwitch(builder_inner.builder, tag2, bb_err_unknown_add_types, 2);
+            LLVMAddCase(switch, int_tag, bb_int_int);
+            LLVMAddCase(switch, float_tag, bb_int_float);
+            bb_inner
+        };
+
+        let bb_f64_wildcard = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("float_wildcard"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let switch = LLVMBuildSwitch(builder_inner.builder, tag2, bb_err_unknown_add_types, 2);
+            
+            LLVMAddCase(switch, int_tag, bb_float_int);
+            LLVMAddCase(switch, float_tag, bb_float_float);
+            bb_inner
+        };
+        
+        let switch_tag1 = LLVMBuildSwitch(builder.builder, tag1, bb_err_unknown_add_types, 2);
+        LLVMAddCase(switch_tag1, int_tag, bb_i64_wildcard);
+        LLVMAddCase(switch_tag1, float_tag, bb_f64_wildcard);
 
         addfn
     }
@@ -715,11 +773,8 @@ fn gen_balloon_prelude(mut module: &mut Module) -> BoxUnboxFunctions {
         unbox_tag: gen_unbox_tag(&mut module),
     };
 
+    print!("@@@@ module after box_unbox_functions:\n{:?}\n-----\n", module);
 
-    gen_box_fn_for_type(&mut module,
-                        BalloonTypeTag::Boolean,
-                        int1_type(),
-                        cast_ilower_to_i64);
 
     box_unbox_functions
 }
