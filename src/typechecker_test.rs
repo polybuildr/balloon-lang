@@ -26,10 +26,8 @@ fn check_no_reference_error() {
 fn check_reference_error() {
     let result = check_and_get_result("var x = 5; y;");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::ReferenceError("y".to_owned())),
-         (11, 12)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::ReferenceError("y".to_owned())),
+                 (11, 12))]);
 }
 
 #[test]
@@ -56,30 +54,24 @@ fn check_no_binary_type_error() {
 fn check_binary_type_error_add() {
     let result = check_and_get_result("1 + true;");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
-                                                                      Type::Number,
-                                                                      Type::Bool)),
-         (0, 8)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
+                                                                              Type::Number,
+                                                                              Type::Bool)),
+                 (0, 8))]);
 
     let result = check_and_get_result("true + 1;");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
-                                                                      Type::Bool,
-                                                                      Type::Number)),
-         (0, 8)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
+                                                                              Type::Bool,
+                                                                              Type::Number)),
+                 (0, 8))]);
 
     let result = check_and_get_result("false + true;");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
-                                                                      Type::Bool,
-                                                                      Type::Bool)),
-         (0, 12)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
+                                                                              Type::Bool,
+                                                                              Type::Bool)),
+                 (0, 12))]);
 }
 
 #[test]
@@ -92,20 +84,16 @@ fn check_no_unary_minus_error() {
 fn check_unary_minus_error() {
     let result = check_and_get_result("-false;");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::UnaryTypeError(UnOp::Neg,
-                                                                     Type::Bool)),
-         (1, 6)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::UnaryTypeError(UnOp::Neg,
+                                                                             Type::Bool)),
+                 (1, 6))]);
 }
 
 #[test]
 fn check_multiple_types_from_branch() {
     let result = check_and_get_result("var x = 5; if true { x = true; } else { x = 10; } ");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (11, 50)),
-    ]);
+               [(TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (11, 50))]);
 }
 
 #[test]
@@ -127,21 +115,17 @@ fn check_arg_mismatch_fail() {
 fn check_arg_mismatch_pass() {
     let result = check_and_get_result("fn f(x) {} f();");
     assert_eq!(result.unwrap_err(),
-               [
-        ((TypeCheckerIssue::RuntimeError(RuntimeError::ArgumentLength(None))), (11, 14)),
-    ]);
+               [((TypeCheckerIssue::RuntimeError(RuntimeError::ArgumentLength(None))), (11, 14))]);
 }
 
 #[test]
 fn check_type_error_in_fn() {
     let result = check_and_get_result("fn f() { true + 1; }");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
-                                                                      Type::Bool,
-                                                                      Type::Number)),
-         (9, 17)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
+                                                                              Type::Bool,
+                                                                              Type::Number)),
+                 (9, 17))]);
 }
 
 #[test]
@@ -154,10 +138,8 @@ fn check_no_reference_error_in_fn() {
 fn check_reference_error_in_fn() {
     let result = check_and_get_result("fn f() { x; }");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::ReferenceError("x".to_owned())),
-         (9, 10)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::ReferenceError("x".to_owned())),
+                 (9, 10))]);
 }
 
 #[test]
@@ -173,18 +155,14 @@ if 1 {
     x = 5;
 }");
     assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (22, 81)),
-    ]);
+               [(TypeCheckerIssue::MultipleTypesFromBranchWarning("x".to_owned()), (22, 81))]);
 }
 
 #[test]
 fn check_non_integral_subscript() {
     assert_eq!(check_and_get_result("(1, 2, 3)[true];").unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::NonIntegralSubscript(Type::Bool)),
-         (10, 14)),
-    ]);
+               [(TypeCheckerIssue::RuntimeError(RuntimeError::NonIntegralSubscript(Type::Bool)),
+                 (10, 14))]);
 }
 
 #[test]
@@ -233,11 +211,9 @@ fn check_return_type() {
     return true;
 }";
     assert_eq!(check_and_get_result(code).unwrap_err(),
-               [
-        (TypeCheckerIssue::ReturnTypeMismatch(Some(ConstraintType::Number),
-                                              Some(ConstraintType::Bool)),
-         (27, 39)),
-    ]);
+               [(TypeCheckerIssue::ReturnTypeMismatch(Some(ConstraintType::Number),
+                                                      Some(ConstraintType::Bool)),
+                 (27, 39))]);
 }
 
 #[test]
