@@ -239,7 +239,13 @@ fn gen_c_declarations(module: &mut Module) -> CDeclarations {
 
     gen_function(module,
                  "llvm.memset.p0i8.i32",
-                 &mut [int8_ptr_type(), int8_type(), int32_type(), int32_type(), int1_type()],
+                 &mut [
+        int8_ptr_type(),
+        int8_type(),
+        int32_type(),
+        int32_type(),
+        int1_type(),
+    ],
                  void);
 
     let malloc = gen_function(module, "malloc", &mut [int32_type()], int8_ptr_type());
@@ -467,8 +473,10 @@ fn gen_add_box_f64_box_f64(mut module: &mut Module,
         let fnname = "balloon_add_box_f64_box_f64";
         let addfn = gen_function(module,
                                  fnname,
-                                 &mut [LLVMPointerType(box_type(), 0),
-                                       LLVMPointerType(box_type(), 0)],
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
                                  LLVMPointerType(box_type(), 0));
         let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
         builder.position_at_end(bb);
@@ -517,8 +525,10 @@ fn gen_add_box_i64_box_f64(mut module: &mut Module,
         let fnname = "balloon_add_box_i64_box_f64";
         let addfn = gen_function(module,
                                  fnname,
-                                 &mut [LLVMPointerType(box_type(), 0),
-                                       LLVMPointerType(box_type(), 0)],
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
                                  LLVMPointerType(box_type(), 0));
         let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
         builder.position_at_end(bb);
@@ -577,8 +587,10 @@ fn gen_add_box_i64_box_i64(mut module: &mut Module,
         let fnname = "balloon_add_box_i64_box_i64";
         let addfn = gen_function(module,
                                  fnname,
-                                 &mut [LLVMPointerType(box_type(), 0),
-                                       LLVMPointerType(box_type(), 0)],
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
                                  LLVMPointerType(box_type(), 0));
         let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
         builder.position_at_end(bb);
@@ -625,8 +637,10 @@ fn gen_add_box_box(module: &mut Module, box_unbox_functions: &BoxUnboxFunctions)
         let fnname = "balloon_add_box_box";
         let addfn = gen_function(module,
                                  fnname,
-                                 &mut [LLVMPointerType(box_type(), 0),
-                                       LLVMPointerType(box_type(), 0)],
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
                                  LLVMPointerType(box_type(), 0));
         let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
         builder.position_at_end(bb);
