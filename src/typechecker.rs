@@ -104,6 +104,8 @@ impl PartialEq for Type {
             (&Type::Number, &Type::Number) |
             (&Type::Bool, &Type::Bool) |
             (&Type::Function(_), &Type::Function(_)) |
+            (&Type::String, &Type::String) |
+            (&Type::Tuple, &Type::Tuple) |
             (&Type::Any, _) |
             (_, &Type::Any) => true,
             _ => false,
