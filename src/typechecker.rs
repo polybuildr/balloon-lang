@@ -936,7 +936,7 @@ fn check_expr_member_access_by_index(expr: &ExprNode,
         Ok(Some(typ)) => typ,
     };
     match object_type {
-        Type::Tuple => {}
+        Type::Tuple | Type::Any => {}
         typ => {
             issues.push((RuntimeError::SubscriptOnNonSubscriptable(typ).into(), expr.pos));
         }
@@ -953,7 +953,7 @@ fn check_expr_member_access_by_index(expr: &ExprNode,
         }
         Ok(Some(typ)) => {
             match typ {
-                Type::Number => {}
+                Type::Number | Type::Any => {}
                 non_integral_type => {
                     issues.push((RuntimeError::NonIntegralSubscript(non_integral_type).into(),
                                  index_expr.pos));
