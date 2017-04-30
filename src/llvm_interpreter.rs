@@ -9,7 +9,7 @@ use ast::*;
 use environment::Environment;
 use runtime::*;
 
-
+// use llvm_sys::LLVMIntPredicate;
 use llvm_sys::core::*;
 use llvm_sys::{LLVMModule, LLVMBuilder};
 use llvm_sys::prelude::*;
@@ -21,6 +21,9 @@ use llvm_sys::execution_engine::*;
 use std::os::raw::{c_ulonglong, c_uint};
 use std::ffi::{CString, CStr};
 use std::str;
+use std::string::String;
+
+use value::{Value, Number};
 
 use libc;
 
@@ -37,7 +40,7 @@ enum BalloonTypeTag {
 
 fn balloon_type_tag_to_int(tag: BalloonTypeTag) -> u64 {
     match tag {
-        BalloonTypeTag::Integer => 30,
+        BalloonTypeTag::Integer => 0,
         BalloonTypeTag::Float => 1,
         BalloonTypeTag::Boolean => 2,
     }
@@ -50,6 +53,13 @@ fn raw_int_to_balloon_type_tag(raw: u64) -> BalloonTypeTag {
         1 => BalloonTypeTag::Float,
         2 => BalloonTypeTag::Boolean,
         _ => panic!("unknown raw int to type tag: |{}|", raw),
+    }
+}
+
+fn balloon_type_tag_to_llvm_value(module: &mut Module, tag: BalloonTypeTag) -> LLVMValueRef {
+    unsafe {
+        LLVMGetNamedGlobal(module.module,
+                           module.new_string_ptr(balloon_type_tag_to_str(tag)))
     }
 }
 
@@ -202,7 +212,7 @@ fn box_type() -> LLVMTypeRef {
     }
 }
 
-fn add_function(module: &mut Module,
+fn gen_function(module: &mut Module,
                 fn_name: &str,
                 args: &mut [LLVMTypeRef],
                 ret_type: LLVMTypeRef)
@@ -221,13 +231,13 @@ struct CDeclarations {
     free: LLVMValueRef,
 }
 
-fn add_c_declarations(module: &mut Module) -> CDeclarations {
+fn gen_c_declarations(module: &mut Module) -> CDeclarations {
     let void;
     unsafe {
         void = LLVMVoidType();
     }
 
-    add_function(module,
+    gen_function(module,
                  "llvm.memset.p0i8.i32",
                  &mut [
         int8_ptr_type(),
@@ -238,18 +248,18 @@ fn add_c_declarations(module: &mut Module) -> CDeclarations {
     ],
                  void);
 
-    let malloc = add_function(module, "malloc", &mut [int32_type()], int8_ptr_type());
+    let malloc = gen_function(module, "malloc", &mut [int32_type()], int8_ptr_type());
 
-    let free = add_function(module, "free", &mut [int8_ptr_type()], void);
+    let free = gen_function(module, "free", &mut [int8_ptr_type()], void);
 
-    add_function(module,
+    gen_function(module,
                  "write",
                  &mut [int32_type(), int8_ptr_type(), int32_type()],
                  int32_type());
 
-    add_function(module, "putchar", &mut [int32_type()], int32_type());
+    gen_function(module, "putchar", &mut [int32_type()], int32_type());
 
-    add_function(module, "getchar", &mut [], int32_type());
+    gen_function(module, "getchar", &mut [], int32_type());
 
     CDeclarations {
         malloc: malloc,
@@ -257,7 +267,7 @@ fn add_c_declarations(module: &mut Module) -> CDeclarations {
     }
 }
 
-unsafe fn add_function_call(module: &mut Module,
+unsafe fn gen_function_call(module: &mut Module,
                             bb: LLVMBasicBlockRef,
                             fn_name: &str,
                             args: &mut [LLVMValueRef],
@@ -275,6 +285,15 @@ unsafe fn add_function_call(module: &mut Module,
                   module.new_string_ptr(name))
 }
 
+
+struct BoxUnboxFunctions {
+    box_i64: LLVMValueRef,
+    unbox_i64: LLVMValueRef,
+    box_f64: LLVMValueRef,
+    unbox_f64: LLVMValueRef,
+    unbox_tag: LLVMValueRef,
+}
+
 pub struct LLVMInterpreter {
     pub root_env: Rc<RefCell<Environment>>,
 }
@@ -283,20 +302,26 @@ pub struct LLVMInterpreter {
 impl LLVMInterpreter {
     pub fn new() -> LLVMInterpreter {
         LLVMInterpreter { root_env: Environment::new_root() }
-
     }
 }
 
-struct BoxUnboxFunctions {
-    box_i64: LLVMValueRef,
-    unbox_i64: LLVMValueRef,
-}
 
 
 fn cast_i64_to_i64(_: &mut Module, _: &mut Builder, input_val: LLVMValueRef) -> LLVMValueRef {
     input_val
 }
 
+fn cast_i64_to_f64(module: &mut Module,
+                   builder: &mut Builder,
+                   input_val: LLVMValueRef)
+                   -> LLVMValueRef {
+    unsafe {
+        LLVMBuildBitCast(builder.builder,
+                         input_val,
+                         float64_type(),
+                         module.new_string_ptr("i64_to_f64"))
+    }
+}
 
 fn cast_f64_to_i64(module: &mut Module,
                    builder: &mut Builder,
@@ -306,11 +331,12 @@ fn cast_f64_to_i64(module: &mut Module,
         LLVMBuildBitCast(builder.builder,
                          input_val,
                          int64_type(),
-                         module.new_string_ptr("input_cast_to_slot"))
+                         module.new_string_ptr("f64_to_i64"))
     }
 }
 
 
+#[allow(dead_code)]
 fn cast_ilower_to_i64(module: &mut Module,
                       builder: &mut Builder,
                       input_val: LLVMValueRef)
@@ -319,10 +345,30 @@ fn cast_ilower_to_i64(module: &mut Module,
         LLVMBuildSExt(builder.builder,
                       input_val,
                       int64_type(),
-                      module.new_string_ptr("input_cast_to_slot"))
+                      module.new_string_ptr("ilower_to_i64"))
     }
 }
 
+fn gen_unbox_tag(mut module: &mut Module) -> LLVMValueRef {
+    let builder = Builder::new();
+    unsafe {
+        let unboxfn = gen_function(module,
+                                   "unbox_tag",
+                                   &mut [LLVMPointerType(box_type(), 0)],
+                                   tag_type());
+        let bb = LLVMAppendBasicBlock(unboxfn, module.new_string_ptr("entry"));
+        builder.position_at_end(bb);
+
+        let boxp = LLVMGetParam(unboxfn, 0);
+        LLVMSetValueName(boxp, module.new_string_ptr("boxp"));
+
+        let tagp = LLVMBuildStructGEP(builder.builder, boxp, 0, module.new_string_ptr("tagp"));
+        let tag = LLVMBuildLoad(builder.builder, tagp, module.new_string_ptr("tag"));
+
+        LLVMBuildRet(builder.builder, tag);
+        unboxfn
+    }
+}
 
 fn gen_box_fn_for_type<F>(mut module: &mut Module,
                           type_tag: BalloonTypeTag,
@@ -334,7 +380,7 @@ fn gen_box_fn_for_type<F>(mut module: &mut Module,
     let mut builder = Builder::new();
     unsafe {
         let fnname = format!("box_{}", balloon_type_tag_to_str(type_tag));
-        let boxfn = add_function(module,
+        let boxfn = gen_function(module,
                                  &fnname,
                                  &mut [input_type],
                                  LLVMPointerType(box_type(), 0));
@@ -350,8 +396,8 @@ fn gen_box_fn_for_type<F>(mut module: &mut Module,
         let mut box_size = LLVMSizeOf(box_type());
         box_size = LLVMConstTruncOrBitCast(box_size, int32_type());
         let mut malloc_args = [box_size];
-        let malloc_box = add_function_call(module, bb, "malloc", &mut malloc_args, "mallocmem");
-        //let boxp = LLVMBuildAlloca(builder.builder, box_type(), module.new_string_ptr("box"));
+        let malloc_box = gen_function_call(module, bb, "malloc", &mut malloc_args, "mallocmem");
+        // let boxp = LLVMBuildAlloca(builder.builder, box_type(), module.new_string_ptr("box"));
         let boxp = LLVMBuildPointerCast(builder.builder,
                                         malloc_box,
                                         LLVMPointerType(box_type(), 0),
@@ -360,9 +406,10 @@ fn gen_box_fn_for_type<F>(mut module: &mut Module,
         let slotp = LLVMBuildStructGEP(builder.builder, boxp, 1, module.new_string_ptr("slotp"));
         LLVMBuildStore(builder.builder, cast_input, slotp);
 
-        //TODO: make a map of type tag -> LLVM Value
-        let tagp = LLVMGetNamedGlobal(module.module,
-                                      module.new_string_ptr(balloon_type_tag_to_str(type_tag)));
+        // TODO: make a map of type tag -> LLVM Value
+        // let tagp = LLVMGetNamedGlobal(module.module,
+        //                              module.new_string_ptr(balloon_type_tag_to_str(type_tag)));
+        let tagp = balloon_type_tag_to_llvm_value(module, type_tag);
         let tag = LLVMBuildLoad(builder.builder, tagp, module.new_string_ptr("tagval"));
 
         let box_tag =
@@ -370,7 +417,10 @@ fn gen_box_fn_for_type<F>(mut module: &mut Module,
         LLVMBuildStore(builder.builder, tag, box_tag);
 
         LLVMBuildRet(builder.builder, boxp);
+
         boxfn
+
+
     }
 }
 
@@ -384,7 +434,7 @@ fn gen_unbox_for_type<F>(mut module: &mut Module,
     let mut builder = Builder::new();
     unsafe {
         let fnname = format!("unbox_{}", balloon_type_tag_to_str(type_tag));
-        let unboxfn = add_function(module,
+        let unboxfn = gen_function(module,
                                    &fnname,
                                    &mut [LLVMPointerType(box_type(), 0)],
                                    out_type);
@@ -415,11 +465,13 @@ fn add_global_defn_for_tag(module: &mut Module, tag: BalloonTypeTag) -> LLVMValu
     }
 }
 
-fn gen_add_fn(mut module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) -> LLVMValueRef {
+fn gen_add_box_f64_box_f64(mut module: &mut Module,
+                           box_unbox_functions: &BoxUnboxFunctions)
+                           -> LLVMValueRef {
     let builder = Builder::new();
     unsafe {
-        let fnname = "balloon_add";
-        let addfn = add_function(module,
+        let fnname = "balloon_add_box_f64_box_f64";
+        let addfn = gen_function(module,
                                  fnname,
                                  &mut [
             LLVMPointerType(box_type(), 0),
@@ -429,22 +481,136 @@ fn gen_add_fn(mut module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) 
         let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
         builder.position_at_end(bb);
 
-        let i1 = LLVMGetParam(addfn, 0);
-        LLVMSetValueName(i1, module.new_string_ptr("box1"));
+        let b1 = LLVMGetParam(addfn, 0);
+        LLVMSetValueName(b1, module.new_string_ptr("box1"));
 
-        let i2 = LLVMGetParam(addfn, 1);
-        LLVMSetValueName(i2, module.new_string_ptr("box2"));
+        let b2 = LLVMGetParam(addfn, 1);
+        LLVMSetValueName(b2, module.new_string_ptr("box2"));
+
+
+        let float1 = LLVMBuildCall(builder.builder,
+                                   box_unbox_functions.unbox_f64,
+                                   [b1].as_mut_ptr(),
+                                   1,
+                                   module.new_string_ptr("raw1"));
+
+        let float2 = LLVMBuildCall(builder.builder,
+                                   box_unbox_functions.unbox_f64,
+                                   [b2].as_mut_ptr(),
+                                   1,
+                                   module.new_string_ptr("raw2"));
+
+        let sum = LLVMBuildFAdd(builder.builder,
+                                float1,
+                                float2,
+                                module.new_string_ptr("sum"));
+
+        let boxed_sum = LLVMBuildCall(builder.builder,
+                                      box_unbox_functions.box_f64,
+                                      [sum].as_mut_ptr(),
+                                      1,
+                                      module.new_string_ptr("boxed_sum"));
+        LLVMBuildRet(builder.builder, boxed_sum);
+        addfn
+    }
+
+}
+
+#[allow(dead_code)]
+fn gen_add_box_i64_box_f64(mut module: &mut Module,
+                           box_unbox_functions: &BoxUnboxFunctions)
+                           -> LLVMValueRef {
+    let builder = Builder::new();
+    unsafe {
+        let fnname = "balloon_add_box_i64_box_f64";
+        let addfn = gen_function(module,
+                                 fnname,
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
+                                 LLVMPointerType(box_type(), 0));
+        let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
+        builder.position_at_end(bb);
+
+        let b1 = LLVMGetParam(addfn, 0);
+        LLVMSetValueName(b1, module.new_string_ptr("box1"));
+
+        let b2 = LLVMGetParam(addfn, 1);
+        LLVMSetValueName(b2, module.new_string_ptr("box2"));
 
 
         let int1 = LLVMBuildCall(builder.builder,
                                  box_unbox_functions.unbox_i64,
-                                 [i1].as_mut_ptr(),
+                                 [b1].as_mut_ptr(),
+                                 1,
+                                 module.new_string_ptr("raw1"));
+
+        let float2 = LLVMBuildCall(builder.builder,
+                                   box_unbox_functions.unbox_f64,
+                                   [b2].as_mut_ptr(),
+                                   1,
+                                   module.new_string_ptr("raw2"));
+
+        println!("@@@@ module with int1, float2 load:\n{:?}\n-----\n", module);
+        let float1 = LLVMBuildSIToFP(builder.builder,
+                                     int1,
+                                     float64_type(),
+                                     module.new_string_ptr("raw1_float"));
+
+        println!("@@@@ module with int1 cast:\n{:?}\n-----\n", module);
+
+
+        let sum = LLVMBuildFAdd(builder.builder,
+                                float1,
+                                float2,
+                                module.new_string_ptr("sum"));
+
+        println!("@@@@ module with int + float sum built:\n{:?}\n-----\n",
+                 module);
+        let boxed_sum = LLVMBuildCall(builder.builder,
+                                      box_unbox_functions.box_f64,
+                                      [sum].as_mut_ptr(),
+                                      1,
+                                      module.new_string_ptr("boxed_sum"));
+        LLVMBuildRet(builder.builder, boxed_sum);
+        addfn
+    }
+}
+
+
+fn gen_add_box_i64_box_i64(mut module: &mut Module,
+                           box_unbox_functions: &BoxUnboxFunctions)
+                           -> LLVMValueRef {
+    let builder = Builder::new();
+    unsafe {
+        let fnname = "balloon_add_box_i64_box_i64";
+        let addfn = gen_function(module,
+                                 fnname,
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
+                                 LLVMPointerType(box_type(), 0));
+        let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
+        builder.position_at_end(bb);
+
+        let b1 = LLVMGetParam(addfn, 0);
+        LLVMSetValueName(b1, module.new_string_ptr("box1"));
+
+        let b2 = LLVMGetParam(addfn, 1);
+        LLVMSetValueName(b2, module.new_string_ptr("box2"));
+
+
+        let int1 = LLVMBuildCall(builder.builder,
+                                 box_unbox_functions.unbox_i64,
+                                 [b1].as_mut_ptr(),
                                  1,
                                  module.new_string_ptr("raw1"));
 
         let int2 = LLVMBuildCall(builder.builder,
                                  box_unbox_functions.unbox_i64,
-                                 [i1].as_mut_ptr(),
+                                 [b2].as_mut_ptr(),
                                  1,
                                  module.new_string_ptr("raw2"));
 
@@ -458,9 +624,166 @@ fn gen_add_fn(mut module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) 
         LLVMBuildRet(builder.builder, boxed_sum);
         addfn
     }
-
 }
-fn add_balloon_prelude(mut module: &mut Module) -> BoxUnboxFunctions {
+
+fn gen_add_box_box(module: &mut Module, box_unbox_functions: &BoxUnboxFunctions) -> LLVMValueRef {
+
+    let add_f64_f64 = gen_add_box_f64_box_f64(module, box_unbox_functions);
+    let add_i64_f64 = gen_add_box_i64_box_f64(module, box_unbox_functions);
+    let add_i64_i64 = gen_add_box_i64_box_i64(module, box_unbox_functions);
+
+    let builder = Builder::new();
+    unsafe {
+        let fnname = "balloon_add_box_box";
+        let addfn = gen_function(module,
+                                 fnname,
+                                 &mut [
+            LLVMPointerType(box_type(), 0),
+            LLVMPointerType(box_type(), 0),
+        ],
+                                 LLVMPointerType(box_type(), 0));
+        let bb = LLVMAppendBasicBlock(addfn, module.new_string_ptr("entry"));
+        builder.position_at_end(bb);
+
+        let b1 = LLVMGetParam(addfn, 0);
+        LLVMSetValueName(b1, module.new_string_ptr("box1"));
+
+        let b2 = LLVMGetParam(addfn, 1);
+        LLVMSetValueName(b2, module.new_string_ptr("box2"));
+
+        let builder = Builder::new();
+        builder.position_at_end(bb);
+
+        let tag1 = LLVMBuildCall(builder.builder,
+                                 box_unbox_functions.unbox_tag,
+                                 [b1].as_mut_ptr(),
+                                 1,
+                                 module.new_string_ptr("tag1"));
+        let tag2 = LLVMBuildCall(builder.builder,
+                                 box_unbox_functions.unbox_tag,
+                                 [b2].as_mut_ptr(),
+                                 1,
+                                 module.new_string_ptr("tag2"));
+
+
+
+        // FIXME: LLVM does not allow non-constants to be branches in switch-case.
+        // Very weird. Will need to variable alias or something?
+        // Should not keep BalloonTypeTag as global
+        let int_tag = int32(balloon_type_tag_to_int(BalloonTypeTag::Integer) as c_ulonglong);
+        let float_tag = int32(balloon_type_tag_to_int(BalloonTypeTag::Float) as c_ulonglong);
+
+        let bb_err_unknown_add_types = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("unknown_add_types"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+            // TODO: replace this with some actual error thing
+            let error_val = int64((-42 as i64) as c_ulonglong);
+            let error_box = LLVMBuildCall(builder_inner.builder,
+                                          box_unbox_functions.box_i64,
+                                          [error_val].as_mut_ptr(),
+                                          1,
+                                          module.new_string_ptr("errorbox"));
+            LLVMBuildRet(builder_inner.builder, error_box);
+            bb_inner
+        };
+
+        // float + float
+        let bb_float_float = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("float_float"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let sum = LLVMBuildCall(builder_inner.builder,
+                                    add_f64_f64,
+                                    [b1, b2].as_mut_ptr(),
+                                    2,
+                                    module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
+
+        };
+
+        // int + int
+        let bb_int_int = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("int_int"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let sum = LLVMBuildCall(builder_inner.builder,
+                                    add_i64_i64,
+                                    [b1, b2].as_mut_ptr(),
+                                    2,
+                                    module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
+
+        };
+
+        // float + int
+        let bb_float_int = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("float_int"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let sum = LLVMBuildCall(builder_inner.builder,
+                                    add_i64_f64,
+                                    [b2, b1].as_mut_ptr(),
+                                    2,
+                                    module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
+        };
+
+        // int + float
+        let bb_int_float = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("int_float"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let sum = LLVMBuildCall(builder_inner.builder,
+                                    add_i64_f64,
+                                    [b1, b2].as_mut_ptr(),
+                                    2,
+                                    module.new_string_ptr("sum"));
+            LLVMBuildRet(builder_inner.builder, sum);
+            bb_inner
+
+        };
+
+        let bb_i64_wildcard = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("int_wildcard"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let switch = LLVMBuildSwitch(builder_inner.builder, tag2, bb_err_unknown_add_types, 2);
+            LLVMAddCase(switch, int_tag, bb_int_int);
+            LLVMAddCase(switch, float_tag, bb_int_float);
+            bb_inner
+        };
+
+        let bb_f64_wildcard = {
+            let bb_inner = LLVMAppendBasicBlock(addfn, module.new_string_ptr("float_wildcard"));
+            let builder_inner = Builder::new();
+            builder_inner.position_at_end(bb_inner);
+
+            let switch = LLVMBuildSwitch(builder_inner.builder, tag2, bb_err_unknown_add_types, 2);
+
+            LLVMAddCase(switch, int_tag, bb_float_int);
+            LLVMAddCase(switch, float_tag, bb_float_float);
+            bb_inner
+        };
+
+        let switch_tag1 = LLVMBuildSwitch(builder.builder, tag1, bb_err_unknown_add_types, 2);
+        LLVMAddCase(switch_tag1, int_tag, bb_i64_wildcard);
+        LLVMAddCase(switch_tag1, float_tag, bb_f64_wildcard);
+
+        addfn
+    }
+}
+
+
+fn gen_balloon_prelude(mut module: &mut Module) -> BoxUnboxFunctions {
     add_global_defn_for_tag(&mut module, BalloonTypeTag::Integer);
     add_global_defn_for_tag(&mut module, BalloonTypeTag::Float);
     add_global_defn_for_tag(&mut module, BalloonTypeTag::Boolean);
@@ -476,23 +799,20 @@ fn add_balloon_prelude(mut module: &mut Module) -> BoxUnboxFunctions {
                                       BalloonTypeTag::Integer,
                                       int64_type(),
                                       cast_i64_to_i64),
+        box_f64: gen_box_fn_for_type(&mut module,
+                                     BalloonTypeTag::Float,
+                                     float64_type(),
+                                     cast_f64_to_i64),
+        unbox_f64: gen_unbox_for_type(&mut module,
+                                      BalloonTypeTag::Float,
+                                      float64_type(),
+                                      cast_i64_to_f64),
+        unbox_tag: gen_unbox_tag(&mut module),
     };
 
+    print!("@@@@ module after box_unbox_functions:\n{:?}\n-----\n",
+           module);
 
-    gen_box_fn_for_type(&mut module,
-                        BalloonTypeTag::Float,
-                        float64_type(),
-                        cast_f64_to_i64);
-    gen_box_fn_for_type(&mut module,
-                        BalloonTypeTag::Boolean,
-                        int1_type(),
-                        cast_ilower_to_i64);
-    println!("@@@@@@@@@@ after adding box definitions, module:\n{:?}",
-             module);
-
-    gen_add_fn(&mut module, &box_unbox_functions);
-    println!("@@@@@@@@@@ after adding unbox definitions, module:\n{:?}",
-             module);
 
     box_unbox_functions
 }
@@ -510,22 +830,39 @@ fn compile_literal(mut module: &mut Module,
             Literal::Integer(i64val) => {
                 let builder = Builder::new();
                 builder.position_at_end(bb);
-                let i = LLVMConstInt(int64_type(), i64val as c_ulonglong, 1);
+                let val = LLVMConstInt(int64_type(), i64val as c_ulonglong, 1);
                 LLVMBuildCall(builder.builder,
                               box_unbox_functions.box_i64,
-                              [i].as_mut_ptr(),
+                              [val].as_mut_ptr(),
                               1,
                               module.new_string_ptr("valp"))
             }
-            Literal::Float(f64val) => LLVMConstReal(float64_type(), f64val),
+            Literal::Float(f64val) => {
+                let builder = Builder::new();
+                builder.position_at_end(bb);
+                let val = LLVMConstReal(float64_type(), f64val);
+                LLVMBuildCall(builder.builder,
+                              box_unbox_functions.box_f64,
+                              [val].as_mut_ptr(),
+                              1,
+                              module.new_string_ptr("valp"))
+            }
             Literal::Bool(boolval) => LLVMConstInt(int1_type(), boolval as c_ulonglong, 1),
             ref other => panic!("unknown literal expr: {:?}", other),
         }
     }
 }
+
+
+struct ArithmeticFunctions {
+    add_box_box: LLVMValueRef,
+}
+
+
 fn compile_expr(module: &mut Module,
                 bb: LLVMBasicBlockRef,
                 box_unbox_functions: &BoxUnboxFunctions,
+                arith_functions: &ArithmeticFunctions,
                 expr: &Expr)
                 -> LLVMValueRef {
     match *expr {
@@ -536,53 +873,31 @@ fn compile_expr(module: &mut Module,
             let builder = Builder::new();
             builder.position_at_end(bb);
 
-            let leftbox = compile_expr(module, bb, box_unbox_functions, &leftexpr.data);
-            let rightbox = compile_expr(module, bb, box_unbox_functions, &rightexpr.data);
+            let leftbox = compile_expr(module,
+                                       bb,
+                                       box_unbox_functions,
+                                       arith_functions,
+                                       &leftexpr.data);
+            let rightbox = compile_expr(module,
+                                        bb,
+                                        box_unbox_functions,
+                                        arith_functions,
+                                        &rightexpr.data);
 
-            let leftval = LLVMBuildCall(builder.builder,
-                                        box_unbox_functions.unbox_i64,
-                                        [leftbox].as_mut_ptr(),
-                                        1,
-                                        module.new_string_ptr("leftval"));
-            let rightval = LLVMBuildCall(builder.builder,
-                                         box_unbox_functions.unbox_i64,
-                                         [rightbox].as_mut_ptr(),
-                                         1,
-                                         module.new_string_ptr("rightval"));
+            print!("@@@@module at compile_expr:\n{:?}\n-----", module);
 
-            let finalval = match *op {
+            match *op {
                 BinOp::Add => {
-                    LLVMBuildNSWAdd(builder.builder,
-                                    leftval,
-                                    rightval,
-                                    module.new_string_ptr("addval"))
-                }
-                BinOp::Sub => {
-                    LLVMBuildSub(builder.builder,
-                                 leftval,
-                                 rightval,
-                                 module.new_string_ptr("subval"))
-                }
-                BinOp::Mul => {
-                    LLVMBuildMul(builder.builder,
-                                 leftval,
-                                 rightval,
-                                 module.new_string_ptr("mulval"))
-                }
-                BinOp::Div => {
-                    LLVMBuildSDiv(builder.builder,
-                                  leftval,
-                                  rightval,
-                                  module.new_string_ptr("divval"))
+                    LLVMBuildCall(builder.builder,
+                                  arith_functions.add_box_box,
+                                  [leftbox, rightbox].as_mut_ptr(),
+                                  2,
+                                  module.new_string_ptr("sum"))
                 }
                 _ => panic!("unimplemented expr operator: {}", op),
-            };
+            }
 
-            LLVMBuildCall(builder.builder,
-                          box_unbox_functions.box_i64,
-                          [finalval].as_mut_ptr(),
-                          1,
-                          module.new_string_ptr("finalbox"))
+
         },
         ref other => panic!("unknown compile_expr: {:?}", other),
 
@@ -592,10 +907,17 @@ fn compile_expr(module: &mut Module,
 fn compile_statement(mut module: &mut Module,
                      bb: LLVMBasicBlockRef,
                      box_unbox_functions: &BoxUnboxFunctions,
+                     arith_functions: &ArithmeticFunctions,
                      statement: &Stmt)
                      -> LLVMValueRef {
     match *statement {
-        Stmt::Expr(ref expr) => compile_expr(&mut module, bb, box_unbox_functions, &expr.data),
+        Stmt::Expr(ref expr) => {
+            compile_expr(&mut module,
+                         bb,
+                         box_unbox_functions,
+                         arith_functions,
+                         &expr.data)
+        }
         ref other => panic!("unknown compile: {:?}", other),
     }
 }
@@ -646,12 +968,18 @@ fn interpret_statements(stmts: &[StmtNode],
     let target_triple: Option<String> = None;
     let mut module = create_module("ModuleName", target_triple);
 
-    let c_declarations = add_c_declarations(&mut module);
-    let box_unbox_functions = add_balloon_prelude(&mut module);
+    let c_declarations = gen_c_declarations(&mut module);
+    let box_unbox_functions = gen_balloon_prelude(&mut module);
+
+    let arith_functions =
+        ArithmeticFunctions { add_box_box: gen_add_box_box(&mut module, &box_unbox_functions) };
+
+    print!("@@@@@@Module after all prelude generation:\n{:?}\n----",
+           module);
 
     unsafe {
 
-        let main_fn = add_function(&mut module, "main", &mut [], LLVMPointerType(box_type(), 0));
+        let main_fn = gen_function(&mut module, "main", &mut [], LLVMPointerType(box_type(), 0));
         LLVMSetFunctionCallConv(main_fn, 0);
 
 
@@ -664,7 +992,7 @@ fn interpret_statements(stmts: &[StmtNode],
             box_size = LLVMConstTruncOrBitCast(box_size, int32_type());
             let mut malloc_args = [box_size];
             let raw_mem =
-                add_function_call(&mut module, bb, "malloc", &mut malloc_args, "final_rawmem");
+                gen_function_call(&mut module, bb, "malloc", &mut malloc_args, "final_rawmem");
             LLVMBuildPointerCast(builder.builder,
                                  raw_mem,
                                  LLVMPointerType(box_type(), 0),
@@ -672,18 +1000,25 @@ fn interpret_statements(stmts: &[StmtNode],
         };
 
 
-        println!("built store");
+        println!("@@@@built store\n{:?}\n----", module);
+
         for stmt in stmts.iter() {
-            let stmt_valp = compile_statement(&mut module, bb, &box_unbox_functions, &stmt.data);
+            let stmt_valp = compile_statement(&mut module,
+                                              bb,
+                                              &box_unbox_functions,
+                                              &arith_functions,
+                                              &stmt.data);
             let box_val = LLVMBuildLoad(builder.builder,
                                         stmt_valp,
                                         module.new_string_ptr("stmt_val"));
             LLVMBuildStore(builder.builder, box_val, final_value);
+            println!("@@@@Module after stmt:{:?}\n{:?}\n----", stmt, module);
+
         }
 
         LLVMBuildRet(builder.builder, final_value);
         // LLVMBuildRet(builder.builder, int64(42));
-        //LLVMBuildRet(builder.builder, final_value);
+        // LLVMBuildRet(builder.builder, final_value);
 
         println!("@@@@@@ FINAL MODULE:");
         print!("{}", module.to_cstring().to_string_lossy().into_owned());
@@ -709,6 +1044,16 @@ struct LLVMJIT {
 struct LLVMBoxedStructRepr {
     tag: i32,
     raw: i64,
+}
+
+fn llvm_boxed_struct_repr_to_value(llvm_repr: LLVMBoxedStructRepr) -> Value {
+    match raw_int_to_balloon_type_tag(llvm_repr.tag as u64) {
+        BalloonTypeTag::Integer => Value::Number(Number::Integer(llvm_repr.raw)),
+        BalloonTypeTag::Float => unsafe {
+            Value::Number(Number::Float(mem::transmute(llvm_repr.raw)))
+        },
+        _ => panic!("unknown Value"),
+    }
 }
 
 impl LLVMJIT {
@@ -765,6 +1110,8 @@ impl LLVMJIT {
             println!("result ptr : |{:?}|", result);
             println!("*(result ptr) : |{:?}|", *result);
 
+            let result_val = llvm_boxed_struct_repr_to_value(*result);
+            println!("Result as value: |{:?}", result_val);
             return;
 
         }
