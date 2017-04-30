@@ -330,6 +330,7 @@ fn cast_f64_to_i64(module: &mut Module,
 }
 
 
+#[allow(dead_code)]
 fn cast_ilower_to_i64(module: &mut Module,
                       builder: &mut Builder,
                       input_val: LLVMValueRef)
