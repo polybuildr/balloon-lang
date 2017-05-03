@@ -102,7 +102,15 @@ comma_args -> Vec<ExprNode>
     = expr_node ** COMMA
 
 binary_expr_node -> ExprNode
-    = __ lpos:#position e:binary_expr rpos:#position __ { ExprNode { pos: (lpos, rpos), data: e.data } }
+    = __ lpos:#position e:binary_expr rpos:#position __ {
+        // hackily check if e is a proper binary expr
+        if e.pos == (0, 0) {
+            ExprNode { pos: (lpos, rpos), data: e.data }
+        } else {
+            // e is actually a single_expr, so just propagate
+            e
+        }
+    }
 
 binary_expr -> ExprNode = #infix<single_expr_node> {
     #L x AND y { ExprNode { pos: (0, 0), data: Expr::BinaryLogical(Box::new(x), LogicalBinOp::And, Box::new(y)) } }
