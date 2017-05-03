@@ -42,13 +42,23 @@ loop_statement -> Stmt
 
 if_statement -> Stmt
     = IF __ e:expr_node __ lpos1:#position b1:block rpos1:#position __ ELSE __ lpos2:#position b2:block rpos2:#position __ {
-        Stmt::IfThenElse(
-            e,
-            Box::new(StmtNode { pos: (lpos1, rpos1), data: b1 }),
-            Box::new(StmtNode { pos: (lpos2, rpos2), data: b2 }),
+        Stmt::IfThen(
+            IfThenStmt {
+                cond: e,
+                then_block: Box::new(StmtNode { pos: (lpos1, rpos1), data: b1 }),
+                maybe_else_block: Some(Box::new(StmtNode { pos: (lpos2, rpos2), data: b2 })),
+            }
         )
     }
-    / IF e:expr_node lpos:#position b:block rpos:#position { Stmt::IfThen(e, Box::new(StmtNode { pos: (lpos, rpos), data: b })) }
+    / IF e:expr_node lpos:#position b:block rpos:#position {
+        Stmt::IfThen(
+            IfThenStmt {
+                cond: e,
+                then_block: Box::new(StmtNode { pos: (lpos, rpos), data: b }),
+                maybe_else_block: None
+            }
+        )
+    }
 
 block -> Stmt
     = #quiet<_block> / #expected("block")
@@ -66,10 +76,12 @@ function_definition -> Expr
             None => Some(ConstraintType::Any),
         };
         Expr::FnDef(
-            i,
-            params,
-            Box::new(StmtNode { pos: (lpos, rpos), data: body } ),
-            return_type,
+            FnDefExpr {
+                maybe_id: i,
+                params: params,
+                body: Box::new(StmtNode { pos: (lpos, rpos), data: body } ),
+                maybe_ret_type: return_type,
+            }
         )
     }
 

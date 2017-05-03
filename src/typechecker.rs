@@ -321,14 +321,15 @@ pub fn check_statement(s: &StmtNode,
                 issues.append(&mut e);
             }
         }
-        Stmt::IfThen(ref if_expr, ref then_block) => {
-            check_statement_if_then(if_expr, then_block, env.clone(), context, &mut issues);
-        }
-        Stmt::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
+        Stmt::IfThen(IfThenStmt {
+                         ref cond,
+                         ref then_block,
+                         ref maybe_else_block,
+                     }) => {
             check_statement_if_then_else(s,
-                                         if_expr,
+                                         cond,
                                          then_block,
-                                         else_block,
+                                         maybe_else_block,
                                          env.clone(),
                                          context,
                                          &mut issues);
@@ -381,8 +382,13 @@ fn check_expr(expr: &ExprNode,
         Expr::FnCall(ref f_expr, ref args) => {
             check_expr_function_call(expr, f_expr, args, env.clone())
         }
-        Expr::FnDef(ref possible_id, ref param_list, ref body, ref type_hint) => {
-            check_expr_function_definition(possible_id, param_list, body, type_hint, env.clone())
+        Expr::FnDef(FnDefExpr {
+                        ref maybe_id,
+                        ref params,
+                        ref body,
+                        ref maybe_ret_type,
+                    }) => {
+            check_expr_function_definition(maybe_id, params, body, maybe_ret_type, env.clone())
         }
         Expr::MemberByIdx(ref expr, ref index_expr) => {
             check_expr_member_access_by_index(expr, index_expr, env.clone())
@@ -440,33 +446,23 @@ fn check_statement_assignment(lhs_expr: &LhsExprNode,
     };
 }
 
-fn check_statement_if_then(if_expr: &ExprNode,
-                           then_block: &StmtNode,
-                           env: Rc<RefCell<TypeEnvironment>>,
-                           context: &mut Context,
-                           issues: &mut Vec<TypeCheckerIssueWithPosition>) {
-    let if_expr_result = check_expr(if_expr, env.clone());
-    match if_expr_result {
-        Err(mut e) => issues.append(&mut e),
-        Ok(None) => {
-            if let Expr::FnCall(ref id, _) = if_expr.data {
-                issues.push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), if_expr.pos));
-            }
-        }
-        Ok(Some(_)) => {}
-    }
-    if let Err(mut e) = check_statement(then_block, env.clone(), context) {
-        issues.append(&mut e);
-    }
-}
-
 fn check_statement_if_then_else(statement: &StmtNode,
                                 if_expr: &ExprNode,
                                 then_block: &StmtNode,
-                                else_block: &StmtNode,
+                                maybe_else_block: &Option<Box<StmtNode>>,
                                 env: Rc<RefCell<TypeEnvironment>>,
                                 context: &mut Context,
                                 issues: &mut Vec<TypeCheckerIssueWithPosition>) {
+    let else_block = match *maybe_else_block {
+        None => {
+            StmtNode {
+                data: Stmt::Block(vec![]),
+                pos: (0, 0), // dummy span
+            }
+        }
+        Some(ref block) => *block.clone(),
+    };
+
     let then_env = TypeEnvironment::create_clone(env.clone());
     let else_env = TypeEnvironment::create_clone(env.clone());
     let if_expr_result = check_expr(if_expr, env.clone());
@@ -488,7 +484,7 @@ fn check_statement_if_then_else(statement: &StmtNode,
 
     let then_pairs = then_env.borrow().get_all_pairs();
 
-    if let Err(mut e) = check_statement(else_block, else_env.clone(), context) {
+    if let Err(mut e) = check_statement(&else_block, else_env.clone(), context) {
         issues.append(&mut e);
     }
 

@@ -108,6 +108,14 @@ pub enum BindingType {
 }
 
 #[derive(Debug, Clone)]
+pub struct FnDefExpr {
+    pub maybe_id: Option<String>,
+    pub params: Vec<(String, Option<ConstraintType>)>,
+    pub body: Box<StmtNode>,
+    pub maybe_ret_type: Option<ConstraintType>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     Literal(LiteralNode),
     Identifier(String),
@@ -116,10 +124,7 @@ pub enum Expr {
     Unary(UnOp, Box<ExprNode>),
     UnaryLogical(LogicalUnOp, Box<ExprNode>),
     // optional name, list of params, body, optional return type
-    FnDef(Option<String>,
-          Vec<(String, Option<ConstraintType>)>,
-          Box<StmtNode>,
-          Option<ConstraintType>),
+    FnDef(FnDefExpr),
     FnCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),
     MemberByIdx(Box<ExprNode>, Box<ExprNode>),
@@ -134,13 +139,19 @@ pub enum ExprSuffix {
 pub type ExprNode = Spanned<Expr>;
 
 #[derive(Debug, Clone)]
+pub struct IfThenStmt {
+    pub cond: ExprNode,
+    pub then_block: Box<StmtNode>,
+    pub maybe_else_block: Option<Box<StmtNode>>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Assign(LhsExprNode, ExprNode),
     VarDecl(Variable, ExprNode),
     Expr(ExprNode),
     Block(Vec<StmtNode>),
-    IfThen(ExprNode, Box<StmtNode>),
-    IfThenElse(ExprNode, Box<StmtNode>, Box<StmtNode>),
+    IfThen(IfThenStmt),
     Loop(Box<StmtNode>),
     Return(Option<ExprNode>),
     Break,

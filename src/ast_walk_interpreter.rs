@@ -84,9 +84,13 @@ fn interpret_statement(s: &StmtNode,
                 Some(x) => Ok(StmtResult::Value(x)),
             }
         }
-        Stmt::IfThen(ref if_expr, ref then_block) => {
-            let possible_val = interpret_expr(if_expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, if_expr)?;
+        Stmt::IfThen(IfThenStmt {
+                         ref cond,
+                         ref then_block,
+                         ref maybe_else_block,
+                     }) => {
+            let possible_val = interpret_expr(cond, env.clone())?;
+            let val = check_val_for_none_error(&possible_val, cond)?;
             if val.is_truthy() {
                 let result = interpret_statement(then_block, env.clone())?;
                 if let StmtResult::Break = result {
@@ -94,21 +98,9 @@ fn interpret_statement(s: &StmtNode,
                 } else if let StmtResult::Return(_) = result {
                     return Ok(result);
                 }
-            }
-            Ok(StmtResult::None)
-        }
-        Stmt::IfThenElse(ref if_expr, ref then_block, ref else_block) => {
-            let possible_val = interpret_expr(if_expr, env.clone())?;
-            let val = check_val_for_none_error(&possible_val, if_expr)?;
-            if val.is_truthy() {
-                let result = interpret_statement(then_block, env.clone())?;
-                if let StmtResult::Break = result {
-                    return Ok(StmtResult::Break);
-                } else if let StmtResult::Return(_) = result {
-                    return Ok(result);
-                }
-            } else {
-                let result = interpret_statement(else_block, env.clone())?;
+            } else if maybe_else_block.is_some() {
+                let else_block = maybe_else_block.clone().unwrap();
+                let result = interpret_statement(&else_block, env.clone())?;
                 if let StmtResult::Break = result {
                     return Ok(StmtResult::Break);
                 } else if let StmtResult::Return(_) = result {
@@ -256,13 +248,18 @@ fn interpret_expr(e: &ExprNode,
                 }
             }
         }
-        Expr::FnDef(ref possible_id, ref param_list, ref body, ref ret_type_hint) => {
+        Expr::FnDef(FnDefExpr {
+                        ref maybe_id,
+                        ref params,
+                        ref body,
+                        ref maybe_ret_type,
+                    }) => {
             let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
-                param_list.iter().cloned().unzip();
+                params.iter().cloned().unzip();
             let func = Function::User {
-                ret_type: ret_type_hint.clone(),
+                ret_type: maybe_ret_type.clone(),
                 call_sign: CallSign {
-                    num_params: param_list.len(),
+                    num_params: params.len(),
                     variadic: false,
                     param_types: param_types,
                 },
@@ -271,7 +268,7 @@ fn interpret_expr(e: &ExprNode,
                 env: env.clone(),
             };
             let func_val = Value::Function(Box::new(func));
-            if let Some(ref id) = *possible_id {
+            if let Some(ref id) = *maybe_id {
                 env.borrow_mut().declare(id, &func_val);
             }
             Ok(Some(func_val))
