@@ -810,8 +810,8 @@ fn gen_balloon_prelude(mut module: &mut Module) -> BoxUnboxFunctions {
         unbox_tag: gen_unbox_tag(&mut module),
     };
 
-    print!("@@@@ module after box_unbox_functions:\n{:?}\n-----\n",
-           module);
+    println!("@@@@ module after box_unbox_functions:\n{:?}\n-----",
+             module);
 
 
     box_unbox_functions

@@ -295,7 +295,7 @@ impl TypeChecker {
     }
 
     pub fn get_issues(&self) -> Vec<TypeCheckerIssueWithPosition> {
-        return self.issues.clone();
+        self.issues.clone()
     }
 
     pub fn check_program(&mut self, ast: &[StmtNode]) {
@@ -691,7 +691,7 @@ impl TypeChecker {
                         let mut outer_issues = self.issues.clone();
                         self.issues = Vec::new();
                         self.check_statement(body, inner_env);
-                        for inner_issue in self.issues.iter() {
+                        for inner_issue in &self.issues {
                             outer_issues
                                 .push((
                                     TypeCheckerIssue::InsideFunctionCall(
@@ -707,7 +707,7 @@ impl TypeChecker {
             };
         }
 
-        let ret_type = match func_type {
+        match func_type {
             FunctionType::NativeVoid(_) => None,
             FunctionType::NativeReturning(_) => Some(Type::Any),
             FunctionType::User { ref ret_type, .. } => {
@@ -716,8 +716,7 @@ impl TypeChecker {
                     Some(ref typ) => Some(typ.clone().into()),
                 }
             }
-        };
-        ret_type
+        }
     }
 
     fn check_expr_function_definition(&mut self,
