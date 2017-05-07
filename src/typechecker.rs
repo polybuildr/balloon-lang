@@ -404,16 +404,7 @@ impl TypeChecker {
                                             variable: &Variable,
                                             expr: &ExprNode,
                                             env: Rc<RefCell<TypeEnvironment>>) {
-        let checked_type = match self.check_expr(expr, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
-                }
-                Type::Any
-            }
-            Some(t) => t,
-        };
+        let checked_type = self.check_expr_as_value(expr, env.clone());
         match *variable {
             Variable::Identifier(_, ref id) => {
                 env.borrow_mut().declare(id, &checked_type);
@@ -425,16 +416,7 @@ impl TypeChecker {
                                   lhs_expr: &LhsExprNode,
                                   expr: &ExprNode,
                                   env: Rc<RefCell<TypeEnvironment>>) {
-        let checked_type = match self.check_expr(expr, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
-                }
-                Type::Any
-            }
-            Some(t) => t,
-        };
+        let checked_type = self.check_expr_as_value(expr, env.clone());
         match lhs_expr.data {
             LhsExpr::Identifier(ref id) => {
                 if !env.borrow_mut().set(id, checked_type) {
@@ -464,17 +446,7 @@ impl TypeChecker {
 
         let then_env = TypeEnvironment::create_clone(env.clone());
         let else_env = TypeEnvironment::create_clone(env.clone());
-        let if_expr_result = self.check_expr(if_expr, env.clone());
-        match if_expr_result {
-            None => {
-                if let Expr::FnCall(ref id, _) = if_expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                               if_expr.pos));
-                }
-            }
-            Some(_) => {}
-        }
+        self.check_expr_as_value(if_expr, env.clone());
 
         self.check_statement(then_block, then_env.clone());
 
@@ -513,38 +485,26 @@ impl TypeChecker {
         }
         match *possible_expr {
             Some(ref expr) => {
-                match self.check_expr(expr, env.clone()) {
+                let actual_type = self.check_expr_as_value(expr, env.clone());
+                let actual_return_constraint_type = ConstraintType::from(actual_type);
+                match self.context.func_ret_type {
                     None => {
-                        if let Expr::FnCall(ref id, _) = expr.data {
-                            self.issues
-                                .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                       expr.pos));
-                        } else {
-                            unreachable!();
-                        }
+                        self.issues.push((
+                            TypeCheckerIssue::ReturnTypeMismatch(
+                                None, Some(actual_return_constraint_type)
+                            ),
+                            return_statement.pos
+                        ));
                     }
-                    Some(actual_typ) => {
-                        let actual_return_constraint_type = ConstraintType::from(actual_typ);
-                        match self.context.func_ret_type {
-                            None => {
-                                self.issues.push((
-                                    TypeCheckerIssue::ReturnTypeMismatch(
-                                        None, Some(actual_return_constraint_type)
-                                    ),
-                                    return_statement.pos
-                                ));
-                            }
-                            Some(ref expected_type) => {
-                                if !actual_return_constraint_type.compatible_with(expected_type) {
-                                    self.issues.push((
-                                        TypeCheckerIssue::ReturnTypeMismatch(
-                                            Some(expected_type.clone()),
-                                            Some(actual_return_constraint_type)
-                                        ),
-                                        return_statement.pos
-                                    ));
-                                }
-                            }
+                    Some(ref expected_type) => {
+                        if !actual_return_constraint_type.compatible_with(expected_type) {
+                            self.issues.push((
+                                TypeCheckerIssue::ReturnTypeMismatch(
+                                    Some(expected_type.clone()),
+                                    Some(actual_return_constraint_type)
+                                ),
+                                return_statement.pos
+                            ));
                         }
                     }
                 }
@@ -567,20 +527,7 @@ impl TypeChecker {
                         env: Rc<RefCell<TypeEnvironment>>)
                         -> Option<Type> {
         for elem_expr in elems {
-            match self.check_expr(elem_expr, env.clone()) {
-                None => {
-                    if let Expr::FnCall(ref id, _) = elem_expr.data {
-                        self.issues
-                            .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                   elem_expr.pos));
-                    } else {
-                        unreachable!();
-                    }
-                }
-                Some(_) => {
-                    // TODO?
-                }
-            };
+            self.check_expr_as_value(elem_expr, env.clone());
         }
         Some(Type::Tuple)
     }
@@ -590,26 +537,14 @@ impl TypeChecker {
                            expr: &ExprNode,
                            env: Rc<RefCell<TypeEnvironment>>)
                            -> Option<Type> {
-        match self.check_expr(expr, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
-                } else {
-                    unreachable!();
-                }
-                Some(Type::Any)
-            }
-            Some(typ) => {
-                match *op {
-                    UnOp::Neg => {
-                        match check_unary_minus_for_type(typ) {
-                            Ok(t) => Some(t),
-                            Err(e) => {
-                                self.issues.push((e, expr.pos));
-                                Some(Type::Any)
-                            }
-                        }
+        let typ = self.check_expr_as_value(expr, env.clone());
+        match *op {
+            UnOp::Neg => {
+                match check_unary_minus_for_type(typ) {
+                    Ok(t) => Some(t),
+                    Err(e) => {
+                        self.issues.push((e, expr.pos));
+                        Some(Type::Any)
                     }
                 }
             }
@@ -621,21 +556,9 @@ impl TypeChecker {
                                    expr: &ExprNode,
                                    env: Rc<RefCell<TypeEnvironment>>)
                                    -> Option<Type> {
-        match self.check_expr(expr, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
-                    Some(Type::Bool)
-                } else {
-                    unreachable!();
-                }
-            }
-            Some(_) => {
-                match *op {
-                    LogicalUnOp::Not => Some(Type::Bool),
-                }
-            }
+        self.check_expr_as_value(expr, env.clone());
+        match *op {
+            LogicalUnOp::Not => Some(Type::Bool),
         }
     }
 
@@ -646,26 +569,8 @@ impl TypeChecker {
                               expr2: &ExprNode,
                               env: Rc<RefCell<TypeEnvironment>>)
                               -> Option<Type> {
-        let checked_type_1 = match self.check_expr(expr1, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = expr1.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr1.pos));
-                }
-                Type::Any
-            }
-            Some(t) => t,
-        };
-        let checked_type_2 = match self.check_expr(expr2, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = expr2.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr2.pos));
-                }
-                Type::Any
-            }
-            Some(t) => t,
-        };
+        let checked_type_1 = self.check_expr_as_value(expr1, env.clone());
+        let checked_type_2 = self.check_expr_as_value(expr2, env.clone());
         use ast::BinOp::*;
         let result = match *op {
             Add => check_add_for_types(&checked_type_1, &checked_type_2),
@@ -694,26 +599,8 @@ impl TypeChecker {
                                       -> Option<Type> {
         match *op {
             LogicalBinOp::And | LogicalBinOp::Or => {
-                match self.check_expr(expr1, env.clone()) {
-                    None => {
-                        if let Expr::FnCall(ref id, _) = expr1.data {
-                            self.issues
-                                .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                       expr1.pos));
-                        }
-                    }
-                    Some(_) => {}
-                };
-                match self.check_expr(expr2, env.clone()) {
-                    None => {
-                        if let Expr::FnCall(ref id, _) = expr2.data {
-                            self.issues
-                                .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                       expr2.pos));
-                        }
-                    }
-                    Some(_) => {}
-                };
+                self.check_expr_as_value(expr1, env.clone());
+                self.check_expr_as_value(expr2, env.clone());
             }
         }
         Some(Type::Bool)
@@ -726,31 +613,11 @@ impl TypeChecker {
                                 args: &[ExprNode],
                                 env: Rc<RefCell<TypeEnvironment>>)
                                 -> Option<Type> {
-        let checked_type = match self.check_expr(f_expr, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = f_expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), f_expr.pos));
-                }
-                Type::Any
-            }
-            Some(t) => t,
-        };
+        let checked_type = self.check_expr_as_value(f_expr, env.clone());
 
         let mut arg_types = Vec::new();
         for arg in args.iter() {
-            let possible_type = self.check_expr(arg, env.clone());
-            let arg_type = match possible_type {
-                None => {
-                    if let Expr::FnCall(ref id, _) = arg.data {
-                        self.issues
-                            .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                                   arg.pos));
-                    }
-                    Type::Any
-                }
-                Some(typ) => typ,
-            };
+            let arg_type = self.check_expr_as_value(arg, env.clone());
             arg_types.push(arg_type);
         }
 
@@ -902,16 +769,7 @@ impl TypeChecker {
                                          index_expr: &ExprNode,
                                          env: Rc<RefCell<TypeEnvironment>>)
                                          -> Option<Type> {
-        let object_type = match self.check_expr(expr, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(), expr.pos));
-                }
-                Type::Any
-            }
-            Some(typ) => typ,
-        };
+        let object_type = self.check_expr_as_value(expr, env.clone());
         match object_type {
             Type::Tuple | Type::Any => {}
             typ => {
@@ -919,26 +777,36 @@ impl TypeChecker {
                     .push((RuntimeError::SubscriptOnNonSubscriptable(typ).into(), expr.pos));
             }
         };
-        match self.check_expr(index_expr, env.clone()) {
-            None => {
-                if let Expr::FnCall(ref id, _) = index_expr.data {
-                    self.issues
-                        .push((RuntimeError::NoneError(try_get_name_of_fn(id)).into(),
-                               index_expr.pos));
-                }
-            }
-            Some(typ) => {
-                match typ {
-                    Type::Number | Type::Any => {}
-                    non_integral_type => {
-                        self.issues
-                            .push((RuntimeError::NonIntegralSubscript(non_integral_type).into(),
-                                   index_expr.pos));
-                    }
-                };
+        let typ = self.check_expr_as_value(index_expr, env.clone());
+        match typ {
+            Type::Number | Type::Any => {}
+            non_integral_type => {
+                self.issues
+                    .push((RuntimeError::NonIntegralSubscript(non_integral_type).into(),
+                           index_expr.pos));
             }
         };
         Some(Type::Any)
+    }
+
+    fn check_expr_as_value(&mut self, expr: &ExprNode, env: Rc<RefCell<TypeEnvironment>>) -> Type {
+        let possible_type = self.check_expr(expr, env);
+        if possible_type.is_none() {
+            if let Expr::FnCall(ref f_expr, _) = expr.data {
+                if let Expr::Identifier(ref id) = f_expr.data {
+                    self.issues
+                        .push((RuntimeError::NoneError(Some(id.clone())).into(), expr.pos));
+                } else {
+                    self.issues
+                        .push((RuntimeError::NoneError(None).into(), expr.pos));
+                }
+            } else {
+                unreachable!();
+            }
+            Type::Any
+        } else {
+            possible_type.clone().unwrap()
+        }
     }
 }
 
