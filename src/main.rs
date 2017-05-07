@@ -132,22 +132,24 @@ fn run_file<T: Interpreter>(file_name: &str, mut machine: T) {
 
 fn typecheck_file(file_name: &str) {
     if let Some(ast) = parse_file(file_name) {
-        let result = typechecker::check_program(&ast);
-        match result {
-            Ok(_) => println!("No problems detected in {}.", file_name),
-            Err(errs) => {
-                let num_issues = errs.len();
-                let file_content = read_file(file_name);
-                for error in errs {
-                    let span = offset_span_to_source_span(error.1, &file_content);
-                    print_typechecker_error_for_file(error.0, span, &file_content, file_name);
-                    println!("");
-                }
-                println!("{} {} detected in {}.",
-                         num_issues,
-                         if num_issues > 1 { "issues" } else { "issue" },
-                         file_name);
+        let mut checker = typechecker::TypeChecker::new();
+        checker.check_program(&ast);
+        let issues = checker.get_issues();
+
+        if issues.is_empty() {
+            println!("No problems detected in {}.", file_name);
+        } else {
+            let num_issues = issues.len();
+            let file_content = read_file(file_name);
+            for issue in issues {
+                let span = offset_span_to_source_span(issue.1, &file_content);
+                print_typechecker_error_for_file(issue.0, span, &file_content, file_name);
+                println!("");
             }
+            println!("{} {} detected in {}.",
+                     num_issues,
+                     if num_issues > 1 { "issues" } else { "issue" },
+                     file_name);
         }
     }
 }

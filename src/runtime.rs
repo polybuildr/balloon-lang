@@ -2,7 +2,7 @@ use ast::*;
 use value::*;
 use typechecker::Type;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum RuntimeError {
     /// When an undeclared identifier is used on the RHS
     ReferenceError(String),

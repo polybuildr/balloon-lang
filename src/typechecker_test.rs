@@ -1,6 +1,5 @@
 use parser;
-use typechecker::check_program;
-use typechecker::{TypeCheckerIssue, TypeCheckerIssueWithPosition};
+use typechecker::{TypeChecker, TypeCheckerIssue, TypeCheckerIssueWithPosition};
 use runtime::RuntimeError;
 use typechecker::{Type, ConstraintType};
 use ast::*;
@@ -9,8 +8,14 @@ fn check_and_get_result(code: &str) -> Result<(), Vec<TypeCheckerIssueWithPositi
     let ast = parser::program(code);
     match ast {
         Ok(ast) => {
-            let result = check_program(&ast);
-            result
+            let mut checker = TypeChecker::new();
+            checker.check_program(&ast);
+            let issues = checker.get_issues();
+            if issues.is_empty() {
+                Ok(())
+            } else {
+                Err(issues)
+            }
         }
         Err(_) => panic!("{:?}", ast),
     }
