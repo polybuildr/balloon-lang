@@ -324,16 +324,8 @@ impl TypeChecker {
             Stmt::Expr(ref expr) => {
                 self.check_expr(expr, env.clone());
             }
-            Stmt::IfThen(IfThenStmt {
-                             ref cond,
-                             ref then_block,
-                             ref maybe_else_block,
-                         }) => {
-                self.check_statement_if_then_else(s,
-                                                  cond,
-                                                  then_block,
-                                                  maybe_else_block,
-                                                  env.clone());
+            Stmt::IfThen(ref if_then_stmt) => {
+                self.check_statement_if_then_else(s, if_then_stmt, env.clone());
             }
             Stmt::Loop(ref block) => {
                 let old_in_loop_value = self.context.in_loop;
@@ -381,17 +373,8 @@ impl TypeChecker {
             Expr::FnCall(ref f_expr, ref args) => {
                 self.check_expr_function_call(expr, f_expr, args, env.clone())
             }
-            Expr::FnDef(FnDefExpr {
-                            ref maybe_id,
-                            ref params,
-                            ref body,
-                            ref maybe_ret_type,
-                        }) => {
-                self.check_expr_function_definition(maybe_id,
-                                                    params,
-                                                    body,
-                                                    maybe_ret_type,
-                                                    env.clone())
+            Expr::FnDef(ref fn_def_expr) => {
+                self.check_expr_function_definition(fn_def_expr, env.clone())
             }
             Expr::MemberByIdx(ref expr, ref index_expr) => {
                 self.check_expr_member_access_by_index(expr, index_expr, env.clone())
@@ -430,10 +413,14 @@ impl TypeChecker {
 
     fn check_statement_if_then_else(&mut self,
                                     statement: &StmtNode,
-                                    if_expr: &ExprNode,
-                                    then_block: &StmtNode,
-                                    maybe_else_block: &Option<Box<StmtNode>>,
+                                    if_then_stmt: &IfThenStmt,
                                     env: Rc<RefCell<TypeEnvironment>>) {
+        let &IfThenStmt {
+            ref cond,
+            ref then_block,
+            ref maybe_else_block,
+        } = if_then_stmt;
+
         let else_block = match *maybe_else_block {
             None => {
                 StmtNode {
@@ -446,7 +433,7 @@ impl TypeChecker {
 
         let then_env = TypeEnvironment::create_clone(env.clone());
         let else_env = TypeEnvironment::create_clone(env.clone());
-        self.check_expr_as_value(if_expr, env.clone());
+        self.check_expr_as_value(cond, env.clone());
 
         self.check_statement(then_block, then_env.clone());
 
@@ -720,20 +707,23 @@ impl TypeChecker {
     }
 
     fn check_expr_function_definition(&mut self,
-                                      possible_id: &Option<String>,
-                                      param_list: &[(String, Option<ConstraintType>)],
-                                      body: &Box<StmtNode>,
-                                      type_hint: &Option<ConstraintType>,
+                                      fn_def_expr: &FnDefExpr,
                                       env: Rc<RefCell<TypeEnvironment>>)
                                       -> Option<Type> {
+        let &FnDefExpr {
+                 ref maybe_id,
+                 ref params,
+                 ref body,
+                 ref maybe_ret_type,
+             } = fn_def_expr;
         let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
-            param_list.iter().cloned().unzip();
+            params.iter().cloned().unzip();
         let mut linear_map_with_any_set = LinearMap::new();
-        linear_map_with_any_set.insert(vec![ConstraintType::Any; param_list.len()], ());
+        linear_map_with_any_set.insert(vec![ConstraintType::Any; params.len()], ());
         let func = FunctionType::User {
-            ret_type: type_hint.clone(),
+            ret_type: maybe_ret_type.clone(),
             call_sign: CallSign {
-                num_params: param_list.len(),
+                num_params: params.len(),
                 variadic: false,
                 param_types: param_types.clone(),
             },
@@ -743,7 +733,7 @@ impl TypeChecker {
             already_checked_param_types: linear_map_with_any_set,
         };
         let func_type = Type::Function(Box::new(Some(func)));
-        if let Some(ref id) = *possible_id {
+        if let Some(ref id) = *maybe_id {
             env.borrow_mut().declare(id, &func_type);
         }
         let function_env = TypeEnvironment::create_clone(env);
@@ -756,7 +746,7 @@ impl TypeChecker {
         self.context = Context {
             in_loop: false,
             in_func: true,
-            func_ret_type: type_hint.clone(),
+            func_ret_type: maybe_ret_type.clone(),
         };
         self.check_statement(body, inner_env);
         self.context = old_context;
