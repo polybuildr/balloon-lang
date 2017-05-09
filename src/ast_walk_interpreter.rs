@@ -50,46 +50,42 @@ impl AstWalkInterpreter {
     fn interpret_program(&mut self,
                          program: &[StmtNode])
                          -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
-        let result = self.interpret_statements(program)?;
+        let result = self.eval_stmts(program)?;
         Ok(result)
     }
 
-    fn interpret_statements(&mut self,
-                            statements: &[StmtNode])
-                            -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
+    fn eval_stmts(&mut self,
+                  statements: &[StmtNode])
+                  -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
         let mut last_result = None;
         for statement in statements.iter() {
-            last_result = Some(self.interpret_statement(statement)?);
+            last_result = Some(self.eval_stmt(statement)?);
         }
         Ok(last_result)
     }
 
-    fn interpret_statement(&mut self,
-                           s: &StmtNode)
-                           -> Result<StmtResult, RuntimeErrorWithPosition> {
+    fn eval_stmt(&mut self, s: &StmtNode) -> Result<StmtResult, RuntimeErrorWithPosition> {
         match s.data {
-            Stmt::VarDecl(ref variable, ref expr) => self.interpret_stmt_var_decl(variable, expr),
-            Stmt::Assign(ref lhs_expr, ref expr) => self.interpret_stmt_assign(lhs_expr, expr),
-            Stmt::Block(ref statements) => self.interpret_stmt_block(statements),
+            Stmt::VarDecl(ref variable, ref expr) => self.eval_stmt_var_decl(variable, expr),
+            Stmt::Assign(ref lhs_expr, ref expr) => self.eval_stmt_assign(lhs_expr, expr),
+            Stmt::Block(ref statements) => self.eval_stmt_block(statements),
             Stmt::Expr(ref expr) => {
-                let val = self.interpret_expr(expr)?;
+                let val = self.eval_expr(expr)?;
                 match val {
                     None => Ok(StmtResult::None),
                     Some(x) => Ok(StmtResult::Value(x)),
                 }
             }
-            Stmt::IfThen(ref if_then_stmt) => self.interpret_stmt_if_then(if_then_stmt),
-            Stmt::Loop(ref block) => self.interpret_stmt_loop(block),
-            Stmt::Return(ref possible_expr) => self.interpret_stmt_return(possible_expr, s),
-            Stmt::Break => self.interpret_stmt_break(s),
+            Stmt::IfThen(ref if_then_stmt) => self.eval_stmt_if_then(if_then_stmt),
+            Stmt::Loop(ref block) => self.eval_stmt_loop(block),
+            Stmt::Return(ref possible_expr) => self.eval_stmt_return(possible_expr, s),
+            Stmt::Break => self.eval_stmt_break(s),
             Stmt::Empty => Ok(StmtResult::None),
         }
     }
 
-    fn interpret_expr_as_value(&mut self,
-                               expr: &ExprNode)
-                               -> Result<Value, RuntimeErrorWithPosition> {
-        let possible_val = self.interpret_expr(expr)?;
+    fn eval_expr_as_value(&mut self, expr: &ExprNode) -> Result<Value, RuntimeErrorWithPosition> {
+        let possible_val = self.eval_expr(expr)?;
         if possible_val.is_none() {
             if let Expr::FnCall(ref f_expr, _) = expr.data {
                 if let Expr::Identifier(ref id) = f_expr.data {
@@ -103,32 +99,32 @@ impl AstWalkInterpreter {
         Ok(possible_val.clone().unwrap())
     }
 
-    fn interpret_expr(&mut self, e: &ExprNode) -> Result<Option<Value>, RuntimeErrorWithPosition> {
+    fn eval_expr(&mut self, e: &ExprNode) -> Result<Option<Value>, RuntimeErrorWithPosition> {
         match e.data {
             Expr::Literal(ref x) => Ok(Some(Value::from(x.data.clone()))),
-            Expr::Identifier(ref id) => self.interpret_expr_identifier(id, e),
-            Expr::Tuple(ref elems) => self.interpret_expr_tuple(elems),
-            Expr::Unary(ref op, ref expr) => self.interpret_expr_unary(op, expr, e),
-            Expr::UnaryLogical(ref op, ref expr) => self.interpret_expr_unary_logical(op, expr),
+            Expr::Identifier(ref id) => self.eval_expr_identifier(id, e),
+            Expr::Tuple(ref elems) => self.eval_expr_tuple(elems),
+            Expr::Unary(ref op, ref expr) => self.eval_expr_unary(op, expr, e),
+            Expr::UnaryLogical(ref op, ref expr) => self.eval_expr_unary_logical(op, expr),
             Expr::Binary(ref expr1, ref op, ref expr2) => {
-                self.interpret_expr_binary(op, expr1, expr2, e)
+                self.eval_expr_binary(op, expr1, expr2, e)
             }
             Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
-                self.interpret_expr_binary_logical(op, expr1, expr2)
+                self.eval_expr_binary_logical(op, expr1, expr2)
             }
             Expr::MemberByIdx(ref object_expr, ref index_expr) => {
-                self.interpret_expr_member_by_idx(object_expr, index_expr, e)
+                self.eval_expr_member_by_idx(object_expr, index_expr, e)
             }
-            Expr::FnDef(ref fn_def_expr) => self.interpret_expr_fn_def(fn_def_expr),
-            Expr::FnCall(ref expr, ref args) => self.interpret_expr_fn_call(expr, args, e),
+            Expr::FnDef(ref fn_def_expr) => self.eval_expr_fn_def(fn_def_expr),
+            Expr::FnCall(ref expr, ref args) => self.eval_expr_fn_call(expr, args, e),
         }
     }
 
-    fn interpret_stmt_var_decl(&mut self,
-                               variable: &Variable,
-                               expr: &ExprNode)
-                               -> Result<StmtResult, RuntimeErrorWithPosition> {
-        let val = self.interpret_expr_as_value(expr)?;
+    fn eval_stmt_var_decl(&mut self,
+                          variable: &Variable,
+                          expr: &ExprNode)
+                          -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let val = self.eval_expr_as_value(expr)?;
         match *variable {
             Variable::Identifier(_, ref name) => {
                 self.env.borrow_mut().declare(name, &val);
@@ -137,11 +133,11 @@ impl AstWalkInterpreter {
         Ok(StmtResult::None)
     }
 
-    fn interpret_stmt_assign(&mut self,
-                             lhs_expr: &LhsExprNode,
-                             expr: &ExprNode)
-                             -> Result<StmtResult, RuntimeErrorWithPosition> {
-        let val = self.interpret_expr_as_value(expr)?;
+    fn eval_stmt_assign(&mut self,
+                        lhs_expr: &LhsExprNode,
+                        expr: &ExprNode)
+                        -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let val = self.eval_expr_as_value(expr)?;
         match lhs_expr.data {
             LhsExpr::Identifier(ref id) => {
                 if !self.env.borrow_mut().set(id, val) {
@@ -152,15 +148,15 @@ impl AstWalkInterpreter {
         Ok(StmtResult::None)
     }
 
-    fn interpret_stmt_block(&mut self,
-                            statements: &[StmtNode])
-                            -> Result<StmtResult, RuntimeErrorWithPosition> {
+    fn eval_stmt_block(&mut self,
+                       statements: &[StmtNode])
+                       -> Result<StmtResult, RuntimeErrorWithPosition> {
         let child_env = Environment::create_child(self.env.clone());
         let mut last_result = StmtResult::None;
         let current_env = self.env.clone();
         self.env = child_env;
         for statement in statements.iter() {
-            last_result = self.interpret_statement(statement)?;
+            last_result = self.eval_stmt(statement)?;
             if let StmtResult::Break = last_result {
                 return Ok(StmtResult::Break);
             } else if let StmtResult::Return(_) = last_result {
@@ -171,17 +167,17 @@ impl AstWalkInterpreter {
         Ok(last_result)
     }
 
-    fn interpret_stmt_if_then(&mut self,
-                              if_then_stmt: &IfThenStmt)
-                              -> Result<StmtResult, RuntimeErrorWithPosition> {
+    fn eval_stmt_if_then(&mut self,
+                         if_then_stmt: &IfThenStmt)
+                         -> Result<StmtResult, RuntimeErrorWithPosition> {
         let &IfThenStmt {
                  ref cond,
                  ref then_block,
                  ref maybe_else_block,
              } = if_then_stmt;
-        let val = self.interpret_expr_as_value(cond)?;
+        let val = self.eval_expr_as_value(cond)?;
         if val.is_truthy() {
-            let result = self.interpret_statement(then_block)?;
+            let result = self.eval_stmt(then_block)?;
             if let StmtResult::Break = result {
                 return Ok(StmtResult::Break);
             } else if let StmtResult::Return(_) = result {
@@ -189,7 +185,7 @@ impl AstWalkInterpreter {
             }
         } else if maybe_else_block.is_some() {
             let else_block = maybe_else_block.clone().unwrap();
-            let result = self.interpret_statement(&else_block)?;
+            let result = self.eval_stmt(&else_block)?;
             if let StmtResult::Break = result {
                 return Ok(StmtResult::Break);
             } else if let StmtResult::Return(_) = result {
@@ -199,16 +195,14 @@ impl AstWalkInterpreter {
         Ok(StmtResult::None)
     }
 
-    fn interpret_stmt_loop(&mut self,
-                           block: &StmtNode)
-                           -> Result<StmtResult, RuntimeErrorWithPosition> {
+    fn eval_stmt_loop(&mut self, block: &StmtNode) -> Result<StmtResult, RuntimeErrorWithPosition> {
         let child_env = Environment::create_child(self.env.clone());
         let current_env = self.env.clone();
         self.env = child_env;
         let old_in_loop = self.context.in_loop;
         self.context.in_loop = true;
         loop {
-            let result = self.interpret_statement(block)?;
+            let result = self.eval_stmt(block)?;
             if let StmtResult::Break = result {
                 break;
             } else if let StmtResult::Return(_) = result {
@@ -220,58 +214,58 @@ impl AstWalkInterpreter {
         Ok(StmtResult::None)
     }
 
-    fn interpret_stmt_return(&mut self,
-                             possible_expr: &Option<ExprNode>,
-                             return_stmt: &StmtNode)
-                             -> Result<StmtResult, RuntimeErrorWithPosition> {
+    fn eval_stmt_return(&mut self,
+                        possible_expr: &Option<ExprNode>,
+                        return_stmt: &StmtNode)
+                        -> Result<StmtResult, RuntimeErrorWithPosition> {
         if !self.context.in_func {
             return Err((RuntimeError::ReturnOutsideFunction, return_stmt.pos));
         }
         match *possible_expr {
             Some(ref expr) => {
-                let val = self.interpret_expr_as_value(expr)?;
+                let val = self.eval_expr_as_value(expr)?;
                 Ok(StmtResult::Return(Some(val)))
             }
             None => Ok(StmtResult::Return(None)),
         }
     }
 
-    fn interpret_stmt_break(&mut self,
-                            break_stmt: &StmtNode)
-                            -> Result<StmtResult, RuntimeErrorWithPosition> {
+    fn eval_stmt_break(&mut self,
+                       break_stmt: &StmtNode)
+                       -> Result<StmtResult, RuntimeErrorWithPosition> {
         if !self.context.in_loop {
             return Err((RuntimeError::BreakOutsideLoop, break_stmt.pos));
         }
         Ok(StmtResult::Break)
     }
 
-    fn interpret_expr_identifier(&mut self,
-                                 id: &String,
-                                 id_expr: &ExprNode)
-                                 -> Result<Option<Value>, RuntimeErrorWithPosition> {
+    fn eval_expr_identifier(&mut self,
+                            id: &String,
+                            id_expr: &ExprNode)
+                            -> Result<Option<Value>, RuntimeErrorWithPosition> {
         match self.env.borrow_mut().get_value(id) {
             Some(v) => Ok(Some(v)),
             None => Err((RuntimeError::ReferenceError(id.clone()), id_expr.pos)),
         }
     }
 
-    fn interpret_expr_tuple(&mut self,
-                            elems: &[ExprNode])
-                            -> Result<Option<Value>, RuntimeErrorWithPosition> {
+    fn eval_expr_tuple(&mut self,
+                       elems: &[ExprNode])
+                       -> Result<Option<Value>, RuntimeErrorWithPosition> {
         let mut values = Vec::new();
         for elem_expr in elems {
-            let val = self.interpret_expr_as_value(elem_expr)?;
+            let val = self.eval_expr_as_value(elem_expr)?;
             values.push(val);
         }
         Ok(Some(Value::Tuple(values)))
     }
 
-    fn interpret_expr_unary(&mut self,
-                            op: &UnOp,
-                            expr: &ExprNode,
-                            unary_expr: &ExprNode)
-                            -> Result<Option<Value>, RuntimeErrorWithPosition> {
-        let val = self.interpret_expr_as_value(expr)?;
+    fn eval_expr_unary(&mut self,
+                       op: &UnOp,
+                       expr: &ExprNode,
+                       unary_expr: &ExprNode)
+                       -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val = self.eval_expr_as_value(expr)?;
         match *op {
             UnOp::Neg => {
                 match operations::unary_minus(val) {
@@ -282,24 +276,24 @@ impl AstWalkInterpreter {
         }
     }
 
-    fn interpret_expr_unary_logical(&mut self,
-                                    op: &LogicalUnOp,
-                                    expr: &ExprNode)
-                                    -> Result<Option<Value>, RuntimeErrorWithPosition> {
-        let val = self.interpret_expr_as_value(expr)?;
+    fn eval_expr_unary_logical(&mut self,
+                               op: &LogicalUnOp,
+                               expr: &ExprNode)
+                               -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val = self.eval_expr_as_value(expr)?;
         match *op {
             LogicalUnOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
         }
     }
 
-    fn interpret_expr_binary(&mut self,
-                             op: &BinOp,
-                             expr1: &ExprNode,
-                             expr2: &ExprNode,
-                             binary_expr: &ExprNode)
-                             -> Result<Option<Value>, RuntimeErrorWithPosition> {
-        let val1 = self.interpret_expr_as_value(expr1)?;
-        let val2 = self.interpret_expr_as_value(expr2)?;
+    fn eval_expr_binary(&mut self,
+                        op: &BinOp,
+                        expr1: &ExprNode,
+                        expr2: &ExprNode,
+                        binary_expr: &ExprNode)
+                        -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val1 = self.eval_expr_as_value(expr1)?;
+        let val2 = self.eval_expr_as_value(expr2)?;
         let retval = match *op {
             BinOp::Add => operations::add(val1, val2),
             BinOp::Sub => operations::subtract(val1, val2),
@@ -317,38 +311,38 @@ impl AstWalkInterpreter {
         }
     }
 
-    fn interpret_expr_binary_logical(&mut self,
-                                     op: &LogicalBinOp,
-                                     expr1: &ExprNode,
-                                     expr2: &ExprNode)
-                                     -> Result<Option<Value>, RuntimeErrorWithPosition> {
+    fn eval_expr_binary_logical(&mut self,
+                                op: &LogicalBinOp,
+                                expr1: &ExprNode,
+                                expr2: &ExprNode)
+                                -> Result<Option<Value>, RuntimeErrorWithPosition> {
         match *op {
             LogicalBinOp::And => {
-                let val1 = self.interpret_expr_as_value(expr1)?;
+                let val1 = self.eval_expr_as_value(expr1)?;
                 if !val1.is_truthy() {
                     return Ok(Some(Value::Bool(false)));
                 }
-                let val2 = self.interpret_expr_as_value(expr2)?;
+                let val2 = self.eval_expr_as_value(expr2)?;
                 Ok(Some(Value::Bool(val2.is_truthy())))
             }
             LogicalBinOp::Or => {
-                let val1 = self.interpret_expr_as_value(expr1)?;
+                let val1 = self.eval_expr_as_value(expr1)?;
                 if val1.is_truthy() {
                     return Ok(Some(Value::Bool(true)));
                 }
-                let val2 = self.interpret_expr_as_value(expr2)?;
+                let val2 = self.eval_expr_as_value(expr2)?;
                 Ok(Some(Value::Bool(val2.is_truthy())))
             }
         }
     }
 
-    fn interpret_expr_member_by_idx(&mut self,
-                                    object_expr: &ExprNode,
-                                    index_expr: &ExprNode,
-                                    member_access_expr: &ExprNode)
-                                    -> Result<Option<Value>, RuntimeErrorWithPosition> {
-        let object = self.interpret_expr_as_value(object_expr)?;
-        let index = self.interpret_expr_as_value(index_expr)?;
+    fn eval_expr_member_by_idx(&mut self,
+                               object_expr: &ExprNode,
+                               index_expr: &ExprNode,
+                               member_access_expr: &ExprNode)
+                               -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let object = self.eval_expr_as_value(object_expr)?;
+        let index = self.eval_expr_as_value(index_expr)?;
         match object {
             Value::Tuple(ref v) => {
                 match index {
@@ -375,9 +369,9 @@ impl AstWalkInterpreter {
         }
     }
 
-    fn interpret_expr_fn_def(&mut self,
-                             fn_def_expr: &FnDefExpr)
-                             -> Result<Option<Value>, RuntimeErrorWithPosition> {
+    fn eval_expr_fn_def(&mut self,
+                        fn_def_expr: &FnDefExpr)
+                        -> Result<Option<Value>, RuntimeErrorWithPosition> {
         let &FnDefExpr {
                  ref maybe_id,
                  ref params,
@@ -404,12 +398,12 @@ impl AstWalkInterpreter {
         Ok(Some(func_val))
     }
 
-    fn interpret_expr_fn_call(&mut self,
-                              expr: &ExprNode,
-                              args: &[ExprNode],
-                              fn_call_expr: &ExprNode)
-                              -> Result<Option<Value>, RuntimeErrorWithPosition> {
-        let val = self.interpret_expr_as_value(expr)?;
+    fn eval_expr_fn_call(&mut self,
+                         expr: &ExprNode,
+                         args: &[ExprNode],
+                         fn_call_expr: &ExprNode)
+                         -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val = self.eval_expr_as_value(expr)?;
         let func = match val {
             Value::Function(f) => f,
             v => {
@@ -422,7 +416,7 @@ impl AstWalkInterpreter {
         };
         let mut arg_vals = Vec::new();
         for arg in args.iter() {
-            let val = self.interpret_expr_as_value(arg)?;
+            let val = self.eval_expr_as_value(arg)?;
             arg_vals.push(val);
         }
 
@@ -462,7 +456,7 @@ pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, R
             };
             let mut machine = AstWalkInterpreter::with_environment_and_context(inner_env,
                                                                                fn_context);
-            let result = machine.interpret_statement(body);
+            let result = machine.eval_stmt(body);
             match result {
                 Err(error_with_position) => {
                     Err(RuntimeError::InsideFunctionCall(Box::new(error_with_position)))
@@ -499,7 +493,7 @@ impl Interpreter for AstWalkInterpreter {
     fn run_ast_as_statements(&mut self,
                              statements: &[StmtNode])
                              -> Result<Option<StmtResult>, RuntimeErrorWithPosition> {
-        self.interpret_statements(statements)
+        self.eval_stmts(statements)
     }
 
     fn run_ast_as_program(&mut self,
