@@ -68,43 +68,9 @@ impl AstWalkInterpreter {
                            s: &StmtNode)
                            -> Result<StmtResult, RuntimeErrorWithPosition> {
         match s.data {
-            Stmt::VarDecl(ref variable, ref expr) => {
-                let val = self.interpret_expr_as_value(expr)?;
-                match *variable {
-                    Variable::Identifier(_, ref name) => {
-                        self.env.borrow_mut().declare(name, &val);
-                    }
-                };
-                Ok(StmtResult::None)
-            }
-            Stmt::Assign(ref lhs_expr, ref expr) => {
-                let val = self.interpret_expr_as_value(expr)?;
-                match lhs_expr.data {
-                    LhsExpr::Identifier(ref id) => {
-                        if !self.env.borrow_mut().set(id, val) {
-                            return Err((RuntimeError::UndeclaredAssignment(id.clone()),
-                                        lhs_expr.pos));
-                        }
-                    }
-                };
-                Ok(StmtResult::None)
-            }
-            Stmt::Block(ref statements) => {
-                let child_env = Environment::create_child(self.env.clone());
-                let mut last_result = StmtResult::None;
-                let current_env = self.env.clone();
-                self.env = child_env;
-                for statement in statements.iter() {
-                    last_result = self.interpret_statement(statement)?;
-                    if let StmtResult::Break = last_result {
-                        return Ok(StmtResult::Break);
-                    } else if let StmtResult::Return(_) = last_result {
-                        return Ok(last_result);
-                    }
-                }
-                self.env = current_env;
-                Ok(last_result)
-            }
+            Stmt::VarDecl(ref variable, ref expr) => self.interpret_stmt_var_decl(variable, expr),
+            Stmt::Assign(ref lhs_expr, ref expr) => self.interpret_stmt_assign(lhs_expr, expr),
+            Stmt::Block(ref statements) => self.interpret_stmt_block(statements),
             Stmt::Expr(ref expr) => {
                 let val = self.interpret_expr(expr)?;
                 match val {
@@ -112,66 +78,10 @@ impl AstWalkInterpreter {
                     Some(x) => Ok(StmtResult::Value(x)),
                 }
             }
-            Stmt::IfThen(IfThenStmt {
-                             ref cond,
-                             ref then_block,
-                             ref maybe_else_block,
-                         }) => {
-                let val = self.interpret_expr_as_value(cond)?;
-                if val.is_truthy() {
-                    let result = self.interpret_statement(then_block)?;
-                    if let StmtResult::Break = result {
-                        return Ok(StmtResult::Break);
-                    } else if let StmtResult::Return(_) = result {
-                        return Ok(result);
-                    }
-                } else if maybe_else_block.is_some() {
-                    let else_block = maybe_else_block.clone().unwrap();
-                    let result = self.interpret_statement(&else_block)?;
-                    if let StmtResult::Break = result {
-                        return Ok(StmtResult::Break);
-                    } else if let StmtResult::Return(_) = result {
-                        return Ok(result);
-                    }
-                }
-                Ok(StmtResult::None)
-            }
-            Stmt::Loop(ref block) => {
-                let child_env = Environment::create_child(self.env.clone());
-                let current_env = self.env.clone();
-                self.env = child_env;
-                let old_in_loop = self.context.in_loop;
-                self.context.in_loop = true;
-                loop {
-                    let result = self.interpret_statement(block)?;
-                    if let StmtResult::Break = result {
-                        break;
-                    } else if let StmtResult::Return(_) = result {
-                        return Ok(result);
-                    }
-                }
-                self.context.in_loop = old_in_loop;
-                self.env = current_env;
-                Ok(StmtResult::None)
-            }
-            Stmt::Return(ref possible_expr) => {
-                if !self.context.in_func {
-                    return Err((RuntimeError::ReturnOutsideFunction, s.pos));
-                }
-                match *possible_expr {
-                    Some(ref expr) => {
-                        let val = self.interpret_expr_as_value(expr)?;
-                        Ok(StmtResult::Return(Some(val)))
-                    }
-                    None => Ok(StmtResult::Return(None)),
-                }
-            }
-            Stmt::Break => {
-                if !self.context.in_loop {
-                    return Err((RuntimeError::BreakOutsideLoop, s.pos));
-                }
-                Ok(StmtResult::Break)
-            }
+            Stmt::IfThen(ref if_then_stmt) => self.interpret_stmt_if_then(if_then_stmt),
+            Stmt::Loop(ref block) => self.interpret_stmt_loop(block),
+            Stmt::Return(ref possible_expr) => self.interpret_stmt_return(possible_expr, s),
+            Stmt::Break => self.interpret_stmt_break(s),
             Stmt::Empty => Ok(StmtResult::None),
         }
     }
@@ -196,157 +106,333 @@ impl AstWalkInterpreter {
     fn interpret_expr(&mut self, e: &ExprNode) -> Result<Option<Value>, RuntimeErrorWithPosition> {
         match e.data {
             Expr::Literal(ref x) => Ok(Some(Value::from(x.data.clone()))),
-            Expr::Identifier(ref id) => {
-                match self.env.borrow_mut().get_value(id) {
-                    Some(v) => Ok(Some(v)),
-                    None => Err((RuntimeError::ReferenceError(id.clone()), e.pos)),
-                }
-            }
-            Expr::Tuple(ref elems) => {
-                let mut values = Vec::new();
-                for elem_expr in elems {
-                    let val = self.interpret_expr_as_value(elem_expr)?;
-                    values.push(val);
-                }
-                Ok(Some(Value::Tuple(values)))
-            }
-            Expr::Unary(ref op, ref expr) => {
-                let val = self.interpret_expr_as_value(expr)?;
-                match *op {
-                    UnOp::Neg => {
-                        match operations::unary_minus(val) {
-                            Ok(v) => Ok(Some(v)),
-                            Err(err) => Err((err, e.pos)),
-                        }
-                    }
-                }
-            }
-            Expr::UnaryLogical(ref op, ref expr) => {
-                let val = self.interpret_expr_as_value(expr)?;
-                match *op {
-                    LogicalUnOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
-                }
-            }
+            Expr::Identifier(ref id) => self.interpret_expr_identifier(id, e),
+            Expr::Tuple(ref elems) => self.interpret_expr_tuple(elems),
+            Expr::Unary(ref op, ref expr) => self.interpret_expr_unary(op, expr, e),
+            Expr::UnaryLogical(ref op, ref expr) => self.interpret_expr_unary_logical(op, expr),
             Expr::Binary(ref expr1, ref op, ref expr2) => {
-                let val1 = self.interpret_expr_as_value(expr1)?;
-                let val2 = self.interpret_expr_as_value(expr2)?;
-                let retval = match *op {
-                    BinOp::Add => operations::add(val1, val2),
-                    BinOp::Sub => operations::subtract(val1, val2),
-                    BinOp::Mul => operations::multiply(val1, val2),
-                    BinOp::Div => operations::divide(val1, val2),
-                    BinOp::Lt => operations::less_than(val1, val2),
-                    BinOp::Lte => operations::less_than_or_equal(val1, val2),
-                    BinOp::Gt => operations::greater_than(val1, val2),
-                    BinOp::Gte => operations::greater_than_or_equal(val1, val2),
-                    BinOp::Eq => Ok(Value::Bool(val1 == val2)),
-                };
-                match retval {
-                    Ok(v) => Ok(Some(v)),
-                    Err(err) => Err((err, e.pos)),
-                }
+                self.interpret_expr_binary(op, expr1, expr2, e)
             }
             Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
-                match *op {
-                    LogicalBinOp::And => {
-                        let val1 = self.interpret_expr_as_value(expr1)?;
-                        if !val1.is_truthy() {
-                            return Ok(Some(Value::Bool(false)));
-                        }
-                        let val2 = self.interpret_expr_as_value(expr2)?;
-                        Ok(Some(Value::Bool(val2.is_truthy())))
-                    }
-                    LogicalBinOp::Or => {
-                        let val1 = self.interpret_expr_as_value(expr1)?;
-                        if val1.is_truthy() {
-                            return Ok(Some(Value::Bool(true)));
-                        }
-                        let val2 = self.interpret_expr_as_value(expr2)?;
-                        Ok(Some(Value::Bool(val2.is_truthy())))
-                    }
-                }
+                self.interpret_expr_binary_logical(op, expr1, expr2)
             }
             Expr::MemberByIdx(ref object_expr, ref index_expr) => {
-                let object = self.interpret_expr_as_value(object_expr)?;
-                let index = self.interpret_expr_as_value(index_expr)?;
-                match object {
-                    Value::Tuple(ref v) => {
-                        match index {
-                            Value::Number(Number::Integer(i)) => {
-                                if i < 0 {
-                                    return Err((RuntimeError::IndexOutOfBounds(i), e.pos));
-                                }
-                                match v.get(i as usize) {
-                                    Some(x) => Ok(Some(x.clone())),
-                                    None => Err((RuntimeError::IndexOutOfBounds(i), e.pos)),
-                                }
-                            }
-                            non_int_index => {
-                                Err((RuntimeError::NonIntegralSubscript(non_int_index.get_type()),
-                                     index_expr.pos))
-                            }
-                        }
-                    }
-                    obj => {
-                        Err((RuntimeError::SubscriptOnNonSubscriptable(obj.get_type()),
-                             object_expr.pos))
-                    }
+                self.interpret_expr_member_by_idx(object_expr, index_expr, e)
+            }
+            Expr::FnDef(ref fn_def_expr) => self.interpret_expr_fn_def(fn_def_expr),
+            Expr::FnCall(ref expr, ref args) => self.interpret_expr_fn_call(expr, args, e),
+        }
+    }
+
+    fn interpret_stmt_var_decl(&mut self,
+                               variable: &Variable,
+                               expr: &ExprNode)
+                               -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let val = self.interpret_expr_as_value(expr)?;
+        match *variable {
+            Variable::Identifier(_, ref name) => {
+                self.env.borrow_mut().declare(name, &val);
+            }
+        };
+        Ok(StmtResult::None)
+    }
+
+    fn interpret_stmt_assign(&mut self,
+                             lhs_expr: &LhsExprNode,
+                             expr: &ExprNode)
+                             -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let val = self.interpret_expr_as_value(expr)?;
+        match lhs_expr.data {
+            LhsExpr::Identifier(ref id) => {
+                if !self.env.borrow_mut().set(id, val) {
+                    return Err((RuntimeError::UndeclaredAssignment(id.clone()), lhs_expr.pos));
                 }
             }
-            Expr::FnDef(FnDefExpr {
-                            ref maybe_id,
-                            ref params,
-                            ref body,
-                            ref maybe_ret_type,
-                        }) => {
-                let (param_names, param_types): (Vec<String>,
-                                                 Vec<Option<ConstraintType>>) =
-                    params.iter().cloned().unzip();
-                let func = Function::User {
-                    ret_type: maybe_ret_type.clone(),
-                    call_sign: CallSign {
-                        num_params: params.len(),
-                        variadic: false,
-                        param_types: param_types,
-                    },
-                    param_names: param_names.clone(),
-                    body: body.clone(),
-                    env: self.env.clone(),
-                };
-                let func_val = Value::Function(Box::new(func));
-                if let Some(ref id) = *maybe_id {
-                    self.env.borrow_mut().declare(id, &func_val);
-                }
-                Ok(Some(func_val))
+        };
+        Ok(StmtResult::None)
+    }
+
+    fn interpret_stmt_block(&mut self,
+                            statements: &[StmtNode])
+                            -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let child_env = Environment::create_child(self.env.clone());
+        let mut last_result = StmtResult::None;
+        let current_env = self.env.clone();
+        self.env = child_env;
+        for statement in statements.iter() {
+            last_result = self.interpret_statement(statement)?;
+            if let StmtResult::Break = last_result {
+                return Ok(StmtResult::Break);
+            } else if let StmtResult::Return(_) = last_result {
+                return Ok(last_result);
             }
-            Expr::FnCall(ref expr, ref args) => {
+        }
+        self.env = current_env;
+        Ok(last_result)
+    }
+
+    fn interpret_stmt_if_then(&mut self,
+                              if_then_stmt: &IfThenStmt)
+                              -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let &IfThenStmt {
+                 ref cond,
+                 ref then_block,
+                 ref maybe_else_block,
+             } = if_then_stmt;
+        let val = self.interpret_expr_as_value(cond)?;
+        if val.is_truthy() {
+            let result = self.interpret_statement(then_block)?;
+            if let StmtResult::Break = result {
+                return Ok(StmtResult::Break);
+            } else if let StmtResult::Return(_) = result {
+                return Ok(result);
+            }
+        } else if maybe_else_block.is_some() {
+            let else_block = maybe_else_block.clone().unwrap();
+            let result = self.interpret_statement(&else_block)?;
+            if let StmtResult::Break = result {
+                return Ok(StmtResult::Break);
+            } else if let StmtResult::Return(_) = result {
+                return Ok(result);
+            }
+        }
+        Ok(StmtResult::None)
+    }
+
+    fn interpret_stmt_loop(&mut self,
+                           block: &StmtNode)
+                           -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let child_env = Environment::create_child(self.env.clone());
+        let current_env = self.env.clone();
+        self.env = child_env;
+        let old_in_loop = self.context.in_loop;
+        self.context.in_loop = true;
+        loop {
+            let result = self.interpret_statement(block)?;
+            if let StmtResult::Break = result {
+                break;
+            } else if let StmtResult::Return(_) = result {
+                return Ok(result);
+            }
+        }
+        self.context.in_loop = old_in_loop;
+        self.env = current_env;
+        Ok(StmtResult::None)
+    }
+
+    fn interpret_stmt_return(&mut self,
+                             possible_expr: &Option<ExprNode>,
+                             return_stmt: &StmtNode)
+                             -> Result<StmtResult, RuntimeErrorWithPosition> {
+        if !self.context.in_func {
+            return Err((RuntimeError::ReturnOutsideFunction, return_stmt.pos));
+        }
+        match *possible_expr {
+            Some(ref expr) => {
                 let val = self.interpret_expr_as_value(expr)?;
-                let func = match val {
-                    Value::Function(f) => f,
-                    v => {
-                        if let Expr::Identifier(ref id) = expr.data {
-                            return Err((RuntimeError::CallToNonFunction(Some(id.clone()),
-                                                                        v.get_type()),
-                                        expr.pos));
-                        }
-                        return Err((RuntimeError::CallToNonFunction(None, v.get_type()), expr.pos));
-                    }
-                };
-                let mut arg_vals = Vec::new();
-                for arg in args.iter() {
-                    let val = self.interpret_expr_as_value(arg)?;
-                    arg_vals.push(val);
-                }
+                Ok(StmtResult::Return(Some(val)))
+            }
+            None => Ok(StmtResult::Return(None)),
+        }
+    }
 
-                let call_sign = func.get_call_sign();
-                check_args_compat(&arg_vals, &call_sign, e)?;
+    fn interpret_stmt_break(&mut self,
+                            break_stmt: &StmtNode)
+                            -> Result<StmtResult, RuntimeErrorWithPosition> {
+        if !self.context.in_loop {
+            return Err((RuntimeError::BreakOutsideLoop, break_stmt.pos));
+        }
+        Ok(StmtResult::Break)
+    }
 
-                let call_func_result = call_func(&func, &arg_vals);
-                match call_func_result {
-                    Ok(possible_val) => Ok(possible_val),
-                    Err(runtime_error) => Err((runtime_error, e.pos)),
+    fn interpret_expr_identifier(&mut self,
+                                 id: &String,
+                                 id_expr: &ExprNode)
+                                 -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        match self.env.borrow_mut().get_value(id) {
+            Some(v) => Ok(Some(v)),
+            None => Err((RuntimeError::ReferenceError(id.clone()), id_expr.pos)),
+        }
+    }
+
+    fn interpret_expr_tuple(&mut self,
+                            elems: &[ExprNode])
+                            -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let mut values = Vec::new();
+        for elem_expr in elems {
+            let val = self.interpret_expr_as_value(elem_expr)?;
+            values.push(val);
+        }
+        Ok(Some(Value::Tuple(values)))
+    }
+
+    fn interpret_expr_unary(&mut self,
+                            op: &UnOp,
+                            expr: &ExprNode,
+                            unary_expr: &ExprNode)
+                            -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val = self.interpret_expr_as_value(expr)?;
+        match *op {
+            UnOp::Neg => {
+                match operations::unary_minus(val) {
+                    Ok(v) => Ok(Some(v)),
+                    Err(err) => Err((err, unary_expr.pos)),
                 }
             }
+        }
+    }
+
+    fn interpret_expr_unary_logical(&mut self,
+                                    op: &LogicalUnOp,
+                                    expr: &ExprNode)
+                                    -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val = self.interpret_expr_as_value(expr)?;
+        match *op {
+            LogicalUnOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
+        }
+    }
+
+    fn interpret_expr_binary(&mut self,
+                             op: &BinOp,
+                             expr1: &ExprNode,
+                             expr2: &ExprNode,
+                             binary_expr: &ExprNode)
+                             -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val1 = self.interpret_expr_as_value(expr1)?;
+        let val2 = self.interpret_expr_as_value(expr2)?;
+        let retval = match *op {
+            BinOp::Add => operations::add(val1, val2),
+            BinOp::Sub => operations::subtract(val1, val2),
+            BinOp::Mul => operations::multiply(val1, val2),
+            BinOp::Div => operations::divide(val1, val2),
+            BinOp::Lt => operations::less_than(val1, val2),
+            BinOp::Lte => operations::less_than_or_equal(val1, val2),
+            BinOp::Gt => operations::greater_than(val1, val2),
+            BinOp::Gte => operations::greater_than_or_equal(val1, val2),
+            BinOp::Eq => Ok(Value::Bool(val1 == val2)),
+        };
+        match retval {
+            Ok(v) => Ok(Some(v)),
+            Err(err) => Err((err, binary_expr.pos)),
+        }
+    }
+
+    fn interpret_expr_binary_logical(&mut self,
+                                     op: &LogicalBinOp,
+                                     expr1: &ExprNode,
+                                     expr2: &ExprNode)
+                                     -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        match *op {
+            LogicalBinOp::And => {
+                let val1 = self.interpret_expr_as_value(expr1)?;
+                if !val1.is_truthy() {
+                    return Ok(Some(Value::Bool(false)));
+                }
+                let val2 = self.interpret_expr_as_value(expr2)?;
+                Ok(Some(Value::Bool(val2.is_truthy())))
+            }
+            LogicalBinOp::Or => {
+                let val1 = self.interpret_expr_as_value(expr1)?;
+                if val1.is_truthy() {
+                    return Ok(Some(Value::Bool(true)));
+                }
+                let val2 = self.interpret_expr_as_value(expr2)?;
+                Ok(Some(Value::Bool(val2.is_truthy())))
+            }
+        }
+    }
+
+    fn interpret_expr_member_by_idx(&mut self,
+                                    object_expr: &ExprNode,
+                                    index_expr: &ExprNode,
+                                    member_access_expr: &ExprNode)
+                                    -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let object = self.interpret_expr_as_value(object_expr)?;
+        let index = self.interpret_expr_as_value(index_expr)?;
+        match object {
+            Value::Tuple(ref v) => {
+                match index {
+                    Value::Number(Number::Integer(i)) => {
+                        if i < 0 {
+                            return Err((RuntimeError::IndexOutOfBounds(i), member_access_expr.pos));
+                        }
+                        match v.get(i as usize) {
+                            Some(x) => Ok(Some(x.clone())),
+                            None => {
+                                Err((RuntimeError::IndexOutOfBounds(i), member_access_expr.pos))
+                            }
+                        }
+                    }
+                    non_int_index => {
+                        Err((RuntimeError::NonIntegralSubscript(non_int_index.get_type()),
+                             index_expr.pos))
+                    }
+                }
+            }
+            obj => {
+                Err((RuntimeError::SubscriptOnNonSubscriptable(obj.get_type()), object_expr.pos))
+            }
+        }
+    }
+
+    fn interpret_expr_fn_def(&mut self,
+                             fn_def_expr: &FnDefExpr)
+                             -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let &FnDefExpr {
+                 ref maybe_id,
+                 ref params,
+                 ref body,
+                 ref maybe_ret_type,
+             } = fn_def_expr;
+        let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
+            params.iter().cloned().unzip();
+        let func = Function::User {
+            ret_type: maybe_ret_type.clone(),
+            call_sign: CallSign {
+                num_params: params.len(),
+                variadic: false,
+                param_types: param_types,
+            },
+            param_names: param_names.clone(),
+            body: body.clone(),
+            env: self.env.clone(),
+        };
+        let func_val = Value::Function(Box::new(func));
+        if let Some(ref id) = *maybe_id {
+            self.env.borrow_mut().declare(id, &func_val);
+        }
+        Ok(Some(func_val))
+    }
+
+    fn interpret_expr_fn_call(&mut self,
+                              expr: &ExprNode,
+                              args: &[ExprNode],
+                              fn_call_expr: &ExprNode)
+                              -> Result<Option<Value>, RuntimeErrorWithPosition> {
+        let val = self.interpret_expr_as_value(expr)?;
+        let func = match val {
+            Value::Function(f) => f,
+            v => {
+                if let Expr::Identifier(ref id) = expr.data {
+                    return Err((RuntimeError::CallToNonFunction(Some(id.clone()), v.get_type()),
+                                expr.pos));
+                }
+                return Err((RuntimeError::CallToNonFunction(None, v.get_type()), expr.pos));
+            }
+        };
+        let mut arg_vals = Vec::new();
+        for arg in args.iter() {
+            let val = self.interpret_expr_as_value(arg)?;
+            arg_vals.push(val);
+        }
+
+        let call_sign = func.get_call_sign();
+        check_args_compat(&arg_vals, &call_sign, fn_call_expr)?;
+
+        let call_func_result = call_func(&func, &arg_vals);
+        match call_func_result {
+            Ok(possible_val) => Ok(possible_val),
+            Err(runtime_error) => Err((runtime_error, fn_call_expr.pos)),
         }
     }
 }
