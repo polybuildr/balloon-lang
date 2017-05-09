@@ -240,12 +240,12 @@ impl AstWalkInterpreter {
     }
 
     fn eval_expr_identifier(&mut self,
-                            id: &String,
+                            id: &str,
                             id_expr: &ExprNode)
                             -> Result<Option<Value>, RuntimeErrorWithPosition> {
         match self.env.borrow_mut().get_value(id) {
             Some(v) => Ok(Some(v)),
-            None => Err((RuntimeError::ReferenceError(id.clone()), id_expr.pos)),
+            None => Err((RuntimeError::ReferenceError(id.to_owned()), id_expr.pos)),
         }
     }
 
