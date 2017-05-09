@@ -10,17 +10,41 @@ use function::*;
 use runtime::*;
 use typechecker::ConstraintType;
 
+#[derive(Clone)]
+struct Context {
+    pub in_loop: bool,
+    pub in_func: bool,
+}
+
+impl Context {
+    pub fn root() -> Context {
+        Context {
+            in_loop: false,
+            in_func: false,
+        }
+    }
+}
+
 pub struct AstWalkInterpreter {
     env: Rc<RefCell<Environment>>,
+    context: Context,
 }
 
 impl AstWalkInterpreter {
     pub fn new() -> AstWalkInterpreter {
-        AstWalkInterpreter { env: Environment::new_root() }
+        AstWalkInterpreter {
+            env: Environment::new_root(),
+            context: Context::root(),
+        }
     }
 
-    pub fn with_environment(env: Rc<RefCell<Environment>>) -> AstWalkInterpreter {
-        AstWalkInterpreter { env: env }
+    fn with_environment_and_context(env: Rc<RefCell<Environment>>,
+                                    context: Context)
+                                    -> AstWalkInterpreter {
+        AstWalkInterpreter {
+            env: env,
+            context: context,
+        }
     }
 
     fn interpret_program(&mut self,
@@ -41,8 +65,8 @@ impl AstWalkInterpreter {
     }
 
     fn interpret_statement(&mut self,
-                               s: &StmtNode)
-                               -> Result<StmtResult, RuntimeErrorWithPosition> {
+                           s: &StmtNode)
+                           -> Result<StmtResult, RuntimeErrorWithPosition> {
         match s.data {
             Stmt::VarDecl(ref variable, ref expr) => {
                 let val = self.interpret_expr_as_value(expr)?;
@@ -116,6 +140,8 @@ impl AstWalkInterpreter {
                 let child_env = Environment::create_child(self.env.clone());
                 let current_env = self.env.clone();
                 self.env = child_env;
+                let old_in_loop = self.context.in_loop;
+                self.context.in_loop = true;
                 loop {
                     let result = self.interpret_statement(block)?;
                     if let StmtResult::Break = result {
@@ -124,10 +150,14 @@ impl AstWalkInterpreter {
                         return Ok(result);
                     }
                 }
+                self.context.in_loop = old_in_loop;
                 self.env = current_env;
                 Ok(StmtResult::None)
             }
             Stmt::Return(ref possible_expr) => {
+                if !self.context.in_func {
+                    return Err((RuntimeError::ReturnOutsideFunction, s.pos));
+                }
                 match *possible_expr {
                     Some(ref expr) => {
                         let val = self.interpret_expr_as_value(expr)?;
@@ -136,7 +166,12 @@ impl AstWalkInterpreter {
                     None => Ok(StmtResult::Return(None)),
                 }
             }
-            Stmt::Break => Ok(StmtResult::Break),
+            Stmt::Break => {
+                if !self.context.in_loop {
+                    return Err((RuntimeError::BreakOutsideLoop, s.pos));
+                }
+                Ok(StmtResult::Break)
+            }
             Stmt::Empty => Ok(StmtResult::None),
         }
     }
@@ -335,7 +370,12 @@ pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, R
                 function_env.borrow_mut().declare(param, arg);
             }
             let inner_env = Environment::create_child(function_env);
-            let mut machine = AstWalkInterpreter::with_environment(inner_env);
+            let fn_context = Context {
+                in_func: true,
+                in_loop: false,
+            };
+            let mut machine = AstWalkInterpreter::with_environment_and_context(inner_env,
+                                                                               fn_context);
             let result = machine.interpret_statement(body);
             match result {
                 Err(error_with_position) => {

@@ -144,7 +144,7 @@ impl fmt::Display for ConstraintType {
 }
 
 #[derive(Clone)]
-pub struct Context {
+struct Context {
     pub in_loop: bool,
     pub in_func: bool,
     pub func_ret_type: Option<ConstraintType>,
