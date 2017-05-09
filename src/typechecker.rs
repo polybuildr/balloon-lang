@@ -284,6 +284,7 @@ impl TypeEnvironment {
 pub struct TypeChecker {
     context: Context,
     issues: Vec<TypeCheckerIssueWithPosition>,
+    env: Rc<RefCell<TypeEnvironment>>,
 }
 
 impl TypeChecker {
@@ -291,6 +292,7 @@ impl TypeChecker {
         TypeChecker {
             context: Context::root(),
             issues: Vec::new(),
+            env: TypeEnvironment::new_root(),
         }
     }
 
@@ -299,38 +301,39 @@ impl TypeChecker {
     }
 
     pub fn check_program(&mut self, ast: &[StmtNode]) {
-        let root_env = TypeEnvironment::new_root();
-        self.check_statements(ast, root_env.clone());
+        self.check_statements(ast);
     }
 
-    pub fn check_statements(&mut self, ast: &[StmtNode], env: Rc<RefCell<TypeEnvironment>>) {
+    pub fn check_statements(&mut self, ast: &[StmtNode]) {
         for statement in ast.iter() {
-            self.check_statement(statement, env.clone());
+            self.check_statement(statement);
         }
     }
 
-    pub fn check_statement(&mut self, s: &StmtNode, env: Rc<RefCell<TypeEnvironment>>) {
+    pub fn check_statement(&mut self, s: &StmtNode) {
         match s.data {
             Stmt::VarDecl(ref variable, ref expr) => {
-                self.check_statement_variable_declaration(variable, expr, env.clone());
+                self.check_statement_variable_declaration(variable, expr);
             }
             Stmt::Assign(ref lhs_expr, ref expr) => {
-                self.check_statement_assignment(lhs_expr, expr, env.clone());
+                self.check_statement_assignment(lhs_expr, expr);
             }
             Stmt::Block(ref statements) => {
-                let child_env = TypeEnvironment::create_child(env);
-                self.check_statements(statements, child_env);
+                let current_env = self.env.clone();
+                self.env = TypeEnvironment::create_child(current_env.clone());
+                self.check_statements(statements);
+                self.env = current_env;
             }
             Stmt::Expr(ref expr) => {
-                self.check_expr(expr, env.clone());
+                self.check_expr(expr);
             }
             Stmt::IfThen(ref if_then_stmt) => {
-                self.check_statement_if_then_else(s, if_then_stmt, env.clone());
+                self.check_statement_if_then_else(s, if_then_stmt);
             }
             Stmt::Loop(ref block) => {
                 let old_in_loop_value = self.context.in_loop;
                 self.context.in_loop = true;
-                self.check_statement(block, env.clone());
+                self.check_statement(block);
                 self.context.in_loop = old_in_loop_value;
             }
             Stmt::Break => {
@@ -341,16 +344,16 @@ impl TypeChecker {
             }
             Stmt::Empty => {}
             Stmt::Return(ref possible_expr) => {
-                self.check_statement_return(possible_expr, s, env.clone());
+                self.check_statement_return(possible_expr, s);
             }
         };
     }
 
-    fn check_expr(&mut self, expr: &ExprNode, env: Rc<RefCell<TypeEnvironment>>) -> Option<Type> {
+    fn check_expr(&mut self, expr: &ExprNode) -> Option<Type> {
         match expr.data {
             Expr::Literal(ref x) => Some(Type::from(x.data.clone())),
             Expr::Identifier(ref id) => {
-                match env.borrow().get_type(id) {
+                match self.env.borrow().get_type(id) {
                     Some(t) => Some(t),
                     None => {
                         self.issues
@@ -359,50 +362,38 @@ impl TypeChecker {
                     }
                 }
             }
-            Expr::Tuple(ref elems) => self.check_expr_tuple(elems, env.clone()),
-            Expr::Unary(ref op, ref expr) => self.check_expr_unary_op(op, expr, env.clone()),
-            Expr::UnaryLogical(ref op, ref expr) => {
-                self.check_expr_unary_logical_op(op, expr, env.clone())
-            }
+            Expr::Tuple(ref elems) => self.check_expr_tuple(elems),
+            Expr::Unary(ref op, ref expr) => self.check_expr_unary_op(op, expr),
+            Expr::UnaryLogical(ref op, ref expr) => self.check_expr_unary_logical_op(op, expr),
             Expr::Binary(ref expr1, ref op, ref expr2) => {
-                self.check_expr_binary_expr(expr, expr1, op, expr2, env.clone())
+                self.check_expr_binary_expr(expr, expr1, op, expr2)
             }
             Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
-                self.check_expr_binary_logical_expr(expr1, op, expr2, env.clone())
+                self.check_expr_binary_logical_expr(expr1, op, expr2)
             }
-            Expr::FnCall(ref f_expr, ref args) => {
-                self.check_expr_function_call(expr, f_expr, args, env.clone())
-            }
-            Expr::FnDef(ref fn_def_expr) => {
-                self.check_expr_function_definition(fn_def_expr, env.clone())
-            }
+            Expr::FnCall(ref f_expr, ref args) => self.check_expr_function_call(expr, f_expr, args),
+            Expr::FnDef(ref fn_def_expr) => self.check_expr_function_definition(fn_def_expr),
             Expr::MemberByIdx(ref expr, ref index_expr) => {
-                self.check_expr_member_access_by_index(expr, index_expr, env.clone())
+                self.check_expr_member_access_by_index(expr, index_expr)
             }
         }
     }
 
 
-    fn check_statement_variable_declaration(&mut self,
-                                            variable: &Variable,
-                                            expr: &ExprNode,
-                                            env: Rc<RefCell<TypeEnvironment>>) {
-        let checked_type = self.check_expr_as_value(expr, env.clone());
+    fn check_statement_variable_declaration(&mut self, variable: &Variable, expr: &ExprNode) {
+        let checked_type = self.check_expr_as_value(expr);
         match *variable {
             Variable::Identifier(_, ref id) => {
-                env.borrow_mut().declare(id, &checked_type);
+                self.env.borrow_mut().declare(id, &checked_type);
             }
         };
     }
 
-    fn check_statement_assignment(&mut self,
-                                  lhs_expr: &LhsExprNode,
-                                  expr: &ExprNode,
-                                  env: Rc<RefCell<TypeEnvironment>>) {
-        let checked_type = self.check_expr_as_value(expr, env.clone());
+    fn check_statement_assignment(&mut self, lhs_expr: &LhsExprNode, expr: &ExprNode) {
+        let checked_type = self.check_expr_as_value(expr);
         match lhs_expr.data {
             LhsExpr::Identifier(ref id) => {
-                if !env.borrow_mut().set(id, checked_type) {
+                if !self.env.borrow_mut().set(id, checked_type) {
                     self.issues
                         .push((RuntimeError::UndeclaredAssignment(id.clone()).into(),
                                lhs_expr.pos));
@@ -411,15 +402,12 @@ impl TypeChecker {
         };
     }
 
-    fn check_statement_if_then_else(&mut self,
-                                    statement: &StmtNode,
-                                    if_then_stmt: &IfThenStmt,
-                                    env: Rc<RefCell<TypeEnvironment>>) {
+    fn check_statement_if_then_else(&mut self, statement: &StmtNode, if_then_stmt: &IfThenStmt) {
         let &IfThenStmt {
-            ref cond,
-            ref then_block,
-            ref maybe_else_block,
-        } = if_then_stmt;
+                 ref cond,
+                 ref then_block,
+                 ref maybe_else_block,
+             } = if_then_stmt;
 
         let else_block = match *maybe_else_block {
             None => {
@@ -431,17 +419,23 @@ impl TypeChecker {
             Some(ref block) => *block.clone(),
         };
 
-        let then_env = TypeEnvironment::create_clone(env.clone());
-        let else_env = TypeEnvironment::create_clone(env.clone());
-        self.check_expr_as_value(cond, env.clone());
+        self.check_expr_as_value(cond);
 
-        self.check_statement(then_block, then_env.clone());
+        let current_env = self.env.clone();
+        let then_env = TypeEnvironment::create_clone(current_env.clone());
+        let else_env = TypeEnvironment::create_clone(current_env.clone());
 
-        let then_pairs = then_env.borrow().get_all_pairs();
+        self.env = then_env;
+        self.check_statement(then_block);
 
-        self.check_statement(&else_block, else_env.clone());
+        let then_pairs = self.env.borrow().get_all_pairs();
 
-        let else_pairs = else_env.borrow().get_all_pairs();
+        self.env = else_env;
+        self.check_statement(&else_block);
+
+        let else_pairs = self.env.borrow().get_all_pairs();
+
+        self.env = current_env;
 
         for (then_pair, else_pair) in then_pairs.iter().zip(else_pairs.iter()) {
             let &(ref then_name, ref then_type) = then_pair;
@@ -453,17 +447,16 @@ impl TypeChecker {
                 self.issues
                     .push((TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
                            statement.pos));
-                env.borrow_mut().set(then_name, Type::Any);
+                self.env.borrow_mut().set(then_name, Type::Any);
             } else {
-                env.borrow_mut().set(then_name, then_type.clone());
+                self.env.borrow_mut().set(then_name, then_type.clone());
             }
         }
     }
 
     fn check_statement_return(&mut self,
                               possible_expr: &Option<ExprNode>,
-                              return_statement: &StmtNode,
-                              env: Rc<RefCell<TypeEnvironment>>) {
+                              return_statement: &StmtNode) {
         if self.context.in_func != true {
             self.issues
                 .push((RuntimeError::ReturnOutsideFunction.into(), return_statement.pos));
@@ -472,7 +465,7 @@ impl TypeChecker {
         }
         match *possible_expr {
             Some(ref expr) => {
-                let actual_type = self.check_expr_as_value(expr, env.clone());
+                let actual_type = self.check_expr_as_value(expr);
                 let actual_return_constraint_type = ConstraintType::from(actual_type);
                 match self.context.func_ret_type {
                     None => {
@@ -509,22 +502,15 @@ impl TypeChecker {
         };
     }
 
-    fn check_expr_tuple(&mut self,
-                        elems: &[ExprNode],
-                        env: Rc<RefCell<TypeEnvironment>>)
-                        -> Option<Type> {
+    fn check_expr_tuple(&mut self, elems: &[ExprNode]) -> Option<Type> {
         for elem_expr in elems {
-            self.check_expr_as_value(elem_expr, env.clone());
+            self.check_expr_as_value(elem_expr);
         }
         Some(Type::Tuple)
     }
 
-    fn check_expr_unary_op(&mut self,
-                           op: &UnOp,
-                           expr: &ExprNode,
-                           env: Rc<RefCell<TypeEnvironment>>)
-                           -> Option<Type> {
-        let typ = self.check_expr_as_value(expr, env.clone());
+    fn check_expr_unary_op(&mut self, op: &UnOp, expr: &ExprNode) -> Option<Type> {
+        let typ = self.check_expr_as_value(expr);
         match *op {
             UnOp::Neg => {
                 match check_unary_minus_for_type(typ) {
@@ -538,12 +524,8 @@ impl TypeChecker {
         }
     }
 
-    fn check_expr_unary_logical_op(&mut self,
-                                   op: &LogicalUnOp,
-                                   expr: &ExprNode,
-                                   env: Rc<RefCell<TypeEnvironment>>)
-                                   -> Option<Type> {
-        self.check_expr_as_value(expr, env.clone());
+    fn check_expr_unary_logical_op(&mut self, op: &LogicalUnOp, expr: &ExprNode) -> Option<Type> {
+        self.check_expr_as_value(expr);
         match *op {
             LogicalUnOp::Not => Some(Type::Bool),
         }
@@ -553,11 +535,10 @@ impl TypeChecker {
                               binary_expr: &ExprNode,
                               expr1: &ExprNode,
                               op: &BinOp,
-                              expr2: &ExprNode,
-                              env: Rc<RefCell<TypeEnvironment>>)
+                              expr2: &ExprNode)
                               -> Option<Type> {
-        let checked_type_1 = self.check_expr_as_value(expr1, env.clone());
-        let checked_type_2 = self.check_expr_as_value(expr2, env.clone());
+        let checked_type_1 = self.check_expr_as_value(expr1);
+        let checked_type_2 = self.check_expr_as_value(expr2);
         use ast::BinOp::*;
         let result = match *op {
             Add => check_add_for_types(&checked_type_1, &checked_type_2),
@@ -581,13 +562,12 @@ impl TypeChecker {
     fn check_expr_binary_logical_expr(&mut self,
                                       expr1: &ExprNode,
                                       op: &LogicalBinOp,
-                                      expr2: &ExprNode,
-                                      env: Rc<RefCell<TypeEnvironment>>)
+                                      expr2: &ExprNode)
                                       -> Option<Type> {
         match *op {
             LogicalBinOp::And | LogicalBinOp::Or => {
-                self.check_expr_as_value(expr1, env.clone());
-                self.check_expr_as_value(expr2, env.clone());
+                self.check_expr_as_value(expr1);
+                self.check_expr_as_value(expr2);
             }
         }
         Some(Type::Bool)
@@ -597,14 +577,13 @@ impl TypeChecker {
     fn check_expr_function_call(&mut self,
                                 expr: &ExprNode,
                                 f_expr: &ExprNode,
-                                args: &[ExprNode],
-                                env: Rc<RefCell<TypeEnvironment>>)
+                                args: &[ExprNode])
                                 -> Option<Type> {
-        let checked_type = self.check_expr_as_value(f_expr, env.clone());
+        let checked_type = self.check_expr_as_value(f_expr);
 
         let mut arg_types = Vec::new();
         for arg in args.iter() {
-            let arg_type = self.check_expr_as_value(arg, env.clone());
+            let arg_type = self.check_expr_as_value(arg);
             arg_types.push(arg_type);
         }
 
@@ -652,7 +631,7 @@ impl TypeChecker {
                        ref ret_type,
                        ..
                    } = func_type {
-                let function_env = TypeEnvironment::create_child(env.clone());
+                let function_env = TypeEnvironment::create_child(self.env.clone());
                 for (param, arg) in param_names.iter().zip(arg_types.iter()) {
                     function_env.borrow_mut().declare(param, arg);
                 }
@@ -677,7 +656,10 @@ impl TypeChecker {
                         };
                         let mut outer_issues = self.issues.clone();
                         self.issues = Vec::new();
-                        self.check_statement(body, inner_env);
+                        let current_env = self.env.clone();
+                        self.env = inner_env;
+                        self.check_statement(body);
+                        self.env = current_env;
                         for inner_issue in &self.issues {
                             outer_issues
                                 .push((
@@ -706,10 +688,7 @@ impl TypeChecker {
         }
     }
 
-    fn check_expr_function_definition(&mut self,
-                                      fn_def_expr: &FnDefExpr,
-                                      env: Rc<RefCell<TypeEnvironment>>)
-                                      -> Option<Type> {
+    fn check_expr_function_definition(&mut self, fn_def_expr: &FnDefExpr) -> Option<Type> {
         let &FnDefExpr {
                  ref maybe_id,
                  ref params,
@@ -729,14 +708,14 @@ impl TypeChecker {
             },
             param_names: param_names.to_vec(),
             body: body.clone(),
-            env: env.clone(),
+            env: self.env.clone(),
             already_checked_param_types: linear_map_with_any_set,
         };
         let func_type = Type::Function(Box::new(Some(func)));
         if let Some(ref id) = *maybe_id {
-            env.borrow_mut().declare(id, &func_type);
+            self.env.borrow_mut().declare(id, &func_type);
         }
-        let function_env = TypeEnvironment::create_clone(env);
+        let function_env = TypeEnvironment::create_clone(self.env.clone());
 
         for param in param_names {
             function_env.borrow_mut().declare(&param, &Type::Any);
@@ -748,17 +727,19 @@ impl TypeChecker {
             in_func: true,
             func_ret_type: maybe_ret_type.clone(),
         };
-        self.check_statement(body, inner_env);
+        let current_env = self.env.clone();
+        self.env = inner_env;
+        self.check_statement(body);
+        self.env = current_env;
         self.context = old_context;
         Some(func_type)
     }
 
     fn check_expr_member_access_by_index(&mut self,
                                          expr: &ExprNode,
-                                         index_expr: &ExprNode,
-                                         env: Rc<RefCell<TypeEnvironment>>)
+                                         index_expr: &ExprNode)
                                          -> Option<Type> {
-        let object_type = self.check_expr_as_value(expr, env.clone());
+        let object_type = self.check_expr_as_value(expr);
         match object_type {
             Type::Tuple | Type::Any => {}
             typ => {
@@ -766,7 +747,7 @@ impl TypeChecker {
                     .push((RuntimeError::SubscriptOnNonSubscriptable(typ).into(), expr.pos));
             }
         };
-        let typ = self.check_expr_as_value(index_expr, env.clone());
+        let typ = self.check_expr_as_value(index_expr);
         match typ {
             Type::Number | Type::Any => {}
             non_integral_type => {
@@ -778,8 +759,8 @@ impl TypeChecker {
         Some(Type::Any)
     }
 
-    fn check_expr_as_value(&mut self, expr: &ExprNode, env: Rc<RefCell<TypeEnvironment>>) -> Type {
-        let possible_type = self.check_expr(expr, env);
+    fn check_expr_as_value(&mut self, expr: &ExprNode) -> Type {
+        let possible_type = self.check_expr(expr);
         if possible_type.is_none() {
             if let Expr::FnCall(ref f_expr, _) = expr.data {
                 if let Expr::Identifier(ref id) = f_expr.data {
