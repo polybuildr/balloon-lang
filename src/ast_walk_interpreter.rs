@@ -204,11 +204,16 @@ impl AstWalkInterpreter {
                 break;
             }
             match last_result {
-                Ok(StmtResult::None) | Ok(StmtResult::Value(_)) => {},
-                Ok(StmtResult::Break) => { break; },
-                Ok(StmtResult::Continue) => { continue; },
-                Ok(StmtResult::Return(_)) => { break; },
-                Err(_) => { break; }
+                Ok(StmtResult::None) |
+                Ok(StmtResult::Value(_)) => {}
+                Ok(StmtResult::Break) |
+                Ok(StmtResult::Return(_)) |
+                Err(_) => {
+                    break;
+                }
+                Ok(StmtResult::Continue) => {
+                    continue;
+                }
             }
         }
         self.context.in_loop = old_in_loop;
@@ -245,8 +250,8 @@ impl AstWalkInterpreter {
     }
 
     fn eval_stmt_continue(&mut self,
-                       continue_stmt: &StmtNode)
-                       -> Result<StmtResult, RuntimeErrorWithPosition> {
+                          continue_stmt: &StmtNode)
+                          -> Result<StmtResult, RuntimeErrorWithPosition> {
         if !self.context.in_loop {
             return Err((RuntimeError::ContinueOutsideLoop, continue_stmt.pos));
         }
