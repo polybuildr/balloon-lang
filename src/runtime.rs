@@ -41,6 +41,17 @@ pub enum StmtResult {
     Return(Option<Value>),
 }
 
+impl StmtResult {
+    pub fn is_loop_terminating(&self) -> bool {
+        match *self {
+            StmtResult::None |
+            StmtResult::Value(_) => false,
+            StmtResult::Break |
+            StmtResult::Return(_) => true,
+        }
+    }
+}
+
 pub trait Interpreter {
     fn run_ast_as_statements(&mut self,
                              statements: &[StmtNode])
