@@ -33,7 +33,7 @@ pub enum RuntimeError {
 
 pub type RuntimeErrorWithPosition = (RuntimeError, OffsetSpan);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum StmtResult {
     None,
     Break,

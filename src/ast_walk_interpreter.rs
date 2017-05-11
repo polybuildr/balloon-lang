@@ -152,17 +152,17 @@ impl AstWalkInterpreter {
                        statements: &[StmtNode])
                        -> Result<StmtResult, RuntimeErrorWithPosition> {
         let child_env = Environment::create_child(self.env.clone());
-        let mut last_result = StmtResult::None;
+        let mut last_result = Ok(StmtResult::None);
         let current_env = self.env.clone();
         self.env = child_env;
         for statement in statements.iter() {
-            last_result = self.eval_stmt(statement)?; // FIXME
-            if last_result.is_loop_terminating() {
+            last_result = self.eval_stmt(statement);
+            if last_result.is_err() || last_result.clone().unwrap().is_loop_terminating() {
                 break;
             }
         }
         self.env = current_env;
-        Ok(last_result)
+        last_result
     }
 
     fn eval_stmt_if_then(&mut self,
@@ -196,18 +196,18 @@ impl AstWalkInterpreter {
     fn eval_stmt_loop(&mut self, block: &StmtNode) -> Result<StmtResult, RuntimeErrorWithPosition> {
         let old_in_loop = self.context.in_loop;
         self.context.in_loop = true;
-        let mut last_result = StmtResult::None;
+        let mut last_result;
         loop {
-            last_result = self.eval_stmt(block)?; // FIXME
-            if last_result.is_loop_terminating() {
+            last_result = self.eval_stmt(block);
+            if last_result.is_err() || last_result.clone().unwrap().is_loop_terminating() {
                 break;
             }
         }
         self.context.in_loop = old_in_loop;
-        if let StmtResult::Break = last_result {
+        if let Ok(StmtResult::Break) = last_result {
             Ok(StmtResult::None)
         } else {
-            Ok(last_result)
+            last_result
         }
     }
 
