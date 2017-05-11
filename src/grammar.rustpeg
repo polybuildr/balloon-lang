@@ -14,6 +14,7 @@ statement -> Stmt
     = s:if_statement { s }
     / l:loop_statement { l }
     / BREAK __ TERMINATOR { Stmt::Break }
+    / CONTINUE __ TERMINATOR { Stmt::Continue }
     / RETURN __ e:expr_node? __ TERMINATOR { Stmt::Return(e) }
     / a:assignment_statement { a }
     / v:variable_declaration { v }
@@ -283,6 +284,7 @@ reserved_identifier = VAR
                     / "false"
                     / LOOP
                     / BREAK
+                    / CONTINUE
                     / FN
                     / RETURN;
 
@@ -296,6 +298,7 @@ OR = keyword<"or">
 NOT = keyword<"not">
 LOOP = keyword<"loop">
 BREAK = keyword<"break">
+CONTINUE = keyword<"continue">
 FN = keyword<"fn">
 RETURN = keyword<"return">
 NUMBER = keyword<"Number">

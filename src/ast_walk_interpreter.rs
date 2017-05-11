@@ -80,6 +80,7 @@ impl AstWalkInterpreter {
             Stmt::Loop(ref block) => self.eval_stmt_loop(block),
             Stmt::Return(ref possible_expr) => self.eval_stmt_return(possible_expr, s),
             Stmt::Break => self.eval_stmt_break(s),
+            Stmt::Continue => self.eval_stmt_continue(s),
             Stmt::Empty => Ok(StmtResult::None),
         }
     }
@@ -157,7 +158,7 @@ impl AstWalkInterpreter {
         self.env = child_env;
         for statement in statements.iter() {
             last_result = self.eval_stmt(statement);
-            if last_result.is_err() || last_result.clone().unwrap().is_loop_terminating() {
+            if last_result.is_err() || last_result.clone().unwrap().is_block_terminating() {
                 break;
             }
         }
@@ -199,8 +200,15 @@ impl AstWalkInterpreter {
         let mut last_result;
         loop {
             last_result = self.eval_stmt(block);
-            if last_result.is_err() || last_result.clone().unwrap().is_loop_terminating() {
+            if last_result.is_err() {
                 break;
+            }
+            match last_result {
+                Ok(StmtResult::None) | Ok(StmtResult::Value(_)) => {},
+                Ok(StmtResult::Break) => { break; },
+                Ok(StmtResult::Continue) => { continue; },
+                Ok(StmtResult::Return(_)) => { break; },
+                Err(_) => { break; }
             }
         }
         self.context.in_loop = old_in_loop;
@@ -234,6 +242,15 @@ impl AstWalkInterpreter {
             return Err((RuntimeError::BreakOutsideLoop, break_stmt.pos));
         }
         Ok(StmtResult::Break)
+    }
+
+    fn eval_stmt_continue(&mut self,
+                       continue_stmt: &StmtNode)
+                       -> Result<StmtResult, RuntimeErrorWithPosition> {
+        if !self.context.in_loop {
+            return Err((RuntimeError::ContinueOutsideLoop, continue_stmt.pos));
+        }
+        Ok(StmtResult::Continue)
     }
 
     fn eval_expr_identifier(&mut self,

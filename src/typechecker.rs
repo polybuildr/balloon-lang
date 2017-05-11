@@ -342,6 +342,12 @@ impl TypeChecker {
                         .push((RuntimeError::BreakOutsideLoop.into(), s.pos));
                 }
             }
+            Stmt::Continue => {
+                if self.context.in_loop != true {
+                    self.issues
+                        .push((RuntimeError::ContinueOutsideLoop.into(), s.pos));
+                }
+            }
             Stmt::Empty => {}
             Stmt::Return(ref possible_expr) => {
                 self.check_statement_return(possible_expr, s);

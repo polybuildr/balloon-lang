@@ -238,6 +238,10 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                     println!("{}: break statement appeared outside of a loop",
                              Red.bold().paint("break outside loop"));
                 }
+                RuntimeError::ContinueOutsideLoop => {
+                    println!("{}: continue statement appeared outside of a loop",
+                             Red.bold().paint("continue outside loop"));
+                }
                 RuntimeError::ReturnOutsideFunction => {
                     println!("{}: return statement appeared outside of a function",
                              Red.bold().paint("return outside function"));

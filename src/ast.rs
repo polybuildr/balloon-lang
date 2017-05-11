@@ -155,6 +155,7 @@ pub enum Stmt {
     Loop(Box<StmtNode>),
     Return(Option<ExprNode>),
     Break,
+    Continue,
     Empty,
 }
 

@@ -28,6 +28,7 @@ pub enum RuntimeError {
     /// and is getting propagated as a plain RuntimeError
     InsideFunctionCall(Box<RuntimeErrorWithPosition>),
     BreakOutsideLoop,
+    ContinueOutsideLoop,
     ReturnOutsideFunction,
 }
 
@@ -37,16 +38,20 @@ pub type RuntimeErrorWithPosition = (RuntimeError, OffsetSpan);
 pub enum StmtResult {
     None,
     Break,
+    Continue,
     Value(Value),
     Return(Option<Value>),
 }
 
 impl StmtResult {
-    pub fn is_loop_terminating(&self) -> bool {
+    // When iterating through a sequence of statements in a block, does this StmtResult
+    // mean the current iteration should end?
+    pub fn is_block_terminating(&self) -> bool {
         match *self {
             StmtResult::None |
             StmtResult::Value(_) => false,
             StmtResult::Break |
+            StmtResult::Continue |
             StmtResult::Return(_) => true,
         }
     }
