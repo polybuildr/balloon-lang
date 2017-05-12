@@ -368,19 +368,21 @@ impl TypeChecker {
                     }
                 }
             }
-            Expr::Tuple(ref elems) => self.check_expr_tuple(elems),
-            Expr::Unary(ref op, ref expr) => self.check_expr_unary_op(op, expr),
-            Expr::UnaryLogical(ref op, ref expr) => self.check_expr_unary_logical_op(op, expr),
+            Expr::Tuple(ref elems) => Some(self.check_expr_tuple(elems)),
+            Expr::Unary(ref op, ref expr) => Some(self.check_expr_unary_op(op, expr)),
+            Expr::UnaryLogical(ref op, ref expr) => {
+                Some(self.check_expr_unary_logical_op(op, expr))
+            }
             Expr::Binary(ref expr1, ref op, ref expr2) => {
-                self.check_expr_binary_expr(expr, expr1, op, expr2)
+                Some(self.check_expr_binary_expr(expr, expr1, op, expr2))
             }
             Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
-                self.check_expr_binary_logical_expr(expr1, op, expr2)
+                Some(self.check_expr_binary_logical_expr(expr1, op, expr2))
             }
             Expr::FnCall(ref f_expr, ref args) => self.check_expr_function_call(expr, f_expr, args),
-            Expr::FnDef(ref fn_def_expr) => self.check_expr_function_definition(fn_def_expr),
+            Expr::FnDef(ref fn_def_expr) => Some(self.check_expr_function_definition(fn_def_expr)),
             Expr::MemberByIdx(ref expr, ref index_expr) => {
-                self.check_expr_member_access_by_index(expr, index_expr)
+                Some(self.check_expr_member_access_by_index(expr, index_expr))
             }
         }
     }
@@ -508,32 +510,32 @@ impl TypeChecker {
         };
     }
 
-    fn check_expr_tuple(&mut self, elems: &[ExprNode]) -> Option<Type> {
+    fn check_expr_tuple(&mut self, elems: &[ExprNode]) -> Type {
         for elem_expr in elems {
             self.check_expr_as_value(elem_expr);
         }
-        Some(Type::Tuple)
+        Type::Tuple
     }
 
-    fn check_expr_unary_op(&mut self, op: &UnOp, expr: &ExprNode) -> Option<Type> {
+    fn check_expr_unary_op(&mut self, op: &UnOp, expr: &ExprNode) -> Type {
         let typ = self.check_expr_as_value(expr);
         match *op {
             UnOp::Neg => {
                 match check_unary_minus_for_type(typ) {
-                    Ok(t) => Some(t),
+                    Ok(t) => t,
                     Err(e) => {
                         self.issues.push((e, expr.pos));
-                        Some(Type::Any)
+                        Type::Any
                     }
                 }
             }
         }
     }
 
-    fn check_expr_unary_logical_op(&mut self, op: &LogicalUnOp, expr: &ExprNode) -> Option<Type> {
+    fn check_expr_unary_logical_op(&mut self, op: &LogicalUnOp, expr: &ExprNode) -> Type {
         self.check_expr_as_value(expr);
         match *op {
-            LogicalUnOp::Not => Some(Type::Bool),
+            LogicalUnOp::Not => Type::Bool,
         }
     }
 
@@ -542,7 +544,7 @@ impl TypeChecker {
                               expr1: &ExprNode,
                               op: &BinOp,
                               expr2: &ExprNode)
-                              -> Option<Type> {
+                              -> Type {
         let checked_type_1 = self.check_expr_as_value(expr1);
         let checked_type_2 = self.check_expr_as_value(expr2);
         use ast::BinOp::*;
@@ -559,9 +561,9 @@ impl TypeChecker {
         match result {
             Err(e) => {
                 self.issues.push((e, binary_expr.pos));
-                Some(Type::Any)
+                Type::Any
             }
-            Ok(t) => Some(t),
+            Ok(t) => t,
         }
     }
 
@@ -569,14 +571,14 @@ impl TypeChecker {
                                       expr1: &ExprNode,
                                       op: &LogicalBinOp,
                                       expr2: &ExprNode)
-                                      -> Option<Type> {
+                                      -> Type {
         match *op {
             LogicalBinOp::And | LogicalBinOp::Or => {
                 self.check_expr_as_value(expr1);
                 self.check_expr_as_value(expr2);
             }
         }
-        Some(Type::Bool)
+        Type::Bool
     }
 
 
@@ -694,7 +696,7 @@ impl TypeChecker {
         }
     }
 
-    fn check_expr_function_definition(&mut self, fn_def_expr: &FnDefExpr) -> Option<Type> {
+    fn check_expr_function_definition(&mut self, fn_def_expr: &FnDefExpr) -> Type {
         let &FnDefExpr {
                  ref maybe_id,
                  ref params,
@@ -738,13 +740,13 @@ impl TypeChecker {
         self.check_statement(body);
         self.env = current_env;
         self.context = old_context;
-        Some(func_type)
+        func_type
     }
 
     fn check_expr_member_access_by_index(&mut self,
                                          expr: &ExprNode,
                                          index_expr: &ExprNode)
-                                         -> Option<Type> {
+                                         -> Type {
         let object_type = self.check_expr_as_value(expr);
         match object_type {
             Type::Tuple | Type::Any => {}
@@ -762,7 +764,7 @@ impl TypeChecker {
                            index_expr.pos));
             }
         };
-        Some(Type::Any)
+        Type::Any
     }
 
     fn check_expr_as_value(&mut self, expr: &ExprNode) -> Type {
