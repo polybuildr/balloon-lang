@@ -104,20 +104,20 @@ impl AstWalkInterpreter {
     fn eval_expr(&mut self, e: &ExprNode) -> Result<Option<Value>, RuntimeErrorWithPosition> {
         match e.data {
             Expr::Literal(ref x) => Ok(Some(Value::from(x.data.clone()))),
-            Expr::Identifier(ref id) => self.eval_expr_identifier(id, e),
-            Expr::Tuple(ref elems) => self.eval_expr_tuple(elems),
-            Expr::Unary(ref op, ref expr) => self.eval_expr_unary(op, expr, e),
-            Expr::UnaryLogical(ref op, ref expr) => self.eval_expr_unary_logical(op, expr),
+            Expr::Identifier(ref id) => wrap(self.eval_expr_identifier(id, e)),
+            Expr::Tuple(ref elems) => wrap(self.eval_expr_tuple(elems)),
+            Expr::Unary(ref op, ref expr) => wrap(self.eval_expr_unary(op, expr, e)),
+            Expr::UnaryLogical(ref op, ref expr) => wrap(self.eval_expr_unary_logical(op, expr)),
             Expr::Binary(ref expr1, ref op, ref expr2) => {
-                self.eval_expr_binary(op, expr1, expr2, e)
+                wrap(self.eval_expr_binary(op, expr1, expr2, e))
             }
             Expr::BinaryLogical(ref expr1, ref op, ref expr2) => {
-                self.eval_expr_binary_logical(op, expr1, expr2)
+                wrap(self.eval_expr_binary_logical(op, expr1, expr2))
             }
             Expr::MemberByIdx(ref object_expr, ref index_expr) => {
-                self.eval_expr_member_by_idx(object_expr, index_expr, e)
+                wrap(self.eval_expr_member_by_idx(object_expr, index_expr, e))
             }
-            Expr::FnDef(ref fn_def_expr) => self.eval_expr_fn_def(fn_def_expr),
+            Expr::FnDef(ref fn_def_expr) => wrap(self.eval_expr_fn_def(fn_def_expr)),
             Expr::FnCall(ref expr, ref args) => self.eval_expr_fn_call(expr, args, e),
         }
     }
@@ -262,34 +262,32 @@ impl AstWalkInterpreter {
     fn eval_expr_identifier(&mut self,
                             id: &str,
                             id_expr: &ExprNode)
-                            -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                            -> Result<Value, RuntimeErrorWithPosition> {
         match self.env.borrow_mut().get_value(id) {
-            Some(v) => Ok(Some(v)),
+            Some(v) => Ok(v),
             None => Err((RuntimeError::ReferenceError(id.to_owned()), id_expr.pos)),
         }
     }
 
-    fn eval_expr_tuple(&mut self,
-                       elems: &[ExprNode])
-                       -> Result<Option<Value>, RuntimeErrorWithPosition> {
+    fn eval_expr_tuple(&mut self, elems: &[ExprNode]) -> Result<Value, RuntimeErrorWithPosition> {
         let mut values = Vec::new();
         for elem_expr in elems {
             let val = self.eval_expr_as_value(elem_expr)?;
             values.push(val);
         }
-        Ok(Some(Value::Tuple(values)))
+        Ok(Value::Tuple(values))
     }
 
     fn eval_expr_unary(&mut self,
                        op: &UnOp,
                        expr: &ExprNode,
                        unary_expr: &ExprNode)
-                       -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                       -> Result<Value, RuntimeErrorWithPosition> {
         let val = self.eval_expr_as_value(expr)?;
         match *op {
             UnOp::Neg => {
                 match operations::unary_minus(val) {
-                    Ok(v) => Ok(Some(v)),
+                    Ok(v) => Ok(v),
                     Err(err) => Err((err, unary_expr.pos)),
                 }
             }
@@ -299,10 +297,10 @@ impl AstWalkInterpreter {
     fn eval_expr_unary_logical(&mut self,
                                op: &LogicalUnOp,
                                expr: &ExprNode)
-                               -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                               -> Result<Value, RuntimeErrorWithPosition> {
         let val = self.eval_expr_as_value(expr)?;
         match *op {
-            LogicalUnOp::Not => Ok(Some(Value::Bool(!val.is_truthy()))),
+            LogicalUnOp::Not => Ok(Value::Bool(!val.is_truthy())),
         }
     }
 
@@ -311,7 +309,7 @@ impl AstWalkInterpreter {
                         expr1: &ExprNode,
                         expr2: &ExprNode,
                         binary_expr: &ExprNode)
-                        -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                        -> Result<Value, RuntimeErrorWithPosition> {
         let val1 = self.eval_expr_as_value(expr1)?;
         let val2 = self.eval_expr_as_value(expr2)?;
         let retval = match *op {
@@ -327,7 +325,7 @@ impl AstWalkInterpreter {
             BinOp::Eq => Ok(Value::Bool(val1 == val2)),
         };
         match retval {
-            Ok(v) => Ok(Some(v)),
+            Ok(v) => Ok(v),
             Err(err) => Err((err, binary_expr.pos)),
         }
     }
@@ -336,23 +334,23 @@ impl AstWalkInterpreter {
                                 op: &LogicalBinOp,
                                 expr1: &ExprNode,
                                 expr2: &ExprNode)
-                                -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                                -> Result<Value, RuntimeErrorWithPosition> {
         match *op {
             LogicalBinOp::And => {
                 let val1 = self.eval_expr_as_value(expr1)?;
                 if !val1.is_truthy() {
-                    return Ok(Some(Value::Bool(false)));
+                    return Ok(Value::Bool(false));
                 }
                 let val2 = self.eval_expr_as_value(expr2)?;
-                Ok(Some(Value::Bool(val2.is_truthy())))
+                Ok(Value::Bool(val2.is_truthy()))
             }
             LogicalBinOp::Or => {
                 let val1 = self.eval_expr_as_value(expr1)?;
                 if val1.is_truthy() {
-                    return Ok(Some(Value::Bool(true)));
+                    return Ok(Value::Bool(true));
                 }
                 let val2 = self.eval_expr_as_value(expr2)?;
-                Ok(Some(Value::Bool(val2.is_truthy())))
+                Ok(Value::Bool(val2.is_truthy()))
             }
         }
     }
@@ -361,7 +359,7 @@ impl AstWalkInterpreter {
                                object_expr: &ExprNode,
                                index_expr: &ExprNode,
                                member_access_expr: &ExprNode)
-                               -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                               -> Result<Value, RuntimeErrorWithPosition> {
         let object = self.eval_expr_as_value(object_expr)?;
         let index = self.eval_expr_as_value(index_expr)?;
         match object {
@@ -386,7 +384,7 @@ impl AstWalkInterpreter {
                                         member_access_expr.pos));
                         }
                         match v.get(idx as usize) {
-                            Some(x) => Ok(Some(x.clone())),
+                            Some(x) => Ok(x.clone()),
                             None => {
                                 Err((RuntimeError::IndexOutOfBounds(idx), member_access_expr.pos))
                             }
@@ -406,7 +404,7 @@ impl AstWalkInterpreter {
 
     fn eval_expr_fn_def(&mut self,
                         fn_def_expr: &FnDefExpr)
-                        -> Result<Option<Value>, RuntimeErrorWithPosition> {
+                        -> Result<Value, RuntimeErrorWithPosition> {
         let &FnDefExpr {
                  ref maybe_id,
                  ref params,
@@ -430,7 +428,7 @@ impl AstWalkInterpreter {
         if let Some(ref id) = *maybe_id {
             self.env.borrow_mut().declare(id, &func_val);
         }
-        Ok(Some(func_val))
+        Ok(func_val)
     }
 
     fn eval_expr_fn_call(&mut self,
@@ -522,6 +520,14 @@ fn check_args_compat(arg_vals: &[Value],
         return Err((RuntimeError::ArgumentLength(None), expr.pos));
     }
     Ok(())
+}
+
+fn wrap(result: Result<Value, RuntimeErrorWithPosition>)
+        -> Result<Option<Value>, RuntimeErrorWithPosition> {
+    match result {
+        Err(err) => Err(err),
+        Ok(val) => Ok(Some(val)),
+    }
 }
 
 impl Interpreter for AstWalkInterpreter {
