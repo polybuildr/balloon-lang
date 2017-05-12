@@ -141,6 +141,7 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                  span.start_line,
                  span.start_col);
     }
+    let mut is_error = true;
     match err {
         TypeCheckerIssue::RuntimeError(e) => {
             match e {
@@ -252,35 +253,38 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
             println!("{}: `{}` gets different types in branches",
                      Style::new().bold().paint("multiple types from branch"),
                      id);
+            is_error = false;
         }
         TypeCheckerIssue::InsideFunctionCall(issue_with_position) => {
             println!("{}:", Red.bold().paint("issue in function call"));
             error_to_print_after_this = Some(*issue_with_position);
         }
-        TypeCheckerIssue::ReturnTypeMismatch(expected_type, actual_type) => {
-            let expected_type_name = match expected_type {
-                None => "no return value".to_owned(),
-                Some(typ) => format!("type {}", typ),
-            };
-            match actual_type {
-                None => {
-                    println!("{}: function did not return a value, expected {}",
-                             Red.bold().paint("return type mismatch"),
-                             expected_type_name);
+        TypeCheckerIssue::FunctionReturnsMultipleTypes => {
+            println!("{}: different branches of the function return different types",
+                     Style::new()
+                         .bold()
+                         .paint("function returns multiple types"));
+            is_error = false;
+        }
+        TypeCheckerIssue::UnreachableCodeAfterReturn => {
+            println!("{}: code was found after a return statement, making it unreachable",
+                     Style::new().bold().paint("unreachable code"));
+            is_error = false;
+        }
+        TypeCheckerIssue::PossibleNoneError(possible_id) => {
+            match possible_id {
+                Some(id) => {
+                    println!("{}: tried to use return value of function `{}` that \
+                             does not always return a value",
+                             Red.bold().paint("possibly missing value"),
+                             id);
                 }
-                Some(typ) => {
-                    println!("{}: returned value is of type {}, expected {}",
-                             Red.bold().paint("return type mismatch"),
-                             typ,
-                             expected_type_name);
+                None => {
+                    println!("{}: tried to use return value of function that \
+                             does not always return a value",
+                             Red.bold().paint("possibly missing value"));
                 }
             }
-        }
-        TypeCheckerIssue::ArgumentTypeMismatch(expected_type, actual_type) => {
-            println!("{}: expected type {} but found type {}",
-                     Red.bold().paint("argument type mismatch"),
-                     expected_type,
-                     actual_type);
         }
     }
 
@@ -318,13 +322,22 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
 
         println!("{line_num:width$} | {}{}",
                  first_line_start_string,
-                 Red.bold().paint(first_line_rest_string),
+                 if is_error {
+                         Red.bold()
+                     } else {
+                         Style::new().bold()
+                     }
+                     .paint(first_line_rest_string),
                  line_num = span.start_line,
                  width = max_idx_width);
 
         for line_num in span.start_line..span.end_line - 1 {
             println!("{line_num:width$} | {}",
-                     Red.bold()
+                     if is_error {
+                             Red.bold()
+                         } else {
+                             Style::new().bold()
+                         }
                          .paint(file_content.lines().nth(line_num).unwrap()),
                      line_num = line_num + 1,
                      width = max_idx_width);
@@ -348,7 +361,12 @@ pub fn print_typechecker_error_for_file(err: TypeCheckerIssue,
                 .collect::<Vec<u8>>();
             let last_line_rest_string = str::from_utf8(&last_line_rest_bytes).unwrap();
             println!("{line_num:width$} | {}{}",
-                     Red.bold().paint(last_line_start_string),
+                     if is_error {
+                             Red.bold()
+                         } else {
+                             Style::new().bold()
+                         }
+                         .paint(last_line_start_string),
                      last_line_rest_string,
                      line_num = span.end_line,
                      width = max_idx_width);

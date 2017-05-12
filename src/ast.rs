@@ -1,7 +1,5 @@
 use std::fmt;
 
-use typechecker::ConstraintType;
-
 pub type OffsetSpan = (usize, usize);
 
 #[derive(Debug, Clone, PartialEq)]
@@ -112,9 +110,8 @@ pub enum BindingType {
 #[derive(Debug, Clone)]
 pub struct FnDefExpr {
     pub maybe_id: Option<String>,
-    pub params: Vec<(String, Option<ConstraintType>)>,
+    pub params: Vec<String>,
     pub body: Box<StmtNode>,
-    pub maybe_ret_type: Option<ConstraintType>,
 }
 
 #[derive(Debug, Clone)]
@@ -125,7 +122,6 @@ pub enum Expr {
     BinaryLogical(Box<ExprNode>, LogicalBinOp, Box<ExprNode>),
     Unary(UnOp, Box<ExprNode>),
     UnaryLogical(LogicalUnOp, Box<ExprNode>),
-    // optional name, list of params, body, optional return type
     FnDef(FnDefExpr),
     FnCall(Box<ExprNode>, Vec<ExprNode>),
     Tuple(Vec<ExprNode>),

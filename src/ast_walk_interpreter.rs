@@ -9,7 +9,6 @@ use environment::Environment;
 use function::*;
 use runtime::*;
 use typechecker::Type;
-use typechecker::ConstraintType;
 
 #[derive(Clone)]
 struct Context {
@@ -409,18 +408,13 @@ impl AstWalkInterpreter {
                  ref maybe_id,
                  ref params,
                  ref body,
-                 ref maybe_ret_type,
              } = fn_def_expr;
-        let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
-            params.iter().cloned().unzip();
         let func = Function::User {
-            ret_type: maybe_ret_type.clone(),
             call_sign: CallSign {
                 num_params: params.len(),
                 variadic: false,
-                param_types: param_types,
             },
-            param_names: param_names.clone(),
+            param_names: params.clone(),
             body: body.clone(),
             env: self.env.clone(),
         };

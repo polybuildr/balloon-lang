@@ -1,7 +1,7 @@
 use parser;
 use typechecker::{TypeChecker, TypeCheckerIssue, TypeCheckerIssueWithPosition};
 use runtime::RuntimeError;
-use typechecker::{Type, ConstraintType};
+use typechecker::Type;
 use ast::*;
 
 fn check_and_get_result(code: &str) -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
@@ -117,9 +117,9 @@ fn check_multiple_types_from_branch() {
 fn check_none_error_for_builtin() {
     let result = check_and_get_result("-println(10);");
     assert_eq!(result.unwrap_err(),
-               [(TypeCheckerIssue::RuntimeError(RuntimeError::NoneError(Some("println"
-                     .to_owned()))),
-                 (1, 12))]);
+               [
+        (TypeCheckerIssue::PossibleNoneError(Some("println".to_owned())), (1, 12)),
+    ]);
 }
 
 #[test]
@@ -139,14 +139,18 @@ fn check_arg_mismatch_pass() {
 
 #[test]
 fn check_type_error_in_fn() {
-    let result = check_and_get_result("fn f() { true + 1; }");
-    assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::BinaryTypeError(BinOp::Add,
-                                                                      Type::Bool,
-                                                                      Type::Number)),
-         (9, 17)),
-    ]);
+    let result = check_and_get_result("fn f() { true + 1; } f();");
+    assert_eq!(result.unwrap_err(), [(
+        TypeCheckerIssue::InsideFunctionCall(
+            Box::new((
+                TypeCheckerIssue::RuntimeError(
+                    RuntimeError::BinaryTypeError(BinOp::Add, Type::Bool, Type::Number)
+                ),
+                (9, 17)
+            ))
+        ),
+        (21, 24)
+    )]);
 }
 
 #[test]
@@ -157,12 +161,16 @@ fn check_no_reference_error_in_fn() {
 
 #[test]
 fn check_reference_error_in_fn() {
-    let result = check_and_get_result("fn f() { x; }");
-    assert_eq!(result.unwrap_err(),
-               [
-        (TypeCheckerIssue::RuntimeError(RuntimeError::ReferenceError("x".to_owned())),
-         (9, 10)),
-    ]);
+    let result = check_and_get_result("fn f() { x; } f();");
+    assert_eq!(result.unwrap_err(), [(
+        TypeCheckerIssue::InsideFunctionCall(
+            Box::new((
+                TypeCheckerIssue::RuntimeError(RuntimeError::ReferenceError("x".to_owned())),
+                (9, 10)
+            ))
+        ),
+        (14, 17)
+    )]);
 }
 
 #[test]
@@ -230,40 +238,4 @@ add(false, false);";
             (64, 76)
         ),
     ]);
-}
-
-#[test]
-fn check_return_type() {
-    let code = "fn add(a, b): Number {
-    return true;
-}";
-    assert_eq!(check_and_get_result(code).unwrap_err(),
-               [
-        (TypeCheckerIssue::ReturnTypeMismatch(Some(ConstraintType::Number),
-                                              Some(ConstraintType::Bool)),
-         (27, 39)),
-    ]);
-}
-
-#[test]
-fn check_inferred_return_type() {
-    let code = "fn bool_id(a): Bool {
-    return a;
-}
-
-bool_id(1);";
-    assert_eq!(check_and_get_result(code).unwrap_err(),
-        [(
-            TypeCheckerIssue::InsideFunctionCall(
-                Box::new(
-                    (
-                        TypeCheckerIssue::ReturnTypeMismatch(
-                            Some(ConstraintType::Bool), Some(ConstraintType::Number)
-                        ),
-                        (26, 35))
-                )
-            ),
-            (39, 49)
-        )]
-    );
 }
