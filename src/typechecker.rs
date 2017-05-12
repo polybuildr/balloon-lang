@@ -548,7 +548,7 @@ impl TypeChecker {
         use ast::BinOp::*;
         let result = match *op {
             Add => check_add_for_types(&checked_type_1, &checked_type_2),
-            ref op @ Sub | ref op @ Mul | ref op @ Div => {
+            ref op @ Sub | ref op @ Mul | ref op @ Div | ref op @ Mod => {
                 check_binary_arithmetic_for_types(op.clone(), &checked_type_1, &checked_type_2)
             }
             ref op @ Lt | ref op @ Lte | ref op @ Gt | ref op @ Gte => {

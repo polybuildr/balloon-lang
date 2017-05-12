@@ -137,6 +137,7 @@ binary_expr -> ExprNode = #infix<single_expr_node> {
        x OP_MINUS y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Sub, Box::new(y)) } }
     #L x OP_ASTERISK y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Mul, Box::new(y)) } }
        x OP_SLASH y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Div, Box::new(y)) } }
+       x OP_MOD y { ExprNode { pos: (0, 0), data: Expr::Binary(Box::new(x), BinOp::Mod, Box::new(y)) } }
 }
 
 single_expr_node -> ExprNode
@@ -256,6 +257,7 @@ OP_PLUS = "+"
 OP_MINUS = "-"
 OP_ASTERISK = "*"
 OP_SLASH = "/"
+OP_MOD = "%"
 OP_COLON = ":"
 OP_LESS_THAN = "<"
 OP_GREATER_THAN = ">"

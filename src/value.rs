@@ -69,6 +69,15 @@ impl fmt::Display for Value {
     }
 }
 
+impl Number {
+    pub fn signum(&self) -> Number {
+        match *self {
+            Number::Integer(x) => Number::Integer(x.signum()),
+            Number::Float(x) => Number::Float(x.signum()),
+        }
+    }
+}
+
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -126,6 +135,19 @@ impl ops::Div for Number {
             (Number::Float(x), Number::Float(y)) => Number::Float(x / y),
             (Number::Float(x), Number::Integer(y)) => Number::Float(x / (y as f64)),
             (Number::Integer(x), Number::Float(y)) => Number::Float((x as f64) / y),
+        }
+    }
+}
+
+impl ops::Rem for Number {
+    type Output = Number;
+
+    fn rem(self, other: Number) -> Number {
+        match (self, other) {
+            (Number::Integer(x), Number::Integer(y)) => Number::Float((x as f64) % (y as f64)),
+            (Number::Float(x), Number::Float(y)) => Number::Float(x % y),
+            (Number::Float(x), Number::Integer(y)) => Number::Float(x % (y as f64)),
+            (Number::Integer(x), Number::Float(y)) => Number::Float((x as f64) % y),
         }
     }
 }

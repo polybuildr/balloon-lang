@@ -44,6 +44,13 @@ pub fn divide(a: Value, b: Value) -> Result<Value, RuntimeError> {
     }
 }
 
+pub fn modulo(a: Value, b: Value) -> Result<Value, RuntimeError> {
+    match (a, b) {
+        (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a.signum() * (a % b))),
+        (a, b) => Err(RuntimeError::BinaryTypeError(BinOp::Mod, a.get_type(), b.get_type())),
+    }
+}
+
 pub fn less_than(a: Value, b: Value) -> Result<Value, RuntimeError> {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(a < b)),

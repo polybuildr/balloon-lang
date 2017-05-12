@@ -318,6 +318,7 @@ impl AstWalkInterpreter {
             BinOp::Sub => operations::subtract(val1, val2),
             BinOp::Mul => operations::multiply(val1, val2),
             BinOp::Div => operations::divide(val1, val2),
+            BinOp::Mod => operations::modulo(val1, val2),
             BinOp::Lt => operations::less_than(val1, val2),
             BinOp::Lte => operations::less_than_or_equal(val1, val2),
             BinOp::Gt => operations::greater_than(val1, val2),
