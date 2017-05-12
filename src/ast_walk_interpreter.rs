@@ -8,6 +8,7 @@ use operations;
 use environment::Environment;
 use function::*;
 use runtime::*;
+use typechecker::Type;
 use typechecker::ConstraintType;
 
 #[derive(Clone)]
@@ -366,19 +367,33 @@ impl AstWalkInterpreter {
         match object {
             Value::Tuple(ref v) => {
                 match index {
-                    Value::Number(Number::Integer(i)) => {
-                        if i < 0 {
-                            return Err((RuntimeError::IndexOutOfBounds(i), member_access_expr.pos));
+                    Value::Number(n) => {
+                        let idx;
+                        if let Number::Float(f) = n {
+                            if f.fract() == 0.0 {
+                                idx = f.trunc() as i64;
+                            } else {
+                                return Err((RuntimeError::NonIntegralSubscript(Type::Number),
+                                            index_expr.pos));
+                            }
+                        } else if let Number::Integer(i) = n {
+                            idx = i;
+                        } else {
+                            unreachable!();
                         }
-                        match v.get(i as usize) {
+                        if idx < 0 {
+                            return Err((RuntimeError::IndexOutOfBounds(idx),
+                                        member_access_expr.pos));
+                        }
+                        match v.get(idx as usize) {
                             Some(x) => Ok(Some(x.clone())),
                             None => {
-                                Err((RuntimeError::IndexOutOfBounds(i), member_access_expr.pos))
+                                Err((RuntimeError::IndexOutOfBounds(idx), member_access_expr.pos))
                             }
                         }
                     }
-                    non_int_index => {
-                        Err((RuntimeError::NonIntegralSubscript(non_int_index.get_type()),
+                    non_num_index => {
+                        Err((RuntimeError::NonIntegralSubscript(non_num_index.get_type()),
                              index_expr.pos))
                     }
                 }
