@@ -5,13 +5,11 @@ use value::*;
 use ast;
 use environment::Environment;
 use runtime::RuntimeError;
-use typechecker::ConstraintType;
 
 #[derive(Clone, Debug)]
 pub struct CallSign {
     pub num_params: usize,
     pub variadic: bool,
-    pub param_types: Vec<Option<ConstraintType>>,
 }
 
 #[derive(Clone, Debug)]
@@ -19,7 +17,6 @@ pub enum Function {
     NativeVoid(CallSign, fn(Vec<Value>) -> Result<(), RuntimeError>),
     NativeReturning(CallSign, fn(Vec<Value>) -> Result<Value, RuntimeError>),
     User {
-        ret_type: Option<ConstraintType>,
         call_sign: CallSign,
         param_names: Vec<String>,
         body: Box<ast::StmtNode>,

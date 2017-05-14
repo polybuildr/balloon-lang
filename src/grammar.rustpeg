@@ -1,5 +1,4 @@
 use ast::*;
-use typechecker::ConstraintType;
 
 pub program -> Vec<StmtNode>
     = __ terminators? s:statements { s }
@@ -71,41 +70,21 @@ function_definition_node -> ExprNode
     = __ lpos:#position f:function_definition rpos:#position __ { ExprNode { pos: (lpos, rpos), data: f } }
 
 function_definition -> Expr
-    = FN __ i:identifier? __ OPEN_PAREN __ params:param_list __ COMMA? __ CLOSE_PAREN __ maybe_ret_hint:return_type_hint? __ lpos:#position body:block rpos:#position __ {
-        let return_type = match maybe_ret_hint {
-            Some(ret_hint) => ret_hint,
-            None => Some(ConstraintType::Any),
-        };
+    = FN __ i:identifier? __ OPEN_PAREN __ params:param_list __ COMMA? __ CLOSE_PAREN __ lpos:#position body:block rpos:#position __ {
         Expr::FnDef(
             FnDefExpr {
                 maybe_id: i,
                 params: params,
                 body: Box::new(StmtNode { pos: (lpos, rpos), data: body } ),
-                maybe_ret_type: return_type,
             }
         )
     }
 
-param_list -> Vec<(String, Option<ConstraintType>)>
-    = identifier_with_possible_type ** COMMA
+param_list -> Vec<String>
+    = identifier_with_whitespace ** COMMA
 
-identifier_with_possible_type -> (String, Option<ConstraintType>)
-    = __ id:identifier __ t:type_hint? __ { (id, t) }
-
-return_type_hint -> Option<ConstraintType>
-    = COLON __ VOID { None }
-    / COLON __ t:typ { Some(t) }
-
-type_hint -> ConstraintType
-    = COLON __ t:typ { t }
-
-typ -> ConstraintType
-    = NUMBER { ConstraintType::Number }
-    / BOOL { ConstraintType::Bool }
-    / STRING { ConstraintType::String }
-    / FUNCTION { ConstraintType::Function }
-    / TUPLE { ConstraintType::Tuple }
-    / ANY { ConstraintType::Any }
+identifier_with_whitespace -> String
+    = __ id:identifier __ { id }
 
 expr_node -> ExprNode
     = e:binary_expr_node { e }

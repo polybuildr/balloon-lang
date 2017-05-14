@@ -16,12 +16,11 @@ pub enum FunctionType {
     NativeVoid(CallSign),
     NativeReturning(CallSign),
     User {
-        ret_type: Option<ConstraintType>,
         call_sign: CallSign,
         param_names: Vec<String>,
         body: Box<ast::StmtNode>,
         env: Rc<RefCell<TypeEnvironment>>,
-        already_checked_param_types: LinearMap<Vec<ConstraintType>, ()>,
+        already_checked_param_types: LinearMap<Vec<Type>, ()>,
     },
 }
 
@@ -45,65 +44,26 @@ pub enum Type {
     String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum ConstraintType {
-    Number,
-    Bool,
-    Any,
-    Function,
-    Tuple,
-    String,
-}
-
-impl ConstraintType {
-    fn compatible_with(&self, other: &ConstraintType) -> bool {
-        match (self, other) {
-            (&ConstraintType::Number, &ConstraintType::Number) |
-            (&ConstraintType::Bool, &ConstraintType::Bool) |
-            (&ConstraintType::Function, &ConstraintType::Function) |
-            (&ConstraintType::Tuple, &ConstraintType::Tuple) |
-            (&ConstraintType::String, &ConstraintType::String) |
-            (&ConstraintType::Any, _) |
-            (_, &ConstraintType::Any) => true,
-            _ => false,
-        }
-    }
-}
-
-impl From<ConstraintType> for Type {
-    fn from(from: ConstraintType) -> Self {
-        match from {
-            ConstraintType::Any => Type::Any,
-            ConstraintType::Bool => Type::Bool,
-            ConstraintType::Function => Type::Function(Box::new(None)),
-            ConstraintType::Number => Type::Number,
-            ConstraintType::String => Type::String,
-            ConstraintType::Tuple => Type::Tuple,
-        }
-    }
-}
-
-impl Eq for ConstraintType {}
-
-impl From<Type> for ConstraintType {
-    fn from(from: Type) -> Self {
-        match from {
-            Type::Any => ConstraintType::Any,
-            Type::Bool => ConstraintType::Bool,
-            Type::Function(_) => ConstraintType::Function,
-            Type::Number => ConstraintType::Number,
-            Type::String => ConstraintType::String,
-            Type::Tuple => ConstraintType::Tuple,
-        }
-    }
-}
-
 impl PartialEq for Type {
     fn eq(&self, other: &Type) -> bool {
         match (self, other) {
             (&Type::Number, &Type::Number) |
             (&Type::Bool, &Type::Bool) |
-            (&Type::Function(_), &Type::Function(_)) |
+            (&Type::Function(_), &Type::Function(_)) | // TODO
+            (&Type::String, &Type::String) |
+            (&Type::Tuple, &Type::Tuple) |
+            (&Type::Any, &Type::Any) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Type {
+    fn is_compatible_with(&self, other: &Type) -> bool {
+        match (self, other) {
+            (&Type::Number, &Type::Number) |
+            (&Type::Bool, &Type::Bool) |
+            (&Type::Function(_), &Type::Function(_)) | // TODO
             (&Type::String, &Type::String) |
             (&Type::Tuple, &Type::Tuple) |
             (&Type::Any, _) |
@@ -112,6 +72,8 @@ impl PartialEq for Type {
         }
     }
 }
+
+impl Eq for Type {}
 
 impl From<ast::Literal> for Type {
     fn from(from: ast::Literal) -> Self {
@@ -137,17 +99,12 @@ impl fmt::Display for Type {
     }
 }
 
-impl fmt::Display for ConstraintType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", Type::from(self.clone()))
-    }
-}
-
 #[derive(Clone)]
 struct Context {
     pub in_loop: bool,
     pub in_func: bool,
-    pub func_ret_type: Option<ConstraintType>,
+    // Some(None) represents a non-returning function
+    pub func_ret_type: Option<Option<Type>>,
 }
 
 impl Context {
@@ -165,10 +122,9 @@ pub enum TypeCheckerIssue {
     RuntimeError(RuntimeError),
     MultipleTypesFromBranchWarning(String),
     InsideFunctionCall(Box<TypeCheckerIssueWithPosition>),
-    /// expected, actual
-    ReturnTypeMismatch(Option<ConstraintType>, Option<ConstraintType>),
-    /// expected, actual
-    ArgumentTypeMismatch(ConstraintType, ConstraintType),
+    FunctionReturnsMultipleTypes,
+    PossibleNoneError(Option<String>),
+    UnreachableCodeAfterReturn,
 }
 
 pub type TypeCheckerIssueWithPosition = (TypeCheckerIssue, OffsetSpan);
@@ -199,19 +155,16 @@ impl TypeEnvironment {
              FunctionType::NativeVoid(CallSign {
                                           num_params: 0,
                                           variadic: true,
-                                          param_types: vec![],
                                       })),
             ("len",
              FunctionType::NativeReturning(CallSign {
                                                num_params: 1,
                                                variadic: false,
-                                               param_types: vec![None],
                                            })),
             ("run_http_server",
              FunctionType::NativeVoid(CallSign {
                                           num_params: 1,
                                           variadic: false,
-                                          param_types: vec![Some(ConstraintType::Function)],
                                       })),
         ];
         for item in builtin_functions.iter() {
@@ -281,6 +234,12 @@ impl TypeEnvironment {
     }
 }
 
+#[derive(Debug)]
+pub enum StmtEffect {
+    None,
+    Return,
+}
+
 pub struct TypeChecker {
     context: Context,
     issues: Vec<TypeCheckerIssueWithPosition>,
@@ -310,49 +269,62 @@ impl TypeChecker {
         }
     }
 
-    pub fn check_statement(&mut self, s: &StmtNode) {
+    pub fn check_statement(&mut self, s: &StmtNode) -> StmtEffect {
         match s.data {
             Stmt::VarDecl(ref variable, ref expr) => {
                 self.check_statement_variable_declaration(variable, expr);
+                StmtEffect::None
             }
             Stmt::Assign(ref lhs_expr, ref expr) => {
                 self.check_statement_assignment(lhs_expr, expr);
+                StmtEffect::None
             }
             Stmt::Block(ref statements) => {
                 let current_env = self.env.clone();
                 self.env = TypeEnvironment::create_child(current_env.clone());
-                self.check_statements(statements);
+                let mut last_effect = StmtEffect::None;
+                for stmt in statements.iter() {
+                    if let StmtEffect::Return = last_effect {
+                        self.issues
+                            .push((TypeCheckerIssue::UnreachableCodeAfterReturn,
+                                   (stmt.pos.0, statements.last().unwrap().pos.1)));
+                        // unreachable code, stop checking
+                        break;
+                    }
+                    last_effect = self.check_statement(stmt);
+                }
                 self.env = current_env;
+                last_effect
             }
             Stmt::Expr(ref expr) => {
                 self.check_expr(expr);
+                StmtEffect::None
             }
-            Stmt::IfThen(ref if_then_stmt) => {
-                self.check_statement_if_then_else(s, if_then_stmt);
-            }
+            Stmt::IfThen(ref if_then_stmt) => self.check_statement_if_then_else(s, if_then_stmt),
             Stmt::Loop(ref block) => {
                 let old_in_loop_value = self.context.in_loop;
                 self.context.in_loop = true;
-                self.check_statement(block);
+                let effect = self.check_statement(block);
                 self.context.in_loop = old_in_loop_value;
+                effect
             }
             Stmt::Break => {
                 if self.context.in_loop != true {
                     self.issues
                         .push((RuntimeError::BreakOutsideLoop.into(), s.pos));
                 }
+                StmtEffect::None
             }
             Stmt::Continue => {
                 if self.context.in_loop != true {
                     self.issues
                         .push((RuntimeError::ContinueOutsideLoop.into(), s.pos));
                 }
+                StmtEffect::None
             }
-            Stmt::Empty => {}
-            Stmt::Return(ref possible_expr) => {
-                self.check_statement_return(possible_expr, s);
-            }
-        };
+            Stmt::Empty => StmtEffect::None,
+            Stmt::Return(ref possible_expr) => self.check_statement_return(possible_expr, s),
+        }
     }
 
     fn check_expr(&mut self, expr: &ExprNode) -> Option<Type> {
@@ -410,7 +382,10 @@ impl TypeChecker {
         };
     }
 
-    fn check_statement_if_then_else(&mut self, statement: &StmtNode, if_then_stmt: &IfThenStmt) {
+    fn check_statement_if_then_else(&mut self,
+                                    statement: &StmtNode,
+                                    if_then_stmt: &IfThenStmt)
+                                    -> StmtEffect {
         let &IfThenStmt {
                  ref cond,
                  ref then_block,
@@ -434,12 +409,12 @@ impl TypeChecker {
         let else_env = TypeEnvironment::create_clone(current_env.clone());
 
         self.env = then_env;
-        self.check_statement(then_block);
+        let then_effect = self.check_statement(then_block);
 
         let then_pairs = self.env.borrow().get_all_pairs();
 
         self.env = else_env;
-        self.check_statement(&else_block);
+        let else_effect = self.check_statement(&else_block);
 
         let else_pairs = self.env.borrow().get_all_pairs();
 
@@ -451,7 +426,7 @@ impl TypeChecker {
             if then_name != else_name {
                 panic!("Unexpected behaviour when iterating through environments!");
             }
-            if else_type != then_type {
+            if !else_type.is_compatible_with(then_type) {
                 self.issues
                     .push((TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
                            statement.pos));
@@ -460,54 +435,73 @@ impl TypeChecker {
                 self.env.borrow_mut().set(then_name, then_type.clone());
             }
         }
+
+        if let (StmtEffect::Return, StmtEffect::Return) = (then_effect, else_effect) {
+            StmtEffect::Return
+        } else {
+            StmtEffect::None
+        }
     }
 
     fn check_statement_return(&mut self,
                               possible_expr: &Option<ExprNode>,
-                              return_statement: &StmtNode) {
+                              return_statement: &StmtNode)
+                              -> StmtEffect {
         if self.context.in_func != true {
             self.issues
                 .push((RuntimeError::ReturnOutsideFunction.into(), return_statement.pos));
             // if the return is outside a function, don't typecheck anything else wrt the return
-            return;
+            return StmtEffect::None;
         }
         match *possible_expr {
+            // represents `return foo;`
             Some(ref expr) => {
                 let actual_type = self.check_expr_as_value(expr);
-                let actual_return_constraint_type = ConstraintType::from(actual_type);
-                match self.context.func_ret_type {
-                    None => {
-                        self.issues.push((
-                            TypeCheckerIssue::ReturnTypeMismatch(
-                                None, Some(actual_return_constraint_type)
-                            ),
-                            return_statement.pos
-                        ));
-                    }
-                    Some(ref expected_type) => {
-                        if !actual_return_constraint_type.compatible_with(expected_type) {
-                            self.issues.push((
-                                TypeCheckerIssue::ReturnTypeMismatch(
-                                    Some(expected_type.clone()),
-                                    Some(actual_return_constraint_type)
-                                ),
-                                return_statement.pos
-                            ));
+                self.context.func_ret_type = match self.context.func_ret_type {
+                    None => Some(Some(actual_type)),
+                    Some(ref maybe_type /* : Option<Type> */) => {
+                        match *maybe_type {
+                            // Some(None), non-returning
+                            None => {
+                                // If the function didn't return a value at some point,
+                                // then that's the case we'll stick with because the function
+                                // does not *always* return a value.
+
+                                // But we will complain that this time it did return a value.
+                                self.issues
+                                    .push((TypeCheckerIssue::FunctionReturnsMultipleTypes,
+                                           return_statement.pos));
+                                None
+                            }
+                            // Some(Some(typ)), returning typ
+                            Some(ref typ) => {
+                                if !actual_type.is_compatible_with(&typ) {
+                                    self.issues
+                                        .push((TypeCheckerIssue::FunctionReturnsMultipleTypes,
+                                               return_statement.pos));
+                                    Some(Some(Type::Any))
+                                } else {
+                                    Some(Some(typ.clone()))
+                                }
+                            }
                         }
                     }
-                }
+                };
+                StmtEffect::Return
             }
+            // represents `return;`
             None => {
-                if !self.context.func_ret_type.is_none() {
-                    self.issues.push((
-                        TypeCheckerIssue::ReturnTypeMismatch(
-                            self.context.clone().func_ret_type, None
-                        ),
-                        return_statement.pos
-                    ));
-                }
+                // If the function did return a value previously, then it is returning
+                // "multiple types".
+                self.issues
+                    .push((TypeCheckerIssue::FunctionReturnsMultipleTypes, return_statement.pos));
+
+                // No matter what the value was before, if it is ever non-returning,
+                // we have to remember that
+                self.context.func_ret_type = Some(None);
+                StmtEffect::Return
             }
-        };
+        }
     }
 
     fn check_expr_tuple(&mut self, elems: &[ExprNode]) -> Type {
@@ -591,8 +585,7 @@ impl TypeChecker {
 
         let mut arg_types = Vec::new();
         for arg in args.iter() {
-            let arg_type = self.check_expr_as_value(arg);
-            arg_types.push(arg_type);
+            arg_types.push(self.check_expr_as_value(arg));
         }
 
         let func_type = match checked_type {
@@ -616,29 +609,21 @@ impl TypeChecker {
         };
 
         let func_call_sign = func_type.get_call_sign();
-        if !func_call_sign.variadic &&
-           arg_types.len() != func_type.get_call_sign().param_types.len() {
-            if let Expr::Identifier(ref id) = expr.data {
-                self.issues
-                    .push((RuntimeError::ArgumentLength(Some(id.clone())).into(), expr.pos));
-            } else {
-                self.issues
-                    .push((RuntimeError::ArgumentLength(None).into(), expr.pos));
-            }
+        if !func_call_sign.variadic && args.len() != func_type.get_call_sign().num_params {
+            self.issues
+                .push((RuntimeError::ArgumentLength(try_get_name_of_fn(&expr)).into(), expr.pos));
             return Some(Type::Any);
-        } else {
-            if let Err(mut e) = check_args_compat(&arg_types, args, &func_call_sign) {
-                self.issues.append(&mut e);
-            }
-
-            if let FunctionType::User {
-                       ref param_names,
-                       ref body,
-                       ref env,
-                       ref already_checked_param_types,
-                       ref ret_type,
-                       ..
-                   } = func_type {
+        }
+        match func_type {
+            FunctionType::NativeVoid(_) => None,
+            FunctionType::NativeReturning(_) => Some(Type::Any),
+            FunctionType::User {
+                ref param_names,
+                ref body,
+                ref env,
+                ref already_checked_param_types,
+                ..
+            } => {
                 let function_env = TypeEnvironment::create_child(self.env.clone());
                 for (param, arg) in param_names.iter().zip(arg_types.iter()) {
                     function_env.borrow_mut().declare(param, arg);
@@ -647,7 +632,7 @@ impl TypeChecker {
 
                 let constraint_types = arg_types.iter().map(|typ| typ.clone().into()).collect();
                 if !already_checked_param_types.contains_key(&constraint_types) {
-                    if let Some(id) = try_get_name_of_fn(&Box::new(f_expr.clone())) {
+                    if let Some(id) = try_get_name_of_fn(&f_expr) {
                         let mut new_checked_param_types = already_checked_param_types.clone();
                         new_checked_param_types.insert(constraint_types, ());
                         let new_func_type =
@@ -660,37 +645,52 @@ impl TypeChecker {
                         self.context = Context {
                             in_loop: false,
                             in_func: true,
-                            func_ret_type: ret_type.clone(),
+                            func_ret_type: None,
                         };
                         let mut outer_issues = self.issues.clone();
                         self.issues = Vec::new();
                         let current_env = self.env.clone();
                         self.env = inner_env;
-                        self.check_statement(body);
+                        let fn_body_effect = self.check_statement(body);
                         self.env = current_env;
                         for inner_issue in &self.issues {
                             outer_issues
-                                .push((
-                                    TypeCheckerIssue::InsideFunctionCall(
-                                        Box::new(inner_issue.clone())
-                                    ),
-                                    expr.pos
-                                ));
+                            .push((
+                                TypeCheckerIssue::InsideFunctionCall(
+                                    Box::new(inner_issue.clone())
+                                ),
+                                expr.pos
+                            ));
                         }
                         self.issues = outer_issues;
-                        self.context = old_context;
-                    }
-                }
-            };
-        }
+                        let ret_type;
+                        if let StmtEffect::None = fn_body_effect {
+                            None
+                        } else {
+                            match self.context.func_ret_type {
+                                // non-returning
+                                None | Some(None) => {
+                                    ret_type = None;
+                                }
+                                Some(ref typ) => {
+                                    ret_type = typ.clone();
+                                }
+                            }
 
-        match func_type {
-            FunctionType::NativeVoid(_) => None,
-            FunctionType::NativeReturning(_) => Some(Type::Any),
-            FunctionType::User { ref ret_type, .. } => {
-                match *ret_type {
-                    None => None,
-                    Some(ref typ) => Some(typ.clone().into()),
+                            self.context = old_context;
+                            ret_type
+                        }
+                    } else {
+                        // TODO
+                        // If the function is anonymous, no typechecking is performed,
+                        // but probably could and should be.
+                        Some(Type::Any)
+                    }
+                } else {
+                    // TODO
+                    // If it's been previously checked, remember that and
+                    // use the return type
+                    Some(Type::Any)
                 }
             }
         }
@@ -701,45 +701,21 @@ impl TypeChecker {
                  ref maybe_id,
                  ref params,
                  ref body,
-                 ref maybe_ret_type,
              } = fn_def_expr;
-        let (param_names, param_types): (Vec<String>, Vec<Option<ConstraintType>>) =
-            params.iter().cloned().unzip();
-        let mut linear_map_with_any_set = LinearMap::new();
-        linear_map_with_any_set.insert(vec![ConstraintType::Any; params.len()], ());
         let func = FunctionType::User {
-            ret_type: maybe_ret_type.clone(),
             call_sign: CallSign {
                 num_params: params.len(),
                 variadic: false,
-                param_types: param_types.clone(),
             },
-            param_names: param_names.to_vec(),
+            param_names: params.to_vec(),
             body: body.clone(),
             env: self.env.clone(),
-            already_checked_param_types: linear_map_with_any_set,
+            already_checked_param_types: LinearMap::new(),
         };
         let func_type = Type::Function(Box::new(Some(func)));
         if let Some(ref id) = *maybe_id {
             self.env.borrow_mut().declare(id, &func_type);
         }
-        let function_env = TypeEnvironment::create_clone(self.env.clone());
-
-        for param in param_names {
-            function_env.borrow_mut().declare(&param, &Type::Any);
-        }
-        let inner_env = TypeEnvironment::create_child(function_env);
-        let old_context = self.context.clone();
-        self.context = Context {
-            in_loop: false,
-            in_func: true,
-            func_ret_type: maybe_ret_type.clone(),
-        };
-        let current_env = self.env.clone();
-        self.env = inner_env;
-        self.check_statement(body);
-        self.env = current_env;
-        self.context = old_context;
         func_type
     }
 
@@ -773,10 +749,10 @@ impl TypeChecker {
             if let Expr::FnCall(ref f_expr, _) = expr.data {
                 if let Expr::Identifier(ref id) = f_expr.data {
                     self.issues
-                        .push((RuntimeError::NoneError(Some(id.clone())).into(), expr.pos));
+                        .push((TypeCheckerIssue::PossibleNoneError(Some(id.clone())), expr.pos));
                 } else {
                     self.issues
-                        .push((RuntimeError::NoneError(None).into(), expr.pos));
+                        .push((TypeCheckerIssue::PossibleNoneError(None), expr.pos));
                 }
             } else {
                 unreachable!();
@@ -828,7 +804,7 @@ fn check_binary_comparison_for_types(op: BinOp,
     }
 }
 
-fn try_get_name_of_fn(expr: &Box<ExprNode>) -> Option<String> {
+fn try_get_name_of_fn(expr: &ExprNode) -> Option<String> {
     if let Expr::Identifier(ref id) = expr.data {
         Some(id.to_string())
     } else {
@@ -836,45 +812,15 @@ fn try_get_name_of_fn(expr: &Box<ExprNode>) -> Option<String> {
     }
 }
 
-fn check_args_compat(arg_types: &[Type],
-                     arg_nodes: &[ExprNode],
-                     call_sign: &CallSign)
-                     -> Result<(), Vec<TypeCheckerIssueWithPosition>> {
-    let mut issues = Vec::new();
-    let types_iter = arg_types.iter().zip(call_sign.clone().param_types);
-    for (arg_node, (arg_type, possible_expected_type)) in arg_nodes.iter().zip(types_iter) {
-        let arg_constraint_type = ConstraintType::from(arg_type.clone());
-        match possible_expected_type {
-            None => {
-                continue;
-            }
-            Some(ref expected_type) => {
-                if !arg_constraint_type.compatible_with(expected_type) {
-                    issues.push((TypeCheckerIssue::ArgumentTypeMismatch(expected_type.clone(),
-                                                                        arg_constraint_type),
-                                 arg_node.pos));
-                }
-            }
-        }
-    }
-    if issues.is_empty() {
-        Ok(())
-    } else {
-        Err(issues)
-    }
-}
-
-fn get_function_type_with_updated_already_checked(
-    old_fn_type: &FunctionType,
-    new_already_checked: LinearMap<Vec<ConstraintType>,()>)
--> FunctionType{
+fn get_function_type_with_updated_already_checked(old_fn_type: &FunctionType,
+                                                  new_already_checked: LinearMap<Vec<Type>, ()>)
+                                                  -> FunctionType {
 
     if let FunctionType::User {
                ref param_names,
                ref body,
                ref env,
                ref call_sign,
-               ref ret_type,
                ..
            } = *old_fn_type {
         FunctionType::User {
@@ -883,7 +829,6 @@ fn get_function_type_with_updated_already_checked(
             env: env.clone(),
             already_checked_param_types: new_already_checked,
             call_sign: call_sign.clone(),
-            ret_type: ret_type.clone(),
         }
     } else {
         panic!("Not a user function");
