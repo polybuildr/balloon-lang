@@ -12,6 +12,7 @@ peg = { version = "0.5" }
 
 [features]
 cargo-clippy = []
+file-tests = []
 
 [dependencies]
 ansi_term = "0.9.0"
