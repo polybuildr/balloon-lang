@@ -156,6 +156,16 @@ impl TypeEnvironment {
                                           num_params: 0,
                                           variadic: true,
                                       })),
+            ("assert",
+             FunctionType::NativeVoid(CallSign {
+                                          num_params: 1,
+                                          variadic: false,
+                                      })),
+            ("assert_eq",
+             FunctionType::NativeVoid(CallSign {
+                                          num_params: 2,
+                                          variadic: false,
+                                      })),
             ("len",
              FunctionType::NativeReturning(CallSign {
                                                num_params: 1,

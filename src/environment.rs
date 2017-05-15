@@ -29,6 +29,18 @@ impl Environment {
                                       variadic: true,
                                   },
                                   native_println)),
+            ("assert",
+             Function::NativeVoid(CallSign {
+                                      num_params: 1,
+                                      variadic: false,
+                                  },
+                                  native_assert)),
+            ("assert_eq",
+             Function::NativeVoid(CallSign {
+                                      num_params: 2,
+                                      variadic: false,
+                                  },
+                                  native_assert_eq)),
             ("run_http_server",
              Function::NativeVoid(CallSign {
                                       num_params: 1,

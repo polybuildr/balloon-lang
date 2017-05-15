@@ -52,6 +52,28 @@ pub fn native_println(args: Vec<Value>) -> Result<(), RuntimeError> {
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+pub fn native_assert(args: Vec<Value>) -> Result<(), RuntimeError> {
+    let val = &args[0];
+    if !val.is_truthy() {
+        Err(RuntimeError::GeneralRuntimeError(format!("assert: assertion failed for value {}",
+                                                      val)))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
+pub fn native_assert_eq(args: Vec<Value>) -> Result<(), RuntimeError> {
+    let (val1, val2) = (&args[0], &args[1]);
+
+    if val1 != val2 {
+        Err(RuntimeError::GeneralRuntimeError(format!("assert_eq: {} != {}", val1, val2)))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn native_len(args: Vec<Value>) -> Result<Value, RuntimeError> {
     let val = &args[0];
     match *val {
