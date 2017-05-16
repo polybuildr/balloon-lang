@@ -100,13 +100,6 @@ fn {name}() {{
             expected_err_str = expected_err_str)
 }
 
-fn read_file(path: PathBuf) -> String {
-    let mut file = File::open(path).unwrap();
-    let mut content = String::new();
-    file.read_to_string(&mut content).unwrap();
-    content
-}
-
 fn generate_typecheck_fail_tests() -> io::Result<Vec<String>> {
     let mut tests = Vec::new();
     for entry in fs::read_dir("tests/typecheck-fail")? {
@@ -174,14 +167,21 @@ fn {name}() {{
             code = code)
 }
 
+fn read_file(path: PathBuf) -> String {
+    let mut file = File::open(path).unwrap();
+    let mut content = String::new();
+    file.read_to_string(&mut content).unwrap();
+    content
+}
+
 fn test_name_from_entry(entry: &DirEntry, prefix: &str) -> String {
     let path = entry.path();
     let file_stem = path.file_stem();
     let partial_test_name = file_stem
-                                 .unwrap()
-                                 .to_str()
-                                 .unwrap()
-                                 .to_owned()
-                                 .replace("-", "_");
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned()
+        .replace("-", "_");
     prefix.to_owned() + "_" + &partial_test_name
 }
