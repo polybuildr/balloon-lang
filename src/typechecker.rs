@@ -485,7 +485,7 @@ impl TypeChecker {
                             }
                             // Some(Some(typ)), returning typ
                             Some(ref typ) => {
-                                if !actual_type.is_compatible_with(&typ) {
+                                if !actual_type.is_compatible_with(typ) {
                                     self.issues
                                         .push((TypeCheckerIssue::FunctionReturnsMultipleTypes,
                                                return_statement.pos));
@@ -621,7 +621,7 @@ impl TypeChecker {
         let func_call_sign = func_type.get_call_sign();
         if !func_call_sign.variadic && args.len() != func_type.get_call_sign().num_params {
             self.issues
-                .push((RuntimeError::ArgumentLength(try_get_name_of_fn(&expr)).into(), expr.pos));
+                .push((RuntimeError::ArgumentLength(try_get_name_of_fn(expr)).into(), expr.pos));
             return Some(Type::Any);
         }
         match func_type {
@@ -642,7 +642,7 @@ impl TypeChecker {
 
                 let constraint_types = arg_types.iter().map(|typ| typ.clone().into()).collect();
                 if !already_checked_param_types.contains_key(&constraint_types) {
-                    if let Some(id) = try_get_name_of_fn(&f_expr) {
+                    if let Some(id) = try_get_name_of_fn(f_expr) {
                         let mut new_checked_param_types = already_checked_param_types.clone();
                         new_checked_param_types.insert(constraint_types, ());
                         let new_func_type =
