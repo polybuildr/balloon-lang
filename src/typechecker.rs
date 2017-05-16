@@ -605,6 +605,11 @@ impl TypeChecker {
                     Some(func_type) => func_type,
                 }
             }
+            Type::Any => {
+                // Don't know anything about this type. Allow it to be called
+                // as func, and then assume the return type is Any.
+                return Some(Type::Any);
+            }
             v => {
                 if let Expr::Identifier(ref id) = expr.data {
                     self.issues
