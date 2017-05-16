@@ -1,0 +1,10 @@
+var a = 5;
+assert_eq(a, 5);
+var b = 22.5;
+assert_eq(b, 22.5);
+var c = true;
+assert_eq(c, true);
+var d = "Check string.";
+assert_eq(d, "Check string.");
+var e = ("A", 1, false, 12.109);
+assert_eq(e, ("A", 1, false, 12.109));

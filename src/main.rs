@@ -43,6 +43,11 @@ mod interpreter_test;
 #[cfg(test)]
 mod typechecker_test;
 
+#[cfg(all(test, feature = "file-tests"))]
+mod file_test {
+    include!(concat!(env!("OUT_DIR"), "/file_tests.rs"));
+}
+
 use runtime::*;
 use ast_walk_interpreter::AstWalkInterpreter;
 use llvm_interpreter::LLVMInterpreter;
