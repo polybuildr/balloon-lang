@@ -50,6 +50,15 @@ if_statement -> Stmt
             }
         )
     }
+    / IF __ e:expr_node __ lpos1:#position b1:block rpos1:#position __ ELSE __ lpos2:#position elseif:if_statement rpos2:#position __ {
+        Stmt::IfThen(
+            IfThenStmt {
+                cond: e,
+                then_block: Box::new(StmtNode { pos: (lpos1, rpos1), data: b1 }),
+                maybe_else_block: Some(Box::new(StmtNode { pos: (lpos2, rpos2), data: elseif })),
+            }
+        )
+    }
     / IF e:expr_node lpos:#position b:block rpos:#position {
         Stmt::IfThen(
             IfThenStmt {
