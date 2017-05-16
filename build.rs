@@ -18,7 +18,8 @@ fn generate_tests() -> io::Result<()> {
     let out_dir: PathBuf = env::var_os("OUT_DIR").unwrap().into();
     let output_path = out_dir.join("file_tests").with_extension("rs");
     let mut output_file = File::create(&output_path).unwrap();
-    output_file.write_all(b"
+    output_file
+        .write_all(b"
 use parser;
 use runtime::Interpreter;
 use ast_walk_interpreter::AstWalkInterpreter;
@@ -41,7 +42,11 @@ fn generate_run_pass_tests() -> io::Result<Vec<String>> {
         let mut file = File::open(entry.path()).unwrap();
         let mut content = String::new();
         file.read_to_string(&mut content)?;
-        let test_name = "run_pass_".to_owned() + &name.into_string().unwrap().replace("-", "_").replace(".", "_");
+        let test_name = "run_pass_".to_owned() +
+                        &name.into_string()
+                             .unwrap()
+                             .replace("-", "_")
+                             .replace(".", "_");
         tests.push(make_run_pass_test_fn(&test_name, &content));
     }
     Ok(tests)
@@ -58,7 +63,9 @@ fn {name}() {{
         .run_ast_as_program(&ast)
         .unwrap();
 }}
-", name=name, code=code)
+",
+            name = name,
+            code = code)
 }
 
 fn generate_run_fail_tests() -> io::Result<Vec<String>> {
@@ -70,7 +77,11 @@ fn generate_run_fail_tests() -> io::Result<Vec<String>> {
             continue;
         }
         let content = read_file(entry.path());
-        let test_name = "run_fail_".to_owned() + &name.into_string().unwrap().replace("-", "_").replace(".", "_");
+        let test_name = "run_fail_".to_owned() +
+                        &name.into_string()
+                             .unwrap()
+                             .replace("-", "_")
+                             .replace(".", "_");
         let expected_err_to_str = read_file(entry.path().with_extension("err"));
         tests.push(make_run_fail_test_fn(&test_name, &content, &expected_err_to_str.trim()));
     }
@@ -92,7 +103,10 @@ fn {name}() {{
         r#\"{expected_err_str}\"#
     );
 }}
-", name=name, code=code, expected_err_str=expected_err_str)
+",
+            name = name,
+            code = code,
+            expected_err_str = expected_err_str)
 }
 
 fn read_file(path: PathBuf) -> String {
@@ -111,11 +125,13 @@ fn generate_typecheck_fail_tests() -> io::Result<Vec<String>> {
             continue;
         }
         let content = read_file(entry.path());
-        let test_name = "typecheck_fail_".to_owned() + &name.into_string().unwrap().replace("-", "_").replace(".", "_");
+        let test_name = "typecheck_fail_".to_owned() +
+                        &name.into_string()
+                             .unwrap()
+                             .replace("-", "_")
+                             .replace(".", "_");
         let expected_err_to_str = read_file(entry.path().with_extension("err"));
-        tests.push(
-            make_typecheck_fail_test_fn(&test_name, &content, &expected_err_to_str.trim())
-        );
+        tests.push(make_typecheck_fail_test_fn(&test_name, &content, &expected_err_to_str.trim()));
     }
     Ok(tests)
 }
@@ -135,5 +151,8 @@ fn {name}() {{
         r#\"{expected_err_str}\"#
     );
 }}
-", name=name, code=code, expected_err_str=expected_err_str)
+",
+            name = name,
+            code = code,
+            expected_err_str = expected_err_str)
 }
