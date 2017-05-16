@@ -28,6 +28,7 @@ use typechecker::TypeChecker;
     let mut tests = Vec::new();
     tests.append(&mut generate_run_pass_tests()?);
     tests.append(&mut generate_run_fail_tests()?);
+    tests.append(&mut generate_typecheck_pass_tests()?);
     tests.append(&mut generate_typecheck_fail_tests()?);
     let test_fns_str = tests.concat();
     output_file.write_all(test_fns_str.as_bytes())?;
@@ -140,6 +141,37 @@ fn {name}() {{
             name = name,
             code = code,
             expected_err_str = expected_err_str)
+}
+
+fn generate_typecheck_pass_tests() -> io::Result<Vec<String>> {
+    let mut tests = Vec::new();
+    for entry in fs::read_dir("tests/typecheck-pass")? {
+        let entry = entry?;
+        if entry.path().extension().unwrap() != "bl" {
+            continue;
+        }
+        let content = read_file(entry.path());
+        let test_name = test_name_from_entry(&entry, "typecheck_pass");
+        tests.push(make_typecheck_pass_test_fn(&test_name, &content));
+    }
+    Ok(tests)
+}
+
+fn make_typecheck_pass_test_fn(name: &str, code: &str) -> String {
+    format!("
+#[test]
+fn {name}() {{
+    let code = r#\"{code}\"#;
+    let ast = parser::program(code).unwrap();
+    let mut checker = TypeChecker::new();
+    checker.check_program(&ast);
+    let issues = checker.get_issues();
+    println!(\"{{:?}}\", issues);
+    assert_eq!(issues, []);
+}}
+",
+            name = name,
+            code = code)
 }
 
 fn test_name_from_entry(entry: &DirEntry, prefix: &str) -> String {
