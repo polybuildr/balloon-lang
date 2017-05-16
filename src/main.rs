@@ -44,8 +44,13 @@ mod interpreter_test;
 mod typechecker_test;
 
 #[cfg(all(test, feature = "file-tests"))]
-mod file_tests {
-    include!(concat!(env!("OUT_DIR"), "/file_tests.rs"));
+mod run_pass_files {
+    include!(concat!(env!("OUT_DIR"), "/run_pass_files.rs"));
+}
+
+#[cfg(all(test, feature = "file-tests"))]
+mod run_fail_files {
+    include!(concat!(env!("OUT_DIR"), "/run_fail_files.rs"));
 }
 
 use runtime::*;
