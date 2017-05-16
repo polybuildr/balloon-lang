@@ -1,0 +1,8 @@
+assert(1);
+assert(not 0);
+assert(1.1);
+assert(not 0.0);
+assert("Hello!");
+assert(not "");
+assert((1, 2));
+assert(not (,));

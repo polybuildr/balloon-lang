@@ -1,0 +1,19 @@
+fn Y(f) {
+    var lazy_wrapper = fn () { return Y(f); };
+    return f(lazy_wrapper);
+}
+
+fn factorial_wrap(lazy_wrap_fact) {
+    fn factorial(i) {
+        if (i == 0) {
+            return 1;
+        } else {
+            return i * lazy_wrap_fact()(i - 1);
+        }
+    }
+    return factorial;
+}
+
+var fact = Y(factorial_wrap);
+
+assert_eq(fact(5), 120);

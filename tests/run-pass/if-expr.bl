@@ -1,0 +1,15 @@
+var x = 5;
+if true {
+    x = 12;
+}
+assert_eq(x, 12);
+if false {
+    x = 22;
+}
+assert_eq(x, 12);
+if false {
+    x = 22;
+} else {
+    x = 42;
+}
+assert_eq(x, 42);

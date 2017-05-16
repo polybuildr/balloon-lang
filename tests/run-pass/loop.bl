@@ -1,0 +1,6 @@
+var x = 0;
+loop {
+    if x > 20 { break; }
+    x = x + 5;
+}
+assert_eq(x, 25);

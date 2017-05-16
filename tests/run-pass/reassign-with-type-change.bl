@@ -1,0 +1,3 @@
+var x = 10;
+x = false;
+assert_eq(x, false);

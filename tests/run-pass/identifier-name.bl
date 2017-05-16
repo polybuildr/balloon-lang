@@ -1,0 +1,2 @@
+var _x_X123_ = false;
+assert_eq(_x_X123_, false);

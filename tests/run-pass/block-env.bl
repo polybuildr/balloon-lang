@@ -1,0 +1,9 @@
+var x = 3;
+var y = 10;
+{
+    var x = 6;
+    assert_eq(x, 6);
+    y = 20;
+}
+assert_eq(x, 3);
+assert_eq(y, 20);

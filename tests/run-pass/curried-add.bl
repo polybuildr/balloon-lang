@@ -1,0 +1,7 @@
+fn add_x(x) {
+    return fn(y) {
+        return x + y;
+    };
+}
+
+assert_eq(add_x("Hello,")(" world!"), "Hello, world!");

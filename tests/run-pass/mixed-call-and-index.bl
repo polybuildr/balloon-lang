@@ -1,0 +1,2 @@
+assert_eq(((fn() { return false; },), 2, 3)[0][0](), false);
+assert_eq(fn() { return fn() { return (1, 2, true); }; }()()[2], true);
