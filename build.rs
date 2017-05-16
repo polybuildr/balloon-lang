@@ -3,7 +3,7 @@ extern crate peg;
 use std::io;
 use std::io::{Read, Write};
 use std::fs;
-use std::fs::File;
+use std::fs::{DirEntry, File};
 use std::path::PathBuf;
 use std::env;
 
@@ -38,15 +38,10 @@ fn generate_run_pass_tests() -> io::Result<Vec<String>> {
     let mut tests = Vec::new();
     for entry in fs::read_dir("tests/run-pass")? {
         let entry = entry?;
-        let name = entry.file_name();
+        let test_name = test_name_from_entry(&entry, "run_pass");
         let mut file = File::open(entry.path()).unwrap();
         let mut content = String::new();
         file.read_to_string(&mut content)?;
-        let test_name = "run_pass_".to_owned() +
-                        &name.into_string()
-                             .unwrap()
-                             .replace("-", "_")
-                             .replace(".", "_");
         tests.push(make_run_pass_test_fn(&test_name, &content));
     }
     Ok(tests)
@@ -72,17 +67,12 @@ fn generate_run_fail_tests() -> io::Result<Vec<String>> {
     let mut tests = Vec::new();
     for entry in fs::read_dir("tests/run-fail")? {
         let entry = entry?;
-        let name = entry.file_name();
         if entry.path().extension().unwrap() != "bl" {
             continue;
         }
         let content = read_file(entry.path());
-        let test_name = "run_fail_".to_owned() +
-                        &name.into_string()
-                             .unwrap()
-                             .replace("-", "_")
-                             .replace(".", "_");
         let expected_err_to_str = read_file(entry.path().with_extension("err"));
+        let test_name = test_name_from_entry(&entry, "run_fail");
         tests.push(make_run_fail_test_fn(&test_name, &content, &expected_err_to_str.trim()));
     }
     Ok(tests)
@@ -120,17 +110,12 @@ fn generate_typecheck_fail_tests() -> io::Result<Vec<String>> {
     let mut tests = Vec::new();
     for entry in fs::read_dir("tests/typecheck-fail")? {
         let entry = entry?;
-        let name = entry.file_name();
         if entry.path().extension().unwrap() != "bl" {
             continue;
         }
         let content = read_file(entry.path());
-        let test_name = "typecheck_fail_".to_owned() +
-                        &name.into_string()
-                             .unwrap()
-                             .replace("-", "_")
-                             .replace(".", "_");
         let expected_err_to_str = read_file(entry.path().with_extension("err"));
+        let test_name = test_name_from_entry(&entry, "typecheck_fail");
         tests.push(make_typecheck_fail_test_fn(&test_name, &content, &expected_err_to_str.trim()));
     }
     Ok(tests)
@@ -155,4 +140,16 @@ fn {name}() {{
             name = name,
             code = code,
             expected_err_str = expected_err_str)
+}
+
+fn test_name_from_entry(entry: &DirEntry, prefix: &str) -> String {
+    let path = entry.path();
+    let file_stem = path.file_stem();
+    let partial_test_name = file_stem
+                                 .unwrap()
+                                 .to_str()
+                                 .unwrap()
+                                 .to_owned()
+                                 .replace("-", "_");
+    prefix.to_owned() + "_" + &partial_test_name
 }
