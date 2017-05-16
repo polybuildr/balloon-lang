@@ -231,9 +231,13 @@ identifier -> String
 _identifier -> String
     = !reserved_identifier i:$([a-zA-Z_][a-zA-Z0-9_]*[!?]?) { i.to_string() }
 
-__ = whitespace*
+__ = #quiet<(whitespace / comment)*>
 
-whitespace = #quiet<[ \t\n]>
+comment = "#" (!eol_char .)*
+
+eol_char = [\n\r]
+
+whitespace = [ \t\n\r]
 
 EQUALS = #quiet<"="> / #expected("equals")
 

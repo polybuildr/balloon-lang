@@ -1,0 +1,15 @@
+# comment
+fn f() {#comment
+    var x = 5; # comment
+    if true { #comment
+        # comment
+        x = 20;#comment
+    } # comment
+    else {
+        x = 10;
+    } # comment
+    return x; #comment
+    # comment
+} #comment
+# comment
+assert_eq(f(), 20); # comment
