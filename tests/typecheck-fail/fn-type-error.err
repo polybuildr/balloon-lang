@@ -1,0 +1,1 @@
+[(InsideFunctionCall((RuntimeError(BinaryTypeError(Add, Bool, Bool)), (26, 31))), (36, 51)), (InsideFunctionCall((RuntimeError(BinaryTypeError(Add, Bool, Number)), (26, 31))), (64, 76))]

@@ -1,0 +1,8 @@
+fn add(a, b) {
+    return a + b;
+}
+
+add(true, true);
+add(1, 1);
+add(true, 1);
+add(false, false);

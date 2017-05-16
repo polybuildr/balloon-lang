@@ -1,0 +1,1 @@
+[(RuntimeError(BinaryTypeError(Add, Number, Bool)), (0, 8)), (RuntimeError(BinaryTypeError(Add, Bool, Number)), (10, 18)), (RuntimeError(BinaryTypeError(Add, Bool, Bool)), (20, 32))]

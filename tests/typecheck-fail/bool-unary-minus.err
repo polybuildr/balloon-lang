@@ -1,0 +1,1 @@
+[(RuntimeError(UnaryTypeError(Neg, Bool)), (1, 6))]

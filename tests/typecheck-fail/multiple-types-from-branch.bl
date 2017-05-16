@@ -1,0 +1,16 @@
+var x = 5;
+if true {
+    x = true;
+} else {
+    x = 10;
+}
+var x = 1;
+if 1 {
+    if 2 {
+        x = true;
+    } else {
+        x = 1;
+    }
+} else {
+    x = 5;
+}

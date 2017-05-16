@@ -1,5 +1,10 @@
 var a = 5;
+a;
 var b = 22.5;
+b;
 var c = true;
+c;
 var d = "Check string.";
+d;
 var e = ("A", 1, false, 12.109);
+e;
