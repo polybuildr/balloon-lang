@@ -131,7 +131,13 @@ impl ops::Div for Number {
 
     fn div(self, other: Number) -> Number {
         match (self, other) {
-            (Number::Integer(x), Number::Integer(y)) => Number::Float((x as f64) / (y as f64)),
+            (Number::Integer(x), Number::Integer(y)) => {
+                if x % y == 0 {
+                    Number::Integer(x / y)
+                } else {
+                    Number::Float((x as f64) / (y as f64))
+                }
+            }
             (Number::Float(x), Number::Float(y)) => Number::Float(x / y),
             (Number::Float(x), Number::Integer(y)) => Number::Float(x / (y as f64)),
             (Number::Integer(x), Number::Float(y)) => Number::Float((x as f64) / y),
@@ -144,7 +150,7 @@ impl ops::Rem for Number {
 
     fn rem(self, other: Number) -> Number {
         match (self, other) {
-            (Number::Integer(x), Number::Integer(y)) => Number::Float((x as f64) % (y as f64)),
+            (Number::Integer(x), Number::Integer(y)) => Number::Integer(x % y),
             (Number::Float(x), Number::Float(y)) => Number::Float(x % y),
             (Number::Float(x), Number::Integer(y)) => Number::Float(x % (y as f64)),
             (Number::Integer(x), Number::Float(y)) => Number::Float((x as f64) % y),
