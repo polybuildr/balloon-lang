@@ -13,10 +13,11 @@ extern crate linear_map;
 
 extern crate hyper;
 
+#[cfg(feature = "llvm-backend")]
 extern crate llvm_sys;
-
+#[cfg(feature = "llvm-backend")]
 extern crate itertools;
-
+#[cfg(feature = "llvm-backend")]
 extern crate libc;
 
 // include output of rust-peg given grammar.rustpeg
@@ -28,6 +29,7 @@ mod parser {
 mod ast;
 mod runtime;
 mod ast_walk_interpreter;
+#[cfg(feature = "llvm-backend")]
 mod llvm_interpreter;
 mod value;
 mod operations;
@@ -47,17 +49,21 @@ mod file_test {
 
 use runtime::*;
 use ast_walk_interpreter::AstWalkInterpreter;
+#[cfg(feature = "llvm-backend")]
 use llvm_interpreter::LLVMInterpreter;
 
 use error::*;
 
 // FIXME: How do you represent the usage style in POSIX notation?
 fn print_usage() {
-    println!("usage: balloon [--repl-llvm | [MODE] FILE ]
+    if cfg!(feature = "llvm-backend") {
+        println!("usage: balloon [--repl-llvm | [MODE] FILE ]
 
-
---repl-llvm     launches the experimental REPL
-
+--repl-llvm     launches the experimental REPL");
+    } else {
+        println!("usage: balloon [MODE] FILE");
+    }
+    println!("
 where MODE is one of:
 --run           (default) runs the file [FILE]
 --check         type check the file [FILE]
@@ -71,6 +77,7 @@ fn main() {
         1 => repl::run_repl(AstWalkInterpreter::new()),
         2 => {
             match args[1].as_str() {
+                #[cfg(feature = "llvm-backend")]
                 "--repl-llvm" => repl::run_repl(LLVMInterpreter::new()),
                 filepath => run_file(filepath, AstWalkInterpreter::new()),
             }
