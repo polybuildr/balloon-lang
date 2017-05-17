@@ -7,12 +7,12 @@ if rustc --version | grep "nightly"
 then
     echo "On nightly."
     echo "Running cargo clippy..."
-    cargo rustc --features "clippy cargo-clippy" -- -Z no-trans -Z extra-plugins=clippy
+    cargo rustc --features "clippy cargo-clippy llvm-backend" -- -Z no-trans -Z extra-plugins=clippy
     CARGO_EXIT_CODE=$?
 else
     echo "Not on nightly."
     echo "Running only cargo check..."
-    cargo check
+    cargo check --features "llvm-backend"
     CARGO_EXIT_CODE=$?
 fi
 
