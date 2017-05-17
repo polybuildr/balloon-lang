@@ -27,4 +27,4 @@ before_script:
   - bash lint.sh
 
 script:
-  - cargo test --features file-tests llvm-backend
+  - cargo test --features "file-tests llvm-backend"
