@@ -1,0 +1,5 @@
+fn test() {
+    break;
+}
+test();
+return 5;

@@ -680,6 +680,7 @@ impl TypeChecker {
                         self.issues = outer_issues;
                         let ret_type;
                         if let StmtEffect::None = fn_body_effect {
+                            self.context = old_context;
                             None
                         } else {
                             match self.context.func_ret_type {
