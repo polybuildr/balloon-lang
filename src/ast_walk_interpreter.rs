@@ -68,6 +68,9 @@ impl AstWalkInterpreter {
         match s.data {
             Stmt::VarDecl(ref variable, ref expr) => self.eval_stmt_var_decl(variable, expr),
             Stmt::Assign(ref lhs_expr, ref expr) => self.eval_stmt_assign(lhs_expr, expr),
+            Stmt::AssignOp(ref lhs_expr, ref op, ref expr) => {
+                self.eval_stmt_assign_with_op(lhs_expr, op, expr, s)
+            }
             Stmt::Block(ref statements) => self.eval_stmt_block(statements),
             Stmt::Expr(ref expr) => {
                 let val = self.eval_expr(expr)?;
@@ -144,6 +147,42 @@ impl AstWalkInterpreter {
                 if !self.env.borrow_mut().set(id, val) {
                     return Err((RuntimeError::UndeclaredAssignment(id.clone()), lhs_expr.pos));
                 }
+            }
+        };
+        Ok(StmtResult::None)
+    }
+
+    fn eval_stmt_assign_with_op(&mut self,
+                                lhs_expr: &LhsExprNode,
+                                op: &BinOp,
+                                expr: &ExprNode,
+                                stmt: &StmtNode)
+                                -> Result<StmtResult, RuntimeErrorWithPosition> {
+        let val = self.eval_expr_as_value(expr)?;
+        match lhs_expr.data {
+            LhsExpr::Identifier(ref id) => {
+                let prev_expr_val = match self.env.borrow_mut().get_value(id) {
+                    Some(v) => v,
+                    None => {
+                        return Err((RuntimeError::ReferenceError(id.to_owned()), lhs_expr.pos));
+                    }
+                };
+                let retval = match *op {
+                    BinOp::Add => operations::add(prev_expr_val, val),
+                    BinOp::Sub => operations::subtract(prev_expr_val, val),
+                    BinOp::Mul => operations::multiply(prev_expr_val, val),
+                    BinOp::Div => operations::divide(prev_expr_val, val),
+                    BinOp::Mod => operations::modulo(prev_expr_val, val),
+                    BinOp::Lt | BinOp::Lte | BinOp::Gt | BinOp::Gte | BinOp::Eq => unreachable!(),
+                };
+                let new_val = match retval {
+                    Ok(val) => val,
+                    Err(e) => {
+                        return Err((e, stmt.pos));
+                    }
+                };
+                // id must exist, because it was checked above
+                self.env.borrow_mut().set(id, new_val);
             }
         };
         Ok(StmtResult::None)

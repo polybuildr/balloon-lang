@@ -146,6 +146,7 @@ pub struct IfThenStmt {
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Assign(LhsExprNode, ExprNode),
+    AssignOp(LhsExprNode, BinOp, ExprNode),
     VarDecl(Variable, ExprNode),
     Expr(ExprNode),
     Block(Vec<StmtNode>),

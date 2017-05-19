@@ -1,0 +1,1 @@
+[(RuntimeError(BinaryTypeError(Add, Bool, Number)), (14, 21))]

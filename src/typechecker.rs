@@ -289,6 +289,10 @@ impl TypeChecker {
                 self.check_statement_assignment(lhs_expr, expr);
                 StmtEffect::None
             }
+            Stmt::AssignOp(ref lhs_expr, ref op, ref expr) => {
+                self.check_statement_assignment_with_op(lhs_expr, op, expr, s);
+                StmtEffect::None
+            }
             Stmt::Block(ref statements) => {
                 let current_env = self.env.clone();
                 self.env = TypeEnvironment::create_child(current_env.clone());
@@ -388,6 +392,47 @@ impl TypeChecker {
                         .push((RuntimeError::UndeclaredAssignment(id.clone()).into(),
                                lhs_expr.pos));
                 }
+            }
+        };
+    }
+
+    fn check_statement_assignment_with_op(&mut self,
+                                          lhs_expr: &LhsExprNode,
+                                          op: &BinOp,
+                                          expr: &ExprNode,
+                                          stmt: &StmtNode) {
+        let checked_type = self.check_expr_as_value(expr);
+        match lhs_expr.data {
+            LhsExpr::Identifier(ref id) => {
+                let prev_type = match self.env.borrow_mut().get_type(id) {
+                    Some(t) => t,
+                    None => {
+                        self.issues
+                            .push((RuntimeError::ReferenceError(id.to_owned()).into(),
+                                   lhs_expr.pos));
+                        Type::Any
+                    }
+                };
+                let retval = match *op {
+                    BinOp::Add => check_add_for_types(&prev_type, &checked_type),
+                    ref op @ BinOp::Sub |
+                    ref op @ BinOp::Mul |
+                    ref op @ BinOp::Div |
+                    ref op @ BinOp::Mod => {
+                        check_binary_arithmetic_for_types(op.clone(), &prev_type, &checked_type)
+                    }
+                    _ => unreachable!(),
+                };
+                let new_type = match retval {
+                    Ok(t) => t,
+                    Err(issue) => {
+                        self.issues.push((issue, stmt.pos));
+                        Type::Any
+                    }
+                };
+
+                // if id does not exist, then error was reported above
+                self.env.borrow_mut().set(id, new_type);
             }
         };
     }

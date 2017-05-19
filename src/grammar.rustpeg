@@ -26,6 +26,16 @@ assignment_statement -> Stmt
     = lpos:#position i:identifier rpos:#position __ EQUALS __ e:expr_node __ TERMINATOR {
         Stmt::Assign(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, e)
     }
+    / lpos:#position i:identifier rpos:#position __ op:assign_with_op __ e:expr_node __ TERMINATOR {
+        Stmt::AssignOp(LhsExprNode { pos: (lpos, rpos), data: LhsExpr::Identifier(i) }, op, e)
+    }
+
+assign_with_op -> BinOp
+    = OP_PLUS __ EQUALS { BinOp::Add }
+    / OP_MINUS __ EQUALS { BinOp::Sub }
+    / OP_ASTERISK __ EQUALS { BinOp::Mul }
+    / OP_SLASH __ EQUALS { BinOp::Div }
+    / OP_MOD __ EQUALS { BinOp::Mod }
 
 variable_declaration -> Stmt
     = b:binding_type __ i:identifier __ EQUALS __ e:expr_node __ TERMINATOR {
