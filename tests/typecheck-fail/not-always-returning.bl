@@ -1,0 +1,6 @@
+fn hello_sometimes(x) {
+    if x {
+        return "Hello";
+    }
+}
+println(hello_sometimes(true));

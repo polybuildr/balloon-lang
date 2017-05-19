@@ -1,0 +1,1 @@
+[(InsideFunctionCall((RuntimeError(BinaryTypeError(Mul, String, String)), (24, 29))), (34, 45))]

@@ -1,0 +1,4 @@
+var x = println();
+println(println()) + println(println(5));
+not println();
+-println();

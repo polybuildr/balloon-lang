@@ -1,0 +1,1 @@
+[(RuntimeError(CallToNonFunction(Some("f"), Number)), (11, 14))]

@@ -1,0 +1,12 @@
+fn foo(thing) {
+    fn bar() {
+        return thing + 1;
+    }
+    thing = thing + 1;
+    var x = bar();
+    thing = thing + 1;
+    var y = bar();
+    return (x, y);
+}
+
+assert_eq(foo(5), (7, 8));

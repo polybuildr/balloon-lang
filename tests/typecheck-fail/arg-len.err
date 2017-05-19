@@ -1,0 +1,1 @@
+[(RuntimeError(ArgumentLength(Some("foo"))), (12, 18)), (RuntimeError(ArgumentLength(Some("foo"))), (20, 29)), (RuntimeError(ArgumentLength(Some("bar"))), (48, 53)), (RuntimeError(ArgumentLength(Some("bar"))), (55, 61)), (RuntimeError(ArgumentLength(Some("bar"))), (63, 75))]

@@ -1,0 +1,24 @@
+fn foo() {
+    return 5;
+}
+
+foo() + 1;
+
+fn bar(x) {
+    if x {
+        return 10;
+    } else {
+        return false;
+    }
+}
+
+bar(1) + 1;
+
+fn foobar(x) {
+    if x {
+        return 10;
+    }
+    return false;
+}
+
+foobar(10);

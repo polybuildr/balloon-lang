@@ -1,0 +1,15 @@
+fn f1() {
+    {
+        var x = 1;
+        return 5;
+        x = 2;
+    }
+}
+f1();
+
+fn f2() {
+    var x = 2;
+    return 10;
+    println("After return!");
+}
+f2();
