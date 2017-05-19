@@ -611,14 +611,9 @@ impl TypeChecker {
                 return Some(Type::Any);
             }
             v => {
-                if let Expr::Identifier(ref id) = expr.data {
-                    self.issues
-                        .push((RuntimeError::CallToNonFunction(Some(id.clone()), v).into(),
-                               expr.pos));
-                } else {
-                    self.issues
-                        .push((RuntimeError::CallToNonFunction(None, v).into(), expr.pos));
-                }
+                self.issues
+                    .push((RuntimeError::CallToNonFunction(try_get_name_of_fn(f_expr), v).into(),
+                           expr.pos));
                 return Some(Type::Any);
             }
         };
@@ -626,7 +621,7 @@ impl TypeChecker {
         let func_call_sign = func_type.get_call_sign();
         if !func_call_sign.variadic && args.len() != func_type.get_call_sign().num_params {
             self.issues
-                .push((RuntimeError::ArgumentLength(try_get_name_of_fn(expr)).into(), expr.pos));
+                .push((RuntimeError::ArgumentLength(try_get_name_of_fn(f_expr)).into(), expr.pos));
             return Some(Type::Any);
         }
         match func_type {

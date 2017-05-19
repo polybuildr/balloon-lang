@@ -448,7 +448,7 @@ impl AstWalkInterpreter {
         }
 
         let call_sign = func.get_call_sign();
-        check_args_compat(&arg_vals, &call_sign, fn_call_expr)?;
+        check_args_compat(&arg_vals, &call_sign, expr, fn_call_expr)?;
 
         let call_func_result = call_func(&func, &arg_vals);
         match call_func_result {
@@ -505,13 +505,14 @@ pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, R
 
 fn check_args_compat(arg_vals: &[Value],
                      call_sign: &CallSign,
-                     expr: &ExprNode)
+                     expr: &ExprNode,
+                     full_expr: &ExprNode)
                      -> Result<(), RuntimeErrorWithPosition> {
     if !call_sign.variadic && call_sign.num_params != arg_vals.len() {
         if let Expr::Identifier(ref id) = expr.data {
-            return Err((RuntimeError::ArgumentLength(Some(id.clone())), expr.pos));
+            return Err((RuntimeError::ArgumentLength(Some(id.clone())), full_expr.pos));
         }
-        return Err((RuntimeError::ArgumentLength(None), expr.pos));
+        return Err((RuntimeError::ArgumentLength(None), full_expr.pos));
     }
     Ok(())
 }
