@@ -13,12 +13,14 @@ This project is written in Rust. If you're unfamiliar with Rust, you should take
 Balloon is currently not available on crates.io. You will need to build it yourself using Cargo.
 
 ```
-usage: balloon [MODE] FILE
+usage: balloon [[MODE] FILE]
 
 where MODE is one of:
 --run      (default) runs the file
 --check    type check the file
 --parse    only parse the file, don't run it
+
+Not passing any arguments to balloon will start the REPL.
 ```
 
 (There is also an (even more) experimental LLVM backend that is not documented here.)

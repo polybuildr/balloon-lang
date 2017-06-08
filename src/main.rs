@@ -57,17 +57,19 @@ use error::*;
 // FIXME: How do you represent the usage style in POSIX notation?
 fn print_usage() {
     if cfg!(feature = "llvm-backend") {
-        println!("usage: balloon [--repl-llvm | [MODE] FILE ]
+        println!("usage: balloon [--repl-llvm | [MODE] FILE]
 
 --repl-llvm     launches the experimental REPL");
     } else {
-        println!("usage: balloon [MODE] FILE");
+        println!("usage: balloon [[MODE] FILE]");
     }
     println!("
 where MODE is one of:
 --run           (default) runs the file [FILE]
 --check         type check the file [FILE]
---parse         only parse the file [FILE], don't run it");
+--parse         only parse the file [FILE], don't run it
+
+Not passing any arguments to balloon will start the REPL.");
 }
 
 fn main() {
