@@ -25,6 +25,10 @@ If you want to work on the LLVM backend, you'll need to install LLVM (look at th
 $ cargo build --features "llvm-backend"
 ```
 
+## Learning Rust
+
+The [Rust docs](https://www.rust-lang.org/en-US/documentation.html) are a great place to learn Rust from.
+
 ## Project structure for contributions
 
 Say you want to add a new language construct to Balloon. The process looks roughly as follows:
