@@ -10,6 +10,8 @@ This project is written in Rust. If you're unfamiliar with Rust, you should take
 
 Prospective contributors, please take a look at the [Contributors' Guide](CONTRIBUTING.md).
 
+(Also, for the motivation behind this language, take a look at the [introductory blog post](https://blog.vghaisas.com/introducing-balloon/), and a [more detailed blog post](https://blog.vghaisas.com/thoughts-about-balloon/).)
+
 ## Usage
 
 Balloon is currently not available on crates.io. You will need to build it yourself using Cargo. (You could also download one of the prebuilt binaries from this project's [release page](https://github.com/polybuildr/balloon-lang/releases).)
