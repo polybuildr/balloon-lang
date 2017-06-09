@@ -1,4 +1,4 @@
-# Contributors Guide
+# Contributors' Guide
 
 First off, thanks a lot for contributing to Balloon! :D
 

@@ -8,9 +8,11 @@ This is an attempt to build a general-purpose interpreted programming language (
 
 This project is written in Rust. If you're unfamiliar with Rust, you should take a look at the [Rust docs](https://www.rust-lang.org/en-US/documentation.html).
 
+Prospective contributors, please take a look at the [Contributors' Guide](CONTRIBUTING.md).
+
 ## Usage
 
-Balloon is currently not available on crates.io. You will need to build it yourself using Cargo.
+Balloon is currently not available on crates.io. You will need to build it yourself using Cargo. (You could also download one of the prebuilt binaries from this project's [release page](https://github.com/polybuildr/balloon-lang/releases).)
 
 ```
 usage: balloon [[MODE] FILE]
