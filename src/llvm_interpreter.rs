@@ -1,5 +1,3 @@
-// sample LLVM code lifted from
-// https://github.com/Wilfred/bfc/blob/master/src/llvm.rs
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fmt;
