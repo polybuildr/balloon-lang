@@ -7,3 +7,7 @@
 # Allow users to have special .ignore files for things like
 # setting $PATH
 *.ignore
+
+# Ignore generated LLVM bitcode file because it's a binary blob meant
+# for fast de-serialisation.
+lib/prelude.bc

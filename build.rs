@@ -6,12 +6,23 @@ use std::fs;
 use std::fs::{DirEntry, File};
 use std::path::PathBuf;
 use std::env;
+use std::process::{Command};
 
 fn main() {
     peg::cargo_build("src/grammar.rustpeg");
     if cfg!(feature = "file-tests") {
         generate_tests().unwrap();
     }
+    if cfg!(feature = "llvm-backend") {
+        // convert the prelude's readable `.ll` file to a `.bc` (bitcode)
+        // file that is faster to read in. We choose to not version control
+        // the `.bc` file because it is a binary blob.
+        generate_prelude_bc();
+    }
+}
+
+fn generate_prelude_bc() {
+    assert!(Command::new("opt").args(&["lib/prelude.ll", "-o", "lib/prelude.bc"]).status().expect("failed to run opt").success());
 }
 
 fn generate_tests() -> io::Result<()> {
