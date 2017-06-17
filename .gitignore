@@ -3,3 +3,7 @@
 /target/
 
 *.bk
+
+# I use this for scripts that set my $PATH. Would be nice if it were
+# ignored by balloon.
+*.ignore
