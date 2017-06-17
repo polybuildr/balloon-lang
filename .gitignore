@@ -3,3 +3,7 @@
 /target/
 
 *.bk
+
+# Allow users to have special .ignore files for things like
+# setting $PATH
+*.ignore
