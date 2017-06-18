@@ -41,12 +41,16 @@ fn run_and_get_last_result(code: &str) -> StmtResult {
 
 #[test]
 fn i64_support() {
-    assert_eq!(run_and_get_last_value("9223372036854775807;"),
-               Value::Number(Number::Integer(9223372036854775807)));
+    assert_eq!(
+        run_and_get_last_value("9223372036854775807;"),
+        Value::Number(Number::Integer(9223372036854775807))
+    );
 }
 
 #[test]
 fn f64_support() {
-    assert_eq!(run_and_get_last_value("1234567890.012345678;"),
-               Value::Number(Number::Float(1234567890.012345678)));
+    assert_eq!(
+        run_and_get_last_value("1234567890.012345678;"),
+        Value::Number(Number::Float(1234567890.012345678))
+    );
 }

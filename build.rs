@@ -18,13 +18,14 @@ fn generate_tests() -> io::Result<()> {
     let out_dir: PathBuf = env::var_os("OUT_DIR").unwrap().into();
     let output_path = out_dir.join("file_tests").with_extension("rs");
     let mut output_file = File::create(&output_path).unwrap();
-    output_file
-        .write_all(b"
+    output_file.write_all(
+        b"
 use parser;
 use runtime::Interpreter;
 use ast_walk_interpreter::AstWalkInterpreter;
 use typechecker::TypeChecker;
-")?;
+",
+    )?;
     let mut tests = Vec::new();
     tests.append(&mut generate_run_pass_tests()?);
     tests.append(&mut generate_run_fail_tests()?);
@@ -49,7 +50,8 @@ fn generate_run_pass_tests() -> io::Result<Vec<String>> {
 }
 
 fn make_run_pass_test_fn(name: &str, code: &str) -> String {
-    format!("
+    format!(
+        "
 #[test]
 fn {name}() {{
     let code = r#\"{code}\"#;
@@ -60,8 +62,9 @@ fn {name}() {{
         .unwrap();
 }}
 ",
-            name = name,
-            code = code)
+        name = name,
+        code = code
+    )
 }
 
 fn generate_run_fail_tests() -> io::Result<Vec<String>> {
@@ -74,13 +77,18 @@ fn generate_run_fail_tests() -> io::Result<Vec<String>> {
         let content = read_file(entry.path());
         let expected_err_to_str = read_file(entry.path().with_extension("err"));
         let test_name = test_name_from_entry(&entry, "run_fail");
-        tests.push(make_run_fail_test_fn(&test_name, &content, &expected_err_to_str.trim()));
+        tests.push(make_run_fail_test_fn(
+            &test_name,
+            &content,
+            &expected_err_to_str.trim(),
+        ));
     }
     Ok(tests)
 }
 
 fn make_run_fail_test_fn(name: &str, code: &str, expected_err_str: &str) -> String {
-    format!("
+    format!(
+        "
 #[test]
 fn {name}() {{
     let code = r#\"{code}\"#;
@@ -95,9 +103,10 @@ fn {name}() {{
     );
 }}
 ",
-            name = name,
-            code = code,
-            expected_err_str = expected_err_str)
+        name = name,
+        code = code,
+        expected_err_str = expected_err_str
+    )
 }
 
 fn generate_typecheck_fail_tests() -> io::Result<Vec<String>> {
@@ -110,13 +119,18 @@ fn generate_typecheck_fail_tests() -> io::Result<Vec<String>> {
         let content = read_file(entry.path());
         let expected_err_to_str = read_file(entry.path().with_extension("err"));
         let test_name = test_name_from_entry(&entry, "typecheck_fail");
-        tests.push(make_typecheck_fail_test_fn(&test_name, &content, &expected_err_to_str.trim()));
+        tests.push(make_typecheck_fail_test_fn(
+            &test_name,
+            &content,
+            &expected_err_to_str.trim(),
+        ));
     }
     Ok(tests)
 }
 
 fn make_typecheck_fail_test_fn(name: &str, code: &str, expected_err_str: &str) -> String {
-    format!("
+    format!(
+        "
 #[test]
 fn {name}() {{
     let code = r#\"{code}\"#;
@@ -131,9 +145,10 @@ fn {name}() {{
     );
 }}
 ",
-            name = name,
-            code = code,
-            expected_err_str = expected_err_str)
+        name = name,
+        code = code,
+        expected_err_str = expected_err_str
+    )
 }
 
 fn generate_typecheck_pass_tests() -> io::Result<Vec<String>> {
@@ -151,7 +166,8 @@ fn generate_typecheck_pass_tests() -> io::Result<Vec<String>> {
 }
 
 fn make_typecheck_pass_test_fn(name: &str, code: &str) -> String {
-    format!("
+    format!(
+        "
 #[test]
 fn {name}() {{
     let code = r#\"{code}\"#;
@@ -163,8 +179,9 @@ fn {name}() {{
     assert_eq!(issues, []);
 }}
 ",
-            name = name,
-            code = code)
+        name = name,
+        code = code
+    )
 }
 
 fn read_file(path: PathBuf) -> String {
@@ -177,11 +194,9 @@ fn read_file(path: PathBuf) -> String {
 fn test_name_from_entry(entry: &DirEntry, prefix: &str) -> String {
     let path = entry.path();
     let file_stem = path.file_stem();
-    let partial_test_name = file_stem
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_owned()
-        .replace("-", "_");
+    let partial_test_name = file_stem.unwrap().to_str().unwrap().to_owned().replace(
+        "-",
+        "_",
+    );
     prefix.to_owned() + "_" + &partial_test_name
 }

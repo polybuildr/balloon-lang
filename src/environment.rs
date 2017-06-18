@@ -6,6 +6,12 @@ use fnv::FnvHashMap;
 use value::*;
 use function::*;
 
+trait Env<K, V> {
+    fn new_root() -> Rc<RefCell<Self>>
+    where
+        Self: Sized;
+}
+
 #[derive(Debug)]
 pub struct Environment {
     parent: Option<Rc<RefCell<Environment>>>,
@@ -23,36 +29,56 @@ impl Environment {
     pub fn new_root() -> Rc<RefCell<Environment>> {
         let mut env = Environment::new();
         let builtin_functions = &[
-            ("println",
-             Function::NativeVoid(CallSign {
-                                      num_params: 0,
-                                      variadic: true,
-                                  },
-                                  native_println)),
-            ("assert",
-             Function::NativeVoid(CallSign {
-                                      num_params: 1,
-                                      variadic: false,
-                                  },
-                                  native_assert)),
-            ("assert_eq",
-             Function::NativeVoid(CallSign {
-                                      num_params: 2,
-                                      variadic: false,
-                                  },
-                                  native_assert_eq)),
-            ("run_http_server",
-             Function::NativeVoid(CallSign {
-                                      num_params: 1,
-                                      variadic: false,
-                                  },
-                                  native_run_http_server)),
-            ("len",
-             Function::NativeReturning(CallSign {
-                                           num_params: 1,
-                                           variadic: false,
-                                       },
-                                       native_len)),
+            (
+                "println",
+                Function::NativeVoid(
+                    CallSign {
+                        num_params: 0,
+                        variadic: true,
+                    },
+                    native_println,
+                ),
+            ),
+            (
+                "assert",
+                Function::NativeVoid(
+                    CallSign {
+                        num_params: 1,
+                        variadic: false,
+                    },
+                    native_assert,
+                ),
+            ),
+            (
+                "assert_eq",
+                Function::NativeVoid(
+                    CallSign {
+                        num_params: 2,
+                        variadic: false,
+                    },
+                    native_assert_eq,
+                ),
+            ),
+            (
+                "run_http_server",
+                Function::NativeVoid(
+                    CallSign {
+                        num_params: 1,
+                        variadic: false,
+                    },
+                    native_run_http_server,
+                ),
+            ),
+            (
+                "len",
+                Function::NativeReturning(
+                    CallSign {
+                        num_params: 1,
+                        variadic: false,
+                    },
+                    native_len,
+                ),
+            ),
         ];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
@@ -77,8 +103,10 @@ impl Environment {
     }
 
     pub fn declare(&mut self, identifier: &str, value: &Value) {
-        self.symbol_table
-            .insert(identifier.to_owned(), value.clone());
+        self.symbol_table.insert(
+            identifier.to_owned(),
+            value.clone(),
+        );
     }
 
     pub fn set(&mut self, identifier: &str, value: Value) -> bool {

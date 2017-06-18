@@ -58,10 +58,12 @@ impl StmtResult {
 }
 
 pub trait Interpreter {
-    fn run_ast_as_statements(&mut self,
-                             statements: &[StmtNode])
-                             -> Result<Option<StmtResult>, RuntimeErrorWithPosition>;
-    fn run_ast_as_program(&mut self,
-                          program: &[StmtNode])
-                          -> Result<Option<StmtResult>, RuntimeErrorWithPosition>;
+    fn run_ast_as_statements(
+        &mut self,
+        statements: &[StmtNode],
+    ) -> Result<Option<StmtResult>, RuntimeErrorWithPosition>;
+    fn run_ast_as_program(
+        &mut self,
+        program: &[StmtNode],
+    ) -> Result<Option<StmtResult>, RuntimeErrorWithPosition>;
 }
