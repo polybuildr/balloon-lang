@@ -10,6 +10,8 @@ then
     CARGO_EXIT_CODE=$?
     # Run rustfmt-nightly in diff mode, exits with error status if
     # there is any diff
+    echo "Installing rustfmt-nightly"
+    which rustfmt | cargo install rustfmt-nightly
     echo "Running rustfmt..."
     cargo fmt -- --write-mode diff
     RUSTFMT_EXIT_CODE=$?

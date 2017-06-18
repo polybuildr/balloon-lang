@@ -23,7 +23,6 @@ before_script:
   - mkdir -p .local/bin
   - ln -s /usr/bin/llvm-config-4.0 .local/bin/llvm-config
   - export PATH=$PWD/.local/bin/:$PATH
-  - which rustfmt || cargo install rustfmt-nightly
   - bash lint.sh
 
 script:
