@@ -57,19 +57,23 @@ use error::*;
 // FIXME: How do you represent the usage style in POSIX notation?
 fn print_usage() {
     if cfg!(feature = "llvm-backend") {
-        println!("usage: balloon [--repl-llvm | [MODE] FILE]
+        println!(
+            "usage: balloon [--repl-llvm | [MODE] FILE]
 
---repl-llvm     launches the experimental REPL");
+--repl-llvm     launches the experimental REPL"
+        );
     } else {
         println!("usage: balloon [[MODE] FILE]");
     }
-    println!("
+    println!(
+        "
 where MODE is one of:
 --run           (default) runs the file [FILE]
 --check         type check the file [FILE]
 --parse         only parse the file [FILE], don't run it
 
-Not passing any arguments to balloon will start the REPL.");
+Not passing any arguments to balloon will start the REPL."
+    );
 }
 
 fn main() {
@@ -105,8 +109,8 @@ fn parse_file(file_name: &str) -> Option<Vec<ast::StmtNode>> {
         Err(err) => {
             match err {
                 ProcessingError::ParseError(parse_error) => {
-                    let (parse_error, line_content) = get_error_and_line_for_file(&parse_error,
-                                                                                  file_name);
+                    let (parse_error, line_content) =
+                        get_error_and_line_for_file(&parse_error, file_name);
                     print_parse_error(file_name, &line_content, &parse_error);
                 }
                 ProcessingError::IoError(io_error) => {
@@ -157,10 +161,12 @@ fn typecheck_file(file_name: &str) {
                 print_typechecker_error_for_file(issue.0, span, &file_content, file_name);
                 println!("");
             }
-            println!("{} {} detected in {}.",
-                     num_issues,
-                     if num_issues > 1 { "issues" } else { "issue" },
-                     file_name);
+            println!(
+                "{} {} detected in {}.",
+                num_issues,
+                if num_issues > 1 { "issues" } else { "issue" },
+                file_name
+            );
         }
     }
 }

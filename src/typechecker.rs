@@ -151,36 +151,48 @@ impl TypeEnvironment {
     pub fn new_root() -> Rc<RefCell<TypeEnvironment>> {
         let mut env = TypeEnvironment::new();
         let builtin_functions = &[
-            ("println",
-             FunctionType::NativeVoid(CallSign {
-                                          num_params: 0,
-                                          variadic: true,
-                                      })),
-            ("assert",
-             FunctionType::NativeVoid(CallSign {
-                                          num_params: 1,
-                                          variadic: false,
-                                      })),
-            ("assert_eq",
-             FunctionType::NativeVoid(CallSign {
-                                          num_params: 2,
-                                          variadic: false,
-                                      })),
-            ("len",
-             FunctionType::NativeReturning(CallSign {
-                                               num_params: 1,
-                                               variadic: false,
-                                           })),
-            ("run_http_server",
-             FunctionType::NativeVoid(CallSign {
-                                          num_params: 1,
-                                          variadic: false,
-                                      })),
+            (
+                "println",
+                FunctionType::NativeVoid(CallSign {
+                    num_params: 0,
+                    variadic: true,
+                }),
+            ),
+            (
+                "assert",
+                FunctionType::NativeVoid(CallSign {
+                    num_params: 1,
+                    variadic: false,
+                }),
+            ),
+            (
+                "assert_eq",
+                FunctionType::NativeVoid(CallSign {
+                    num_params: 2,
+                    variadic: false,
+                }),
+            ),
+            (
+                "len",
+                FunctionType::NativeReturning(CallSign {
+                    num_params: 1,
+                    variadic: false,
+                }),
+            ),
+            (
+                "run_http_server",
+                FunctionType::NativeVoid(CallSign {
+                    num_params: 1,
+                    variadic: false,
+                }),
+            ),
         ];
         for item in builtin_functions.iter() {
             let (name, ref func) = *item;
-            env.declare(&name.to_string(),
-                        &Type::Function(Box::new(Some(func.clone()))));
+            env.declare(
+                &name.to_string(),
+                &Type::Function(Box::new(Some(func.clone()))),
+            );
         }
         Rc::new(RefCell::new(env))
     }
@@ -299,9 +311,12 @@ impl TypeChecker {
                 let mut last_effect = StmtEffect::None;
                 for stmt in statements.iter() {
                     if let StmtEffect::Return = last_effect {
-                        self.issues
-                            .push((TypeCheckerIssue::UnreachableCodeAfterReturn,
-                                   (stmt.pos.0, statements.last().unwrap().pos.1)));
+                        self.issues.push(
+                            (TypeCheckerIssue::UnreachableCodeAfterReturn, (
+                                stmt.pos.0,
+                                statements.last().unwrap().pos.1,
+                            )),
+                        );
                         // unreachable code, stop checking
                         break;
                     }
@@ -348,8 +363,10 @@ impl TypeChecker {
                 match self.env.borrow().get_type(id) {
                     Some(t) => Some(t),
                     None => {
-                        self.issues
-                            .push((RuntimeError::ReferenceError(id.clone()).into(), expr.pos));
+                        self.issues.push((
+                            RuntimeError::ReferenceError(id.clone()).into(),
+                            expr.pos,
+                        ));
                         Some(Type::Any)
                     }
                 }
@@ -388,28 +405,32 @@ impl TypeChecker {
         match lhs_expr.data {
             LhsExpr::Identifier(ref id) => {
                 if !self.env.borrow_mut().set(id, checked_type) {
-                    self.issues
-                        .push((RuntimeError::UndeclaredAssignment(id.clone()).into(),
-                               lhs_expr.pos));
+                    self.issues.push((
+                        RuntimeError::UndeclaredAssignment(id.clone()).into(),
+                        lhs_expr.pos,
+                    ));
                 }
             }
         };
     }
 
-    fn check_statement_assignment_with_op(&mut self,
-                                          lhs_expr: &LhsExprNode,
-                                          op: &BinOp,
-                                          expr: &ExprNode,
-                                          stmt: &StmtNode) {
+    fn check_statement_assignment_with_op(
+        &mut self,
+        lhs_expr: &LhsExprNode,
+        op: &BinOp,
+        expr: &ExprNode,
+        stmt: &StmtNode,
+    ) {
         let checked_type = self.check_expr_as_value(expr);
         match lhs_expr.data {
             LhsExpr::Identifier(ref id) => {
                 let prev_type = match self.env.borrow_mut().get_type(id) {
                     Some(t) => t,
                     None => {
-                        self.issues
-                            .push((RuntimeError::ReferenceError(id.to_owned()).into(),
-                                   lhs_expr.pos));
+                        self.issues.push((
+                            RuntimeError::ReferenceError(id.to_owned()).into(),
+                            lhs_expr.pos,
+                        ));
                         Type::Any
                     }
                 };
@@ -437,15 +458,16 @@ impl TypeChecker {
         };
     }
 
-    fn check_statement_if_then_else(&mut self,
-                                    statement: &StmtNode,
-                                    if_then_stmt: &IfThenStmt)
-                                    -> StmtEffect {
+    fn check_statement_if_then_else(
+        &mut self,
+        statement: &StmtNode,
+        if_then_stmt: &IfThenStmt,
+    ) -> StmtEffect {
         let &IfThenStmt {
-                 ref cond,
-                 ref then_block,
-                 ref maybe_else_block,
-             } = if_then_stmt;
+            ref cond,
+            ref then_block,
+            ref maybe_else_block,
+        } = if_then_stmt;
 
         let else_block = match *maybe_else_block {
             None => {
@@ -482,9 +504,12 @@ impl TypeChecker {
                 panic!("Unexpected behaviour when iterating through environments!");
             }
             if !else_type.is_compatible_with(then_type) {
-                self.issues
-                    .push((TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
-                           statement.pos));
+                self.issues.push((
+                    TypeCheckerIssue::MultipleTypesFromBranchWarning(
+                        then_name.clone(),
+                    ),
+                    statement.pos,
+                ));
                 self.env.borrow_mut().set(then_name, Type::Any);
             } else {
                 self.env.borrow_mut().set(then_name, then_type.clone());
@@ -498,13 +523,16 @@ impl TypeChecker {
         }
     }
 
-    fn check_statement_return(&mut self,
-                              possible_expr: &Option<ExprNode>,
-                              return_statement: &StmtNode)
-                              -> StmtEffect {
+    fn check_statement_return(
+        &mut self,
+        possible_expr: &Option<ExprNode>,
+        return_statement: &StmtNode,
+    ) -> StmtEffect {
         if self.context.in_func != true {
-            self.issues
-                .push((RuntimeError::ReturnOutsideFunction.into(), return_statement.pos));
+            self.issues.push((
+                RuntimeError::ReturnOutsideFunction.into(),
+                return_statement.pos,
+            ));
             // if the return is outside a function, don't typecheck anything else wrt the return
             return StmtEffect::None;
         }
@@ -523,17 +551,19 @@ impl TypeChecker {
                                 // does not *always* return a value.
 
                                 // But we will complain that this time it did return a value.
-                                self.issues
-                                    .push((TypeCheckerIssue::FunctionReturnsMultipleTypes,
-                                           return_statement.pos));
+                                self.issues.push((
+                                    TypeCheckerIssue::FunctionReturnsMultipleTypes,
+                                    return_statement.pos,
+                                ));
                                 None
                             }
                             // Some(Some(typ)), returning typ
                             Some(ref typ) => {
                                 if !actual_type.is_compatible_with(typ) {
-                                    self.issues
-                                        .push((TypeCheckerIssue::FunctionReturnsMultipleTypes,
-                                               return_statement.pos));
+                                    self.issues.push((
+                                        TypeCheckerIssue::FunctionReturnsMultipleTypes,
+                                        return_statement.pos,
+                                    ));
                                     Some(Some(Type::Any))
                                 } else {
                                     Some(Some(typ.clone()))
@@ -548,8 +578,10 @@ impl TypeChecker {
             None => {
                 // If the function did return a value previously, then it is returning
                 // "multiple types".
-                self.issues
-                    .push((TypeCheckerIssue::FunctionReturnsMultipleTypes, return_statement.pos));
+                self.issues.push((
+                    TypeCheckerIssue::FunctionReturnsMultipleTypes,
+                    return_statement.pos,
+                ));
 
                 // No matter what the value was before, if it is ever non-returning,
                 // we have to remember that
@@ -588,12 +620,13 @@ impl TypeChecker {
         }
     }
 
-    fn check_expr_binary_expr(&mut self,
-                              binary_expr: &ExprNode,
-                              expr1: &ExprNode,
-                              op: &BinOp,
-                              expr2: &ExprNode)
-                              -> Type {
+    fn check_expr_binary_expr(
+        &mut self,
+        binary_expr: &ExprNode,
+        expr1: &ExprNode,
+        op: &BinOp,
+        expr2: &ExprNode,
+    ) -> Type {
         let checked_type_1 = self.check_expr_as_value(expr1);
         let checked_type_2 = self.check_expr_as_value(expr2);
         use ast::BinOp::*;
@@ -616,11 +649,12 @@ impl TypeChecker {
         }
     }
 
-    fn check_expr_binary_logical_expr(&mut self,
-                                      expr1: &ExprNode,
-                                      op: &LogicalBinOp,
-                                      expr2: &ExprNode)
-                                      -> Type {
+    fn check_expr_binary_logical_expr(
+        &mut self,
+        expr1: &ExprNode,
+        op: &LogicalBinOp,
+        expr2: &ExprNode,
+    ) -> Type {
         match *op {
             LogicalBinOp::And | LogicalBinOp::Or => {
                 self.check_expr_as_value(expr1);
@@ -631,11 +665,12 @@ impl TypeChecker {
     }
 
 
-    fn check_expr_function_call(&mut self,
-                                expr: &ExprNode,
-                                f_expr: &ExprNode,
-                                args: &[ExprNode])
-                                -> Option<Type> {
+    fn check_expr_function_call(
+        &mut self,
+        expr: &ExprNode,
+        f_expr: &ExprNode,
+        args: &[ExprNode],
+    ) -> Option<Type> {
         let checked_type = self.check_expr_as_value(f_expr);
 
         let mut arg_types = Vec::new();
@@ -656,17 +691,24 @@ impl TypeChecker {
                 return Some(Type::Any);
             }
             v => {
-                self.issues
-                    .push((RuntimeError::CallToNonFunction(try_get_name_of_fn(f_expr), v).into(),
-                           expr.pos));
+                self.issues.push((
+                    RuntimeError::CallToNonFunction(
+                        try_get_name_of_fn(f_expr),
+                        v,
+                    ).into(),
+                    expr.pos,
+                ));
                 return Some(Type::Any);
             }
         };
 
         let func_call_sign = func_type.get_call_sign();
         if !func_call_sign.variadic && args.len() != func_type.get_call_sign().num_params {
-            self.issues
-                .push((RuntimeError::ArgumentLength(try_get_name_of_fn(f_expr)).into(), expr.pos));
+            self.issues.push((
+                RuntimeError::ArgumentLength(try_get_name_of_fn(f_expr))
+                    .into(),
+                expr.pos,
+            ));
             return Some(Type::Any);
         }
         match func_type {
@@ -690,11 +732,16 @@ impl TypeChecker {
                     if let Some(id) = try_get_name_of_fn(f_expr) {
                         let mut new_checked_param_types = already_checked_param_types.clone();
                         new_checked_param_types.insert(constraint_types, ());
-                        let new_func_type =
-                            get_function_type_with_updated_already_checked(&func_type,
-                                                                           new_checked_param_types);
-                        env.borrow_mut()
-                            .set(&id, Type::Function(Box::new(Some(new_func_type))));
+                        let new_func_type = get_function_type_with_updated_already_checked(
+                            &func_type,
+                            new_checked_param_types,
+                        );
+                        env.borrow_mut().set(
+                            &id,
+                            Type::Function(
+                                Box::new(Some(new_func_type)),
+                            ),
+                        );
 
                         let old_context = self.context.clone();
                         self.context = Context {
@@ -709,12 +756,11 @@ impl TypeChecker {
                         let fn_body_effect = self.check_statement(body);
                         self.env = current_env;
                         for inner_issue in &self.issues {
-                            outer_issues
-                            .push((
+                            outer_issues.push((
                                 TypeCheckerIssue::InsideFunctionCall(
-                                    Box::new(inner_issue.clone())
+                                    Box::new(inner_issue.clone()),
                                 ),
-                                expr.pos
+                                expr.pos,
                             ));
                         }
                         self.issues = outer_issues;
@@ -754,10 +800,10 @@ impl TypeChecker {
 
     fn check_expr_function_definition(&mut self, fn_def_expr: &FnDefExpr) -> Type {
         let &FnDefExpr {
-                 ref maybe_id,
-                 ref params,
-                 ref body,
-             } = fn_def_expr;
+            ref maybe_id,
+            ref params,
+            ref body,
+        } = fn_def_expr;
         let func = FunctionType::User {
             call_sign: CallSign {
                 num_params: params.len(),
@@ -775,25 +821,29 @@ impl TypeChecker {
         func_type
     }
 
-    fn check_expr_member_access_by_index(&mut self,
-                                         expr: &ExprNode,
-                                         index_expr: &ExprNode)
-                                         -> Type {
+    fn check_expr_member_access_by_index(
+        &mut self,
+        expr: &ExprNode,
+        index_expr: &ExprNode,
+    ) -> Type {
         let object_type = self.check_expr_as_value(expr);
         match object_type {
             Type::Tuple | Type::Any => {}
             typ => {
-                self.issues
-                    .push((RuntimeError::SubscriptOnNonSubscriptable(typ).into(), expr.pos));
+                self.issues.push((
+                    RuntimeError::SubscriptOnNonSubscriptable(typ).into(),
+                    expr.pos,
+                ));
             }
         };
         let typ = self.check_expr_as_value(index_expr);
         match typ {
             Type::Number | Type::Any => {}
             non_integral_type => {
-                self.issues
-                    .push((RuntimeError::NonIntegralSubscript(non_integral_type).into(),
-                           index_expr.pos));
+                self.issues.push((
+                    RuntimeError::NonIntegralSubscript(non_integral_type).into(),
+                    index_expr.pos,
+                ));
             }
         };
         Type::Any
@@ -804,11 +854,15 @@ impl TypeChecker {
         if possible_type.is_none() {
             if let Expr::FnCall(ref f_expr, _) = expr.data {
                 if let Expr::Identifier(ref id) = f_expr.data {
-                    self.issues
-                        .push((TypeCheckerIssue::PossibleNoneError(Some(id.clone())), expr.pos));
+                    self.issues.push((
+                        TypeCheckerIssue::PossibleNoneError(Some(id.clone())),
+                        expr.pos,
+                    ));
                 } else {
-                    self.issues
-                        .push((TypeCheckerIssue::PossibleNoneError(None), expr.pos));
+                    self.issues.push((
+                        TypeCheckerIssue::PossibleNoneError(None),
+                        expr.pos,
+                    ));
                 }
             } else {
                 unreachable!();
@@ -834,29 +888,37 @@ fn check_add_for_types(t1: &Type, t2: &Type) -> Result<Type, TypeCheckerIssue> {
         (&Type::String, _) |
         (_, &Type::String) => Ok(Type::String),
         (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
-        _ => Err(RuntimeError::BinaryTypeError(BinOp::Add, t1.clone(), t2.clone()).into()),
+        _ => Err(
+            RuntimeError::BinaryTypeError(BinOp::Add, t1.clone(), t2.clone()).into(),
+        ),
     }
 }
 
-fn check_binary_arithmetic_for_types(op: BinOp,
-                                     t1: &Type,
-                                     t2: &Type)
-                                     -> Result<Type, TypeCheckerIssue> {
+fn check_binary_arithmetic_for_types(
+    op: BinOp,
+    t1: &Type,
+    t2: &Type,
+) -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Number),
         (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
-        _ => Err(RuntimeError::BinaryTypeError(op, t1.clone(), t2.clone()).into()),
+        _ => Err(
+            RuntimeError::BinaryTypeError(op, t1.clone(), t2.clone()).into(),
+        ),
     }
 }
 
-fn check_binary_comparison_for_types(op: BinOp,
-                                     t1: &Type,
-                                     t2: &Type)
-                                     -> Result<Type, TypeCheckerIssue> {
+fn check_binary_comparison_for_types(
+    op: BinOp,
+    t1: &Type,
+    t2: &Type,
+) -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Bool),
         (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
-        _ => Err(RuntimeError::BinaryTypeError(op, t1.clone(), t2.clone()).into()),
+        _ => Err(
+            RuntimeError::BinaryTypeError(op, t1.clone(), t2.clone()).into(),
+        ),
     }
 }
 
@@ -868,17 +930,19 @@ fn try_get_name_of_fn(expr: &ExprNode) -> Option<String> {
     }
 }
 
-fn get_function_type_with_updated_already_checked(old_fn_type: &FunctionType,
-                                                  new_already_checked: LinearMap<Vec<Type>, ()>)
-                                                  -> FunctionType {
+fn get_function_type_with_updated_already_checked(
+    old_fn_type: &FunctionType,
+    new_already_checked: LinearMap<Vec<Type>, ()>,
+) -> FunctionType {
 
     if let FunctionType::User {
-               ref param_names,
-               ref body,
-               ref env,
-               ref call_sign,
-               ..
-           } = *old_fn_type {
+        ref param_names,
+        ref body,
+        ref env,
+        ref call_sign,
+        ..
+    } = *old_fn_type
+    {
         FunctionType::User {
             param_names: param_names.clone(),
             body: body.clone(),
