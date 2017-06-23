@@ -509,10 +509,7 @@ impl AstWalkInterpreter {
             v => {
                 if let Expr::Identifier(ref id) = expr.data {
                     return Err((
-                        RuntimeError::CallToNonFunction(
-                            Some(id.clone()),
-                            v.get_type(),
-                        ),
+                        RuntimeError::CallToNonFunction(Some(id.clone()), v.get_type()),
                         expr.pos,
                     ));
                 }

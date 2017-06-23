@@ -311,12 +311,10 @@ impl TypeChecker {
                 let mut last_effect = StmtEffect::None;
                 for stmt in statements.iter() {
                     if let StmtEffect::Return = last_effect {
-                        self.issues.push(
-                            (TypeCheckerIssue::UnreachableCodeAfterReturn, (
-                                stmt.pos.0,
-                                statements.last().unwrap().pos.1,
-                            )),
-                        );
+                        self.issues.push((
+                            TypeCheckerIssue::UnreachableCodeAfterReturn,
+                            (stmt.pos.0, statements.last().unwrap().pos.1),
+                        ));
                         // unreachable code, stop checking
                         break;
                     }
@@ -363,10 +361,8 @@ impl TypeChecker {
                 match self.env.borrow().get_type(id) {
                     Some(t) => Some(t),
                     None => {
-                        self.issues.push((
-                            RuntimeError::ReferenceError(id.clone()).into(),
-                            expr.pos,
-                        ));
+                        self.issues
+                            .push((RuntimeError::ReferenceError(id.clone()).into(), expr.pos));
                         Some(Type::Any)
                     }
                 }
@@ -505,9 +501,7 @@ impl TypeChecker {
             }
             if !else_type.is_compatible_with(then_type) {
                 self.issues.push((
-                    TypeCheckerIssue::MultipleTypesFromBranchWarning(
-                        then_name.clone(),
-                    ),
+                    TypeCheckerIssue::MultipleTypesFromBranchWarning(then_name.clone()),
                     statement.pos,
                 ));
                 self.env.borrow_mut().set(then_name, Type::Any);
@@ -692,10 +686,7 @@ impl TypeChecker {
             }
             v => {
                 self.issues.push((
-                    RuntimeError::CallToNonFunction(
-                        try_get_name_of_fn(f_expr),
-                        v,
-                    ).into(),
+                    RuntimeError::CallToNonFunction(try_get_name_of_fn(f_expr), v).into(),
                     expr.pos,
                 ));
                 return Some(Type::Any);
@@ -705,8 +696,7 @@ impl TypeChecker {
         let func_call_sign = func_type.get_call_sign();
         if !func_call_sign.variadic && args.len() != func_type.get_call_sign().num_params {
             self.issues.push((
-                RuntimeError::ArgumentLength(try_get_name_of_fn(f_expr))
-                    .into(),
+                RuntimeError::ArgumentLength(try_get_name_of_fn(f_expr)).into(),
                 expr.pos,
             ));
             return Some(Type::Any);
@@ -736,12 +726,8 @@ impl TypeChecker {
                             &func_type,
                             new_checked_param_types,
                         );
-                        env.borrow_mut().set(
-                            &id,
-                            Type::Function(
-                                Box::new(Some(new_func_type)),
-                            ),
-                        );
+                        env.borrow_mut()
+                            .set(&id, Type::Function(Box::new(Some(new_func_type))));
 
                         let old_context = self.context.clone();
                         self.context = Context {
@@ -757,9 +743,7 @@ impl TypeChecker {
                         self.env = current_env;
                         for inner_issue in &self.issues {
                             outer_issues.push((
-                                TypeCheckerIssue::InsideFunctionCall(
-                                    Box::new(inner_issue.clone()),
-                                ),
+                                TypeCheckerIssue::InsideFunctionCall(Box::new(inner_issue.clone())),
                                 expr.pos,
                             ));
                         }
@@ -859,10 +843,8 @@ impl TypeChecker {
                         expr.pos,
                     ));
                 } else {
-                    self.issues.push((
-                        TypeCheckerIssue::PossibleNoneError(None),
-                        expr.pos,
-                    ));
+                    self.issues
+                        .push((TypeCheckerIssue::PossibleNoneError(None), expr.pos));
                 }
             } else {
                 unreachable!();

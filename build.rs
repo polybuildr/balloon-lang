@@ -194,9 +194,11 @@ fn read_file(path: PathBuf) -> String {
 fn test_name_from_entry(entry: &DirEntry, prefix: &str) -> String {
     let path = entry.path();
     let file_stem = path.file_stem();
-    let partial_test_name = file_stem.unwrap().to_str().unwrap().to_owned().replace(
-        "-",
-        "_",
-    );
+    let partial_test_name = file_stem
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned()
+        .replace("-", "_");
     prefix.to_owned() + "_" + &partial_test_name
 }

@@ -190,7 +190,7 @@ pub fn print_typechecker_error_for_file(
                         Some(id) => {
                             println!(
                                 "{}: tried to use return value of non-returning function \
-                                      `{}`",
+                                 `{}`",
                                 Red.bold().paint("missing value error"),
                                 id
                             );
@@ -321,7 +321,7 @@ pub fn print_typechecker_error_for_file(
                 Some(id) => {
                     println!(
                         "{}: tried to use return value of function `{}` that \
-                             does not always return a value",
+                         does not always return a value",
                         Red.bold().paint("possibly missing value"),
                         id
                     );
@@ -329,7 +329,7 @@ pub fn print_typechecker_error_for_file(
                 None => {
                     println!(
                         "{}: tried to use return value of function that \
-                             does not always return a value",
+                         does not always return a value",
                         Red.bold().paint("possibly missing value")
                     );
                 }

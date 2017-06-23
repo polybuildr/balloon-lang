@@ -103,10 +103,8 @@ impl Environment {
     }
 
     pub fn declare(&mut self, identifier: &str, value: &Value) {
-        self.symbol_table.insert(
-            identifier.to_owned(),
-            value.clone(),
-        );
+        self.symbol_table
+            .insert(identifier.to_owned(), value.clone());
     }
 
     pub fn set(&mut self, identifier: &str, value: Value) -> bool {

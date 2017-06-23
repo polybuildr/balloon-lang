@@ -1229,11 +1229,11 @@ impl LLVMJIT {
 
 
 
-            let mainfn: fn() -> *const LLVMBoxedStructRepr =
-                mem::transmute(LLVMGetFunctionAddress(
-                    *engine,
-                    module.new_string_ptr("main"),
-                ));
+            let mainfn: fn()
+                -> *const LLVMBoxedStructRepr = mem::transmute(LLVMGetFunctionAddress(
+                *engine,
+                module.new_string_ptr("main"),
+            ));
             let result: *const LLVMBoxedStructRepr = mainfn();
             println!("@@@@ Result of Function call:");
             println!("result ptr : |{:?}|", result);

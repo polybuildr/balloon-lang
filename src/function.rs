@@ -170,8 +170,8 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                     None => {
                         return Err(RuntimeError::GeneralRuntimeError(
                             "http_server: handler \
-                                                                      function did not return a \
-                                                                      value"
+                             function did not return a \
+                             value"
                                 .to_owned(),
                         ));
                     }
@@ -180,8 +180,8 @@ pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
                 if sender.send(response_value.to_string()).is_err() {
                     return Err(RuntimeError::GeneralRuntimeError(
                         "http_server: threading error \
-                                                                  (could not send on reverse \
-                                                                  channel)"
+                         (could not send on reverse \
+                         channel)"
                             .to_owned(),
                     ));
                 }
