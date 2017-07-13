@@ -90,7 +90,7 @@ fn main() {
 
     let m = app.get_matches();
 
-    if m.args.len() == 0 {
+    if m.args.is_empty() {
         repl::run_repl(AstWalkInterpreter::new());
     }
     else if m.is_present("repl-llvm") {
