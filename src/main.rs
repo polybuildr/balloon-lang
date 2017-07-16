@@ -2,12 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::env;
 use std::io::prelude::*;
 use std::io;
 use std::fs::File;
 
 extern crate ansi_term;
+
+extern crate clap;
 
 extern crate fnv;
 
@@ -66,7 +67,9 @@ fn main() {
     let mut app = App::new("balloon")
         .version("0.1.0")
         .arg(Arg::with_name("file")
+            // default mode
             .help("run the file")
+            .conflicts_with_all(&["run", "check", "parse"])
             .value_name("FILE"))
         .arg(Arg::with_name("run")
             .long("run")
@@ -76,6 +79,7 @@ fn main() {
         .arg(Arg::with_name("check")
             .long("check")
             .help("type check the file")
+            .conflicts_with_all(&["parse"])
             .value_name("FILE"))
         .arg(Arg::with_name("parse")
             .long("parse")
@@ -97,19 +101,21 @@ fn main() {
         #[cfg(feature = "llvm-backend")]
         repl::run_repl(LLVMInterpreter::new());
     }
-    else if m.is_present("run") {
-        run_file(m.value_of("run").unwrap(), AstWalkInterpreter::new())
+    else if let Some(f) = m.value_of("run") {
+        run_file(f, AstWalkInterpreter::new())
     }
-    else if m.is_present("check") {
-        typecheck_file(m.value_of("check").unwrap());
+    else if let Some(f) = m.value_of("check") {
+        typecheck_file(f);
     }
-    else if m.is_present("parse") {
-        if let Some(ast) = parse_file(m.value_of("parse").unwrap()) {
+    else if let Some(f) = m.value_of("parse") {
+        if let Some(ast) = parse_file(f) {
             println!("{:#?}", ast);
         }
     }
     else {
-        run_file(m.value_of("file").unwrap(), AstWalkInterpreter::new());
+        if let Some(f) = m.value_of("file") {
+            run_file(f, AstWalkInterpreter::new());
+        }
     }
 }
 
