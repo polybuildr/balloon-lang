@@ -13,19 +13,19 @@ use runtime::*;
 
 // use llvm_sys::LLVMIntPredicate;
 use llvm_sys::core::*;
-use llvm_sys::{LLVMModule, LLVMBuilder};
+use llvm_sys::{LLVMBuilder, LLVMModule};
 use llvm_sys::prelude::*;
 use llvm_sys::analysis::*;
 use llvm_sys::target::*;
 use llvm_sys::target_machine::*;
 use llvm_sys::execution_engine::*;
 
-use std::os::raw::{c_ulonglong, c_uint};
-use std::ffi::{CString, CStr};
+use std::os::raw::{c_uint, c_ulonglong};
+use std::ffi::{CStr, CString};
 use std::str;
 use std::string::String;
 
-use value::{Value, Number};
+use value::{Number, Value};
 
 use libc;
 
@@ -140,7 +140,11 @@ struct Builder {
 impl Builder {
     /// Create a new Builder in LLVM's global context.
     fn new() -> Self {
-        unsafe { Builder { builder: LLVMCreateBuilder() } }
+        unsafe {
+            Builder {
+                builder: LLVMCreateBuilder(),
+            }
+        }
     }
 
     fn position_at_end(&self, bb: LLVMBasicBlockRef) {
@@ -315,7 +319,9 @@ pub struct LLVMInterpreter {
 
 impl LLVMInterpreter {
     pub fn new() -> LLVMInterpreter {
-        LLVMInterpreter { root_env: Environment::new_root() }
+        LLVMInterpreter {
+            root_env: Environment::new_root(),
+        }
     }
 }
 
@@ -997,15 +1003,13 @@ fn compile_expr(
             print!("@@@@module at compile_expr:\n{:?}\n-----", module);
 
             match *op {
-                BinOp::Add => {
-                    LLVMBuildCall(
-                        builder.builder,
-                        arith_functions.add_box_box,
-                        [leftbox, rightbox].as_mut_ptr(),
-                        2,
-                        module.new_string_ptr("sum"),
-                    )
-                }
+                BinOp::Add => LLVMBuildCall(
+                    builder.builder,
+                    arith_functions.add_box_box,
+                    [leftbox, rightbox].as_mut_ptr(),
+                    2,
+                    module.new_string_ptr("sum"),
+                ),
                 _ => panic!("unimplemented expr operator: {}", op),
             }
 
@@ -1024,15 +1028,13 @@ fn compile_statement(
     statement: &Stmt,
 ) -> LLVMValueRef {
     match *statement {
-        Stmt::Expr(ref expr) => {
-            compile_expr(
-                &mut module,
-                bb,
-                box_unbox_functions,
-                arith_functions,
-                &expr.data,
-            )
-        }
+        Stmt::Expr(ref expr) => compile_expr(
+            &mut module,
+            bb,
+            box_unbox_functions,
+            arith_functions,
+            &expr.data,
+        ),
         ref other => panic!("unknown compile: {:?}", other),
     }
 }
@@ -1087,8 +1089,9 @@ fn interpret_statements(
     let c_declarations = gen_c_declarations(&mut module);
     let box_unbox_functions = gen_balloon_prelude(&mut module);
 
-    let arith_functions =
-        ArithmeticFunctions { add_box_box: gen_add_box_box(&mut module, &box_unbox_functions) };
+    let arith_functions = ArithmeticFunctions {
+        add_box_box: gen_add_box_box(&mut module, &box_unbox_functions),
+    };
 
     print!(
         "@@@@@@Module after all prelude generation:\n{:?}\n----",

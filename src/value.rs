@@ -32,20 +32,18 @@ impl fmt::Debug for Value {
             Value::Number(n) => write!(f, "{}", n),
             Value::Function(_) => write!(f, "<Function>"),
             Value::String(ref s) => write!(f, "\"{}\"", s),
-            Value::Tuple(ref t) => {
-                if t.is_empty() {
-                    write!(f, "()")
-                } else {
-                    let mut output = "(".to_owned();
-                    for elem in &t[0..t.len() - 1] {
-                        output.push_str(&format!("{:?}", elem));
-                        output.push_str(", ");
-                    }
-                    output.push_str(&format!("{:?}", &t[t.len() - 1]));
-                    output.push_str(")");
-                    write!(f, "{}", output)
+            Value::Tuple(ref t) => if t.is_empty() {
+                write!(f, "()")
+            } else {
+                let mut output = "(".to_owned();
+                for elem in &t[0..t.len() - 1] {
+                    output.push_str(&format!("{:?}", elem));
+                    output.push_str(", ");
                 }
-            }
+                output.push_str(&format!("{:?}", &t[t.len() - 1]));
+                output.push_str(")");
+                write!(f, "{}", output)
+            },
         }
     }
 }
@@ -54,20 +52,18 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Value::String(ref s) => write!(f, "{}", s),
-            Value::Tuple(ref t) => {
-                if t.is_empty() {
-                    write!(f, "()")
-                } else {
-                    let mut output = "(".to_owned();
-                    for elem in &t[0..t.len() - 1] {
-                        output.push_str(&format!("{}", elem));
-                        output.push_str(", ");
-                    }
-                    output.push_str(&format!("{}", &t[t.len() - 1]));
-                    output.push_str(")");
-                    write!(f, "{}", output)
+            Value::Tuple(ref t) => if t.is_empty() {
+                write!(f, "()")
+            } else {
+                let mut output = "(".to_owned();
+                for elem in &t[0..t.len() - 1] {
+                    output.push_str(&format!("{}", elem));
+                    output.push_str(", ");
                 }
-            }
+                output.push_str(&format!("{}", &t[t.len() - 1]));
+                output.push_str(")");
+                write!(f, "{}", output)
+            },
             ref value => write!(f, "{:?}", value),
         }
     }
@@ -135,13 +131,11 @@ impl ops::Div for Number {
 
     fn div(self, other: Number) -> Number {
         match (self, other) {
-            (Number::Integer(x), Number::Integer(y)) => {
-                if x % y == 0 {
-                    Number::Integer(x / y)
-                } else {
-                    Number::Float((x as f64) / (y as f64))
-                }
-            }
+            (Number::Integer(x), Number::Integer(y)) => if x % y == 0 {
+                Number::Integer(x / y)
+            } else {
+                Number::Float((x as f64) / (y as f64))
+            },
             (Number::Float(x), Number::Float(y)) => Number::Float(x / y),
             (Number::Float(x), Number::Integer(y)) => Number::Float(x / (y as f64)),
             (Number::Integer(x), Number::Float(y)) => Number::Float((x as f64) / y),
@@ -220,12 +214,10 @@ impl Value {
 
     pub fn is_truthy(&self) -> bool {
         match *self {
-            Value::Number(n) => {
-                match n {
-                    Number::Integer(i) => i != 0,
-                    Number::Float(f) => f != 0.0,
-                }
-            }
+            Value::Number(n) => match n {
+                Number::Integer(i) => i != 0,
+                Number::Float(f) => f != 0.0,
+            },
             Value::Bool(b) => b,
             Value::String(ref s) => s != "",
             Value::Function(_) => true,

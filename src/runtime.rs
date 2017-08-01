@@ -52,11 +52,8 @@ impl StmtResult {
     // mean the current iteration should end?
     pub fn is_block_terminating(&self) -> bool {
         match *self {
-            StmtResult::None |
-            StmtResult::Value(_) => false,
-            StmtResult::Break |
-            StmtResult::Continue |
-            StmtResult::Return(_) => true,
+            StmtResult::None | StmtResult::Value(_) => false,
+            StmtResult::Break | StmtResult::Continue | StmtResult::Return(_) => true,
         }
     }
 }

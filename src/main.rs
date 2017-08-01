@@ -85,22 +85,18 @@ fn main() {
 
     match args.len() {
         1 => repl::run_repl(AstWalkInterpreter::new()),
-        2 => {
-            match args[1].as_str() {
-                #[cfg(feature = "llvm-backend")]
-                "--repl-llvm" => repl::run_repl(LLVMInterpreter::new()),
-                filepath => run_file(filepath, AstWalkInterpreter::new()),
-            }
-        }
+        2 => match args[1].as_str() {
+            #[cfg(feature = "llvm-backend")]
+            "--repl-llvm" => repl::run_repl(LLVMInterpreter::new()),
+            filepath => run_file(filepath, AstWalkInterpreter::new()),
+        },
         3 => {
             match args[1].as_str() {
                 "--run" => run_file(&args[2], AstWalkInterpreter::new()),
                 "--check" => typecheck_file(&args[2]),
-                "--parse" => {
-                    if let Some(ast) = parse_file(&args[2]) {
-                        println!("{:#?}", ast);
-                    }
-                }
+                "--parse" => if let Some(ast) = parse_file(&args[2]) {
+                    println!("{:#?}", ast);
+                },
                 _ => print_usage(),
             };
         }

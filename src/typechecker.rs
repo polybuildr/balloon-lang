@@ -82,8 +82,7 @@ impl Eq for Type {}
 impl From<ast::Literal> for Type {
     fn from(from: ast::Literal) -> Self {
         match from {
-            ast::Literal::Integer(_) |
-            ast::Literal::Float(_) => Type::Number,
+            ast::Literal::Integer(_) | ast::Literal::Float(_) => Type::Number,
             ast::Literal::Bool(_) => Type::Bool,
             ast::Literal::String(_) => Type::String,
         }
@@ -361,16 +360,14 @@ impl TypeChecker {
     fn check_expr(&mut self, expr: &ExprNode) -> Option<Type> {
         match expr.data {
             Expr::Literal(ref x) => Some(Type::from(x.data.clone())),
-            Expr::Identifier(ref id) => {
-                match self.env.borrow().get_type(id) {
-                    Some(t) => Some(t),
-                    None => {
-                        self.issues
-                            .push((RuntimeError::ReferenceError(id.clone()).into(), expr.pos));
-                        Some(Type::Any)
-                    }
+            Expr::Identifier(ref id) => match self.env.borrow().get_type(id) {
+                Some(t) => Some(t),
+                None => {
+                    self.issues
+                        .push((RuntimeError::ReferenceError(id.clone()).into(), expr.pos));
+                    Some(Type::Any)
                 }
-            }
+            },
             Expr::Tuple(ref elems) => Some(self.check_expr_tuple(elems)),
             Expr::Unary(ref op, ref expr) => Some(self.check_expr_unary_op(op, expr)),
             Expr::UnaryLogical(ref op, ref expr) => {
@@ -403,14 +400,12 @@ impl TypeChecker {
     fn check_statement_assignment(&mut self, lhs_expr: &LhsExprNode, expr: &ExprNode) {
         let checked_type = self.check_expr_as_value(expr);
         match lhs_expr.data {
-            LhsExpr::Identifier(ref id) => {
-                if !self.env.borrow_mut().set(id, checked_type) {
-                    self.issues.push((
-                        RuntimeError::UndeclaredAssignment(id.clone()).into(),
-                        lhs_expr.pos,
-                    ));
-                }
-            }
+            LhsExpr::Identifier(ref id) => if !self.env.borrow_mut().set(id, checked_type) {
+                self.issues.push((
+                    RuntimeError::UndeclaredAssignment(id.clone()).into(),
+                    lhs_expr.pos,
+                ));
+            },
         };
     }
 
@@ -556,17 +551,15 @@ impl TypeChecker {
                                 None
                             }
                             // Some(Some(typ)), returning typ
-                            Some(ref typ) => {
-                                if !actual_type.is_compatible_with(typ) {
-                                    self.issues.push((
-                                        TypeCheckerIssue::FunctionReturnsMultipleTypes,
-                                        return_statement.pos,
-                                    ));
-                                    Some(Some(Type::Any))
-                                } else {
-                                    Some(Some(typ.clone()))
-                                }
-                            }
+                            Some(ref typ) => if !actual_type.is_compatible_with(typ) {
+                                self.issues.push((
+                                    TypeCheckerIssue::FunctionReturnsMultipleTypes,
+                                    return_statement.pos,
+                                ));
+                                Some(Some(Type::Any))
+                            } else {
+                                Some(Some(typ.clone()))
+                            },
                         }
                     }
                 };
@@ -599,15 +592,13 @@ impl TypeChecker {
     fn check_expr_unary_op(&mut self, op: &UnOp, expr: &ExprNode) -> Type {
         let typ = self.check_expr_as_value(expr);
         match *op {
-            UnOp::Neg => {
-                match check_unary_minus_for_type(typ) {
-                    Ok(t) => t,
-                    Err(e) => {
-                        self.issues.push((e, expr.pos));
-                        Type::Any
-                    }
+            UnOp::Neg => match check_unary_minus_for_type(typ) {
+                Ok(t) => t,
+                Err(e) => {
+                    self.issues.push((e, expr.pos));
+                    Type::Any
                 }
-            }
+            },
         }
     }
 
@@ -677,12 +668,10 @@ impl TypeChecker {
         }
 
         let func_type = match checked_type {
-            Type::Function(possible_func) => {
-                match *possible_func {
-                    None => unreachable!(),
-                    Some(func_type) => func_type,
-                }
-            }
+            Type::Function(possible_func) => match *possible_func {
+                None => unreachable!(),
+                Some(func_type) => func_type,
+            },
             Type::Any => {
                 // Don't know anything about this type. Allow it to be called
                 // as func, and then assume the return type is Any.
@@ -871,8 +860,7 @@ fn check_unary_minus_for_type(typ: Type) -> Result<Type, TypeCheckerIssue> {
 fn check_add_for_types(t1: &Type, t2: &Type) -> Result<Type, TypeCheckerIssue> {
     match (t1, t2) {
         (&Type::Number, &Type::Number) => Ok(Type::Number),
-        (&Type::String, _) |
-        (_, &Type::String) => Ok(Type::String),
+        (&Type::String, _) | (_, &Type::String) => Ok(Type::String),
         (&Type::Any, _) | (_, &Type::Any) => Ok(Type::Any),
         _ => Err(
             RuntimeError::BinaryTypeError(BinOp::Add, t1.clone(), t2.clone()).into(),
