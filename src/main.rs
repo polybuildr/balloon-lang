@@ -2,12 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::env;
 use std::io::prelude::*;
 use std::io;
 use std::fs::File;
 
 extern crate ansi_term;
+
+extern crate clap;
 
 extern crate fnv;
 
@@ -59,49 +60,63 @@ use llvm_interpreter::LLVMInterpreter;
 use error::*;
 
 // FIXME: How do you represent the usage style in POSIX notation?
-fn print_usage() {
-    if cfg!(feature = "llvm-backend") {
-        println!(
-            "usage: balloon [--repl-llvm | [MODE] FILE]
 
---repl-llvm     launches the experimental REPL"
-        );
-    } else {
-        println!("usage: balloon [[MODE] FILE]");
-    }
-    println!(
-        "
-where MODE is one of:
---run           (default) runs the file [FILE]
---check         type check the file [FILE]
---parse         only parse the file [FILE], don't run it
-
-Not passing any arguments to balloon will start the REPL."
-    );
-}
+use clap::{Arg, App};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let mut app = App::new("balloon")
+        .version("0.1.0")
+        .arg(Arg::with_name("file")
+            // default mode
+            .help("run the file")
+            .conflicts_with_all(&["run", "check", "parse"])
+            .value_name("FILE"))
+        .arg(Arg::with_name("run")
+            .long("run")
+            .help("(default) run the file")
+            .conflicts_with_all(&["check", "parse"])
+            .value_name("FILE"))
+        .arg(Arg::with_name("check")
+            .long("check")
+            .help("type check the file")
+            .conflicts_with_all(&["parse"])
+            .value_name("FILE"))
+        .arg(Arg::with_name("parse")
+            .long("parse")
+            .help("only parse the file, don't run it")
+            .value_name("FILE"));
 
-    match args.len() {
-        1 => repl::run_repl(AstWalkInterpreter::new()),
-        2 => match args[1].as_str() {
-            #[cfg(feature = "llvm-backend")]
-            "--repl-llvm" => repl::run_repl(LLVMInterpreter::new()),
-            filepath => run_file(filepath, AstWalkInterpreter::new()),
-        },
-        3 => {
-            match args[1].as_str() {
-                "--run" => run_file(&args[2], AstWalkInterpreter::new()),
-                "--check" => typecheck_file(&args[2]),
-                "--parse" => if let Some(ast) = parse_file(&args[2]) {
-                    println!("{:#?}", ast);
-                },
-                _ => print_usage(),
-            };
+    if cfg!(feature = "llvm-backend") {
+        app = app.arg(Arg::with_name("repl-llvm")
+                .long("repl-llvm")
+                .help("launch the experimental REPL"));
+    }
+
+    let m = app.get_matches();
+
+    if m.args.is_empty() {
+        repl::run_repl(AstWalkInterpreter::new());
+    }
+    else if m.is_present("repl-llvm") {
+        #[cfg(feature = "llvm-backend")]
+        repl::run_repl(LLVMInterpreter::new());
+    }
+    else if let Some(f) = m.value_of("run") {
+        run_file(f, AstWalkInterpreter::new())
+    }
+    else if let Some(f) = m.value_of("check") {
+        typecheck_file(f);
+    }
+    else if let Some(f) = m.value_of("parse") {
+        if let Some(ast) = parse_file(f) {
+            println!("{:#?}", ast);
         }
-        _ => print_usage(),
-    };
+    }
+    else {
+        if let Some(f) = m.value_of("file") {
+            run_file(f, AstWalkInterpreter::new());
+        }
+    }
 }
 
 fn parse_file(file_name: &str) -> Option<Vec<ast::StmtNode>> {
