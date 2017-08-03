@@ -152,14 +152,12 @@ impl AstWalkInterpreter {
     ) -> Result<StmtResult, RuntimeErrorWithPosition> {
         let val = self.eval_expr_as_value(expr)?;
         match lhs_expr.data {
-            LhsExpr::Identifier(ref id) => {
-                if !self.env.borrow_mut().set(id, val) {
-                    return Err((
-                        RuntimeError::UndeclaredAssignment(id.clone()),
-                        lhs_expr.pos,
-                    ));
-                }
-            }
+            LhsExpr::Identifier(ref id) => if !self.env.borrow_mut().set(id, val) {
+                return Err((
+                    RuntimeError::UndeclaredAssignment(id.clone()),
+                    lhs_expr.pos,
+                ));
+            },
         };
         Ok(StmtResult::None)
     }
@@ -258,11 +256,8 @@ impl AstWalkInterpreter {
                 break;
             }
             match last_result {
-                Ok(StmtResult::None) |
-                Ok(StmtResult::Value(_)) => {}
-                Ok(StmtResult::Break) |
-                Ok(StmtResult::Return(_)) |
-                Err(_) => {
+                Ok(StmtResult::None) | Ok(StmtResult::Value(_)) => {}
+                Ok(StmtResult::Break) | Ok(StmtResult::Return(_)) | Err(_) => {
                     break;
                 }
                 Ok(StmtResult::Continue) => {
@@ -343,12 +338,10 @@ impl AstWalkInterpreter {
     ) -> Result<Value, RuntimeErrorWithPosition> {
         let val = self.eval_expr_as_value(expr)?;
         match *op {
-            UnOp::Neg => {
-                match operations::unary_minus(val) {
-                    Ok(v) => Ok(v),
-                    Err(err) => Err((err, unary_expr.pos)),
-                }
-            }
+            UnOp::Neg => match operations::unary_minus(val) {
+                Ok(v) => Ok(v),
+                Err(err) => Err((err, unary_expr.pos)),
+            },
         }
     }
 
@@ -425,54 +418,46 @@ impl AstWalkInterpreter {
         let object = self.eval_expr_as_value(object_expr)?;
         let index = self.eval_expr_as_value(index_expr)?;
         match object {
-            Value::Tuple(ref v) => {
-                match index {
-                    Value::Number(n) => {
-                        let idx;
-                        if let Number::Float(f) = n {
-                            if f.fract() == 0.0 {
-                                idx = f.trunc() as i64;
-                            } else {
-                                return Err((
-                                    RuntimeError::NonIntegralSubscript(Type::Number),
-                                    index_expr.pos,
-                                ));
-                            }
-                        } else if let Number::Integer(i) = n {
-                            idx = i;
+            Value::Tuple(ref v) => match index {
+                Value::Number(n) => {
+                    let idx;
+                    if let Number::Float(f) = n {
+                        if f.fract() == 0.0 {
+                            idx = f.trunc() as i64;
                         } else {
-                            unreachable!();
-                        }
-                        if idx < 0 {
                             return Err((
-                                RuntimeError::IndexOutOfBounds(idx),
-                                member_access_expr.pos,
+                                RuntimeError::NonIntegralSubscript(Type::Number),
+                                index_expr.pos,
                             ));
                         }
-                        match v.get(idx as usize) {
-                            Some(x) => Ok(x.clone()),
-                            None => {
-                                Err((
-                                    RuntimeError::IndexOutOfBounds(idx),
-                                    member_access_expr.pos,
-                                ))
-                            }
-                        }
+                    } else if let Number::Integer(i) = n {
+                        idx = i;
+                    } else {
+                        unreachable!();
                     }
-                    non_num_index => {
-                        Err((
-                            RuntimeError::NonIntegralSubscript(non_num_index.get_type()),
-                            index_expr.pos,
-                        ))
+                    if idx < 0 {
+                        return Err((
+                            RuntimeError::IndexOutOfBounds(idx),
+                            member_access_expr.pos,
+                        ));
+                    }
+                    match v.get(idx as usize) {
+                        Some(x) => Ok(x.clone()),
+                        None => Err((
+                            RuntimeError::IndexOutOfBounds(idx),
+                            member_access_expr.pos,
+                        )),
                     }
                 }
-            }
-            obj => {
-                Err((
-                    RuntimeError::SubscriptOnNonSubscriptable(obj.get_type()),
-                    object_expr.pos,
-                ))
-            }
+                non_num_index => Err((
+                    RuntimeError::NonIntegralSubscript(non_num_index.get_type()),
+                    index_expr.pos,
+                )),
+            },
+            obj => Err((
+                RuntimeError::SubscriptOnNonSubscriptable(obj.get_type()),
+                object_expr.pos,
+            )),
         }
     }
 
@@ -567,11 +552,9 @@ pub fn call_func(func: &Function, arg_vals: &[Value]) -> Result<Option<Value>, R
                 AstWalkInterpreter::with_environment_and_context(inner_env, fn_context);
             let result = machine.eval_stmt(body);
             match result {
-                Err(error_with_position) => {
-                    Err(RuntimeError::InsideFunctionCall(
-                        Box::new(error_with_position),
-                    ))
-                }
+                Err(error_with_position) => Err(RuntimeError::InsideFunctionCall(
+                    Box::new(error_with_position),
+                )),
                 Ok(statement_result) => {
                     if let StmtResult::Return(possible_val) = statement_result {
                         match possible_val {

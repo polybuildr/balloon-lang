@@ -85,17 +85,15 @@ pub fn native_len(args: Vec<Value>) -> Result<Value, RuntimeError> {
     let val = &args[0];
     match *val {
         Value::Tuple(ref v) => Ok(Value::Number(Number::Integer(v.len() as i64))),
-        ref non_tuple_val => {
-            Err(RuntimeError::GeneralRuntimeError(
-                format!("cannot get len of {:?}", non_tuple_val.get_type()),
-            ))
-        }
+        ref non_tuple_val => Err(RuntimeError::GeneralRuntimeError(
+            format!("cannot get len of {:?}", non_tuple_val.get_type()),
+        )),
     }
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 pub fn native_run_http_server(args: Vec<Value>) -> Result<(), RuntimeError> {
-    use hyper::server::{Server, Request, Response};
+    use hyper::server::{Request, Response, Server};
     use hyper::header::ContentType;
     use hyper::uri::RequestUri;
     use std::sync::mpsc::channel;

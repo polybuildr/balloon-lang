@@ -156,144 +156,136 @@ pub fn print_typechecker_error_for_file(
     }
     let mut is_error = true;
     match err {
-        TypeCheckerIssue::RuntimeError(e) => {
-            match e {
-                RuntimeError::ReferenceError(id) => {
-                    println!(
-                        "{}: `{}` was not declared",
-                        Red.bold().paint("reference error"),
-                        id
-                    );
-                }
-                RuntimeError::UndeclaredAssignment(id) => {
-                    println!(
-                        "{}: cannot assign to undeclared `{}`",
-                        Red.bold().paint("reference error"),
-                        id
-                    );
-                }
-                RuntimeError::BinaryTypeError(binary_op, type1, type2) => {
-                    println!(
-                        "{}: `{}` cannot operate on types {} and {}",
-                        Red.bold().paint("type error"),
-                        binary_op,
-                        type1,
-                        type2
-                    );
-                }
-                RuntimeError::UnaryTypeError(unary_op, typ) => {
-                    println!(
-                        "{}: `{}` cannot operate on type {}",
-                        Red.bold().paint("type error"),
-                        unary_op,
-                        typ
-                    );
-                }
-                RuntimeError::NoneError(possible_id) => {
-                    match possible_id {
-                        Some(id) => {
-                            println!(
-                                "{}: tried to use return value of non-returning function \
-                                 `{}`",
-                                Red.bold().paint("missing value error"),
-                                id
-                            );
-                        }
-                        None => {
-                            println!(
-                                "{}: tried to use return value of non-returning function",
-                                Red.bold().paint("missing value error")
-                            );
-                        }
-                    }
-                }
-                RuntimeError::CallToNonFunction(possible_id, other_type) => {
-                    match possible_id {
-                        Some(id) => {
-                            println!(
-                                "{}: cannot call `{}` ({}) as Function",
-                                Red.bold().paint("type error"),
-                                id,
-                                other_type
-                            );
-                        }
-                        None => {
-                            println!(
-                                "{}: cannot call {} as Function",
-                                Red.bold().paint("type error"),
-                                other_type
-                            );
-                        }
-                    }
-                }
-                RuntimeError::ArgumentLength(possible_id) => {
-                    match possible_id {
-                        Some(id) => {
-                            println!(
-                                "{}: function `{}` called with incorrect number of arguments",
-                                Red.bold().paint("arguments mismatch"),
-                                id
-                            );
-                        }
-                        None => {
-                            println!(
-                                "{}: function called with incorrect number of arguments",
-                                Red.bold().paint("arguments mismatch")
-                            );
-                        }
-                    }
-                }
-                RuntimeError::GeneralRuntimeError(message) => {
-                    println!("{}: {}", Red.bold().paint("runtime error"), message);
-                }
-                RuntimeError::InsideFunctionCall(error_with_position) => {
-                    println!("{}:", Red.bold().paint("error in function call"));
-                    let unboxed_error_with_position = *error_with_position;
-                    let (next_error, next_pos) = unboxed_error_with_position;
-                    error_to_print_after_this =
-                        Some((TypeCheckerIssue::RuntimeError(next_error), next_pos));
-                }
-                RuntimeError::IndexOutOfBounds(index) => {
-                    println!(
-                        "{}: index `{}` is out of bounds of the tuple",
-                        Red.bold().paint("index of out bounds"),
-                        index
-                    );
-                }
-                RuntimeError::SubscriptOnNonSubscriptable(typ) => {
-                    println!(
-                        "{}: cannot subscript type {}",
-                        Red.bold().paint("type error"),
-                        typ
-                    );
-                }
-                RuntimeError::NonIntegralSubscript(typ) => {
-                    println!(
-                        "{}: cannot use non-integral {:?} as subscript",
-                        Red.bold().paint("non integral subscript"),
-                        typ
-                    );
-                }
-                RuntimeError::BreakOutsideLoop => {
-                    println!(
-                        "{}: break statement appeared outside of a loop",
-                        Red.bold().paint("break outside loop")
-                    );
-                }
-                RuntimeError::ContinueOutsideLoop => {
-                    println!(
-                        "{}: continue statement appeared outside of a loop",
-                        Red.bold().paint("continue outside loop")
-                    );
-                }
-                RuntimeError::ReturnOutsideFunction => {
-                    println!(
-                        "{}: return statement appeared outside of a function",
-                        Red.bold().paint("return outside function")
-                    );
-                }
+        TypeCheckerIssue::RuntimeError(e) => match e {
+            RuntimeError::ReferenceError(id) => {
+                println!(
+                    "{}: `{}` was not declared",
+                    Red.bold().paint("reference error"),
+                    id
+                );
             }
-        }
+            RuntimeError::UndeclaredAssignment(id) => {
+                println!(
+                    "{}: cannot assign to undeclared `{}`",
+                    Red.bold().paint("reference error"),
+                    id
+                );
+            }
+            RuntimeError::BinaryTypeError(binary_op, type1, type2) => {
+                println!(
+                    "{}: `{}` cannot operate on types {} and {}",
+                    Red.bold().paint("type error"),
+                    binary_op,
+                    type1,
+                    type2
+                );
+            }
+            RuntimeError::UnaryTypeError(unary_op, typ) => {
+                println!(
+                    "{}: `{}` cannot operate on type {}",
+                    Red.bold().paint("type error"),
+                    unary_op,
+                    typ
+                );
+            }
+            RuntimeError::NoneError(possible_id) => match possible_id {
+                Some(id) => {
+                    println!(
+                        "{}: tried to use return value of non-returning function \
+                         `{}`",
+                        Red.bold().paint("missing value error"),
+                        id
+                    );
+                }
+                None => {
+                    println!(
+                        "{}: tried to use return value of non-returning function",
+                        Red.bold().paint("missing value error")
+                    );
+                }
+            },
+            RuntimeError::CallToNonFunction(possible_id, other_type) => match possible_id {
+                Some(id) => {
+                    println!(
+                        "{}: cannot call `{}` ({}) as Function",
+                        Red.bold().paint("type error"),
+                        id,
+                        other_type
+                    );
+                }
+                None => {
+                    println!(
+                        "{}: cannot call {} as Function",
+                        Red.bold().paint("type error"),
+                        other_type
+                    );
+                }
+            },
+            RuntimeError::ArgumentLength(possible_id) => match possible_id {
+                Some(id) => {
+                    println!(
+                        "{}: function `{}` called with incorrect number of arguments",
+                        Red.bold().paint("arguments mismatch"),
+                        id
+                    );
+                }
+                None => {
+                    println!(
+                        "{}: function called with incorrect number of arguments",
+                        Red.bold().paint("arguments mismatch")
+                    );
+                }
+            },
+            RuntimeError::GeneralRuntimeError(message) => {
+                println!("{}: {}", Red.bold().paint("runtime error"), message);
+            }
+            RuntimeError::InsideFunctionCall(error_with_position) => {
+                println!("{}:", Red.bold().paint("error in function call"));
+                let unboxed_error_with_position = *error_with_position;
+                let (next_error, next_pos) = unboxed_error_with_position;
+                error_to_print_after_this =
+                    Some((TypeCheckerIssue::RuntimeError(next_error), next_pos));
+            }
+            RuntimeError::IndexOutOfBounds(index) => {
+                println!(
+                    "{}: index `{}` is out of bounds of the tuple",
+                    Red.bold().paint("index of out bounds"),
+                    index
+                );
+            }
+            RuntimeError::SubscriptOnNonSubscriptable(typ) => {
+                println!(
+                    "{}: cannot subscript type {}",
+                    Red.bold().paint("type error"),
+                    typ
+                );
+            }
+            RuntimeError::NonIntegralSubscript(typ) => {
+                println!(
+                    "{}: cannot use non-integral {:?} as subscript",
+                    Red.bold().paint("non integral subscript"),
+                    typ
+                );
+            }
+            RuntimeError::BreakOutsideLoop => {
+                println!(
+                    "{}: break statement appeared outside of a loop",
+                    Red.bold().paint("break outside loop")
+                );
+            }
+            RuntimeError::ContinueOutsideLoop => {
+                println!(
+                    "{}: continue statement appeared outside of a loop",
+                    Red.bold().paint("continue outside loop")
+                );
+            }
+            RuntimeError::ReturnOutsideFunction => {
+                println!(
+                    "{}: return statement appeared outside of a function",
+                    Red.bold().paint("return outside function")
+                );
+            }
+        },
         TypeCheckerIssue::MultipleTypesFromBranchWarning(id) => {
             println!(
                 "{}: `{}` gets different types in branches",
@@ -320,25 +312,23 @@ pub fn print_typechecker_error_for_file(
             );
             is_error = false;
         }
-        TypeCheckerIssue::PossibleNoneError(possible_id) => {
-            match possible_id {
-                Some(id) => {
-                    println!(
-                        "{}: tried to use return value of function `{}` that \
-                         does not always return a value",
-                        Red.bold().paint("possibly missing value"),
-                        id
-                    );
-                }
-                None => {
-                    println!(
-                        "{}: tried to use return value of function that \
-                         does not always return a value",
-                        Red.bold().paint("possibly missing value")
-                    );
-                }
+        TypeCheckerIssue::PossibleNoneError(possible_id) => match possible_id {
+            Some(id) => {
+                println!(
+                    "{}: tried to use return value of function `{}` that \
+                     does not always return a value",
+                    Red.bold().paint("possibly missing value"),
+                    id
+                );
             }
-        }
+            None => {
+                println!(
+                    "{}: tried to use return value of function that \
+                     does not always return a value",
+                    Red.bold().paint("possibly missing value")
+                );
+            }
+        },
     }
 
     if span.start_line == span.end_line {
@@ -348,10 +338,10 @@ pub fn print_typechecker_error_for_file(
             span.start_line,
             file_content.lines().nth(span.start_line - 1).unwrap()
         );
-        let left_padding = String::from_utf8(vec![b' '; span.start_col + left_padding_size - 1])
-            .unwrap();
-        let pointer_string = String::from_utf8(vec![b'^'; span.end_col + 1 - span.start_col])
-            .unwrap();
+        let left_padding =
+            String::from_utf8(vec![b' '; span.start_col + left_padding_size - 1]).unwrap();
+        let pointer_string =
+            String::from_utf8(vec![b'^'; span.end_col + 1 - span.start_col]).unwrap();
         println!("{}{}", left_padding, Yellow.bold().paint(pointer_string));
     } else {
         let first_line_start_bytes = file_content
